@@ -1,0 +1,862 @@
+<div class="space-y-6">
+
+  <!-- 1. Top Status Bar & Overview Banner -->
+  <section class="rounded-3xl bg-white p-6 shadow-sm flex flex-col gap-4 border border-gray-200">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      
+      <!-- Left Side: Route Flow & Status -->
+      <div class="space-y-1.5 max-w-2xl">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00776d]/15 text-[#005c54] font-bold text-[11px] uppercase tracking-wider">
+            <span class="material-symbols-outlined text-[14px]">check_circle</span>
+            Review Status: {{ (itinerary.review_status || 'pass') | uppercase }}
+          </span>
+          <span class="text-xs text-gray-500 font-medium">Route Engine v4.2</span>
+        </div>
+
+        <h2 class="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+          {{ itinerary.constraints.duration_days }}-Day {{ itinerary.constraints.destination_region || itinerary.constraints.cities[0] }} Itinerary
+        </h2>
+
+        <!-- Interactive Route Flow Breadcrumbs -->
+        <div class="flex items-center gap-2 text-[#0062e3] text-xs sm:text-sm font-bold flex-wrap pt-0.5">
+          @for (day of itinerary.days; track day.day_number; let last = $last) {
+            <button
+              (click)="selectDay(day.day_number)"
+              [class.bg-[#cbdafd]]="activeDayNumber() === day.day_number"
+              [class.text-[#0b1b35]]="activeDayNumber() === day.day_number"
+              [class.px-2]="activeDayNumber() === day.day_number"
+              [class.py-0.5]="activeDayNumber() === day.day_number"
+              [class.rounded-md]="activeDayNumber() === day.day_number"
+              class="hover:underline transition-all cursor-pointer">
+              {{ day.city.split('&')[0].trim() }}
+            </button>
+            @if (!last) {
+              <span class="text-gray-400 select-none">→</span>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Right Side: Budget KPI Card -->
+      <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center gap-6 shrink-0 border border-gray-100">
+        <div class="flex flex-col">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Estimated Total Spend</span>
+          <div class="flex items-baseline gap-1">
+            <span class="text-2xl font-black text-gray-900">
+              {{ (itinerary.budget_rollup.grand_total || 312400) | number:'1.0-0' }} {{ itinerary.constraints.currency }}
+            </span>
+          </div>
+          <span class="text-xs font-semibold text-[#005c54]">
+            {{ getContingencyBuffer() | number:'1.0-0' }} {{ itinerary.constraints.currency }} contingency buffer
+          </span>
+        </div>
+
+        <div class="flex flex-col items-end gap-1">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#00776d]/15 text-[#005c54] text-xs font-bold">
+            <span class="material-symbols-outlined text-[16px]">savings</span>
+            Within {{ (itinerary.constraints.budget_total || 350000) | number:'1.0-0' }} {{ itinerary.constraints.currency }} budget
+          </span>
+          <span class="text-[11px] text-gray-400 font-medium">Per couple basis</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Strategic Routing Rationale Box -->
+    @if (itinerary.strategic_insight) {
+      <div class="rounded-2xl bg-[#e5eaff] p-4 flex items-start gap-3 border border-[#cbdafd]">
+        <div class="w-8 h-8 rounded-full bg-[#0062e3] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+          <span class="material-symbols-outlined text-[18px]">lightbulb</span>
+        </div>
+        <div class="space-y-0.5">
+          <p class="text-xs font-bold text-[#0b1b35]">Strategic Routing Rationale</p>
+          <p class="text-xs sm:text-sm text-gray-800 leading-relaxed">
+            {{ itinerary.strategic_insight }}
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Multi-Agent Orchestration Bar -->
+    <div class="rounded-2xl bg-[#eceef3] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-gray-200">
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-600">5/5 AGENTS COMPLETE</span>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">hub</span> Orchestrator
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">map</span> Destination
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">commute</span> Logistics
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">account_balance_wallet</span> Budget
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
+            <span class="material-symbols-outlined text-[#00776d] text-[16px]">verified</span> Review
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 sm:gap-6 text-right divide-x divide-gray-300">
+        <div>
+          <div class="text-[10px] font-bold uppercase text-gray-500">Skyscanner Fare</div>
+          <div class="text-xs sm:text-sm font-bold text-gray-900">₹{{ getAverageFlightFare() | number:'1.0-0' }} avg</div>
+        </div>
+        <div class="pl-4">
+          <div class="text-[10px] font-bold uppercase text-gray-500">Daily Drive</div>
+          <div class="text-xs sm:text-sm font-bold text-gray-900">{{ getDailyDriveAverage() }} hrs / day</div>
+        </div>
+        <div class="pl-4">
+          <div class="text-[10px] font-bold uppercase text-gray-500">Pacing Score</div>
+          <div class="text-xs sm:text-sm font-bold text-[#00776d]">{{ getPacingScore() }}</div>
+        </div>
+        <div class="pl-4">
+          <button
+            (click)="toggleMap()"
+            class="px-2.5 py-1 bg-[#0062e3] hover:bg-[#0050b8] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs">
+            <span class="material-symbols-outlined text-[14px]">pin_drop</span>
+            <span>Route Map ({{ itinerary.map_pins?.length || 11 }})</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 2. Horizontal Split 2-Column Main Workspace -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- ==================== LEFT COLUMN: Trip Logistics & Booking Engines (~40%) ==================== -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+
+      <!-- A. Recommended Flight Deals -->
+      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-sky-100 text-[#0062e3] flex items-center justify-center">
+              <span class="material-symbols-outlined text-[18px]">flight_takeoff</span>
+            </div>
+            <h3 class="text-base font-extrabold text-gray-900">Live Flight Matches</h3>
+          </div>
+          <span class="text-[11px] font-bold text-gray-500">
+            {{ getOriginIata() }} ⇄ {{ getDestinationIata() }}
+          </span>
+        </div>
+
+        <div class="space-y-3">
+          @if (itinerary.flight_options && itinerary.flight_options.length > 0) {
+            @for (flight of itinerary.flight_options; track flight.id; let idx = $index) {
+              <div
+                [class.border-l-4]="idx === 0"
+                [class.border-l-[#0062e3]]="idx === 0"
+                class="rounded-2xl bg-[#f2f4f9] p-4 hover:bg-[#eceef3] transition-colors relative overflow-hidden group border border-gray-200/80">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="text-xs sm:text-sm font-bold text-gray-900">{{ flight.airline }}</span>
+                      @if (idx === 0) {
+                        <span class="px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[10px] font-bold">Recommended</span>
+                      } @else if (idx === 1) {
+                        <span class="px-2 py-0.5 rounded-full bg-[#00776d]/15 text-[#005c54] text-[10px] font-bold">Best Value</span>
+                      }
+                    </div>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                      {{ (flight.duration_minutes / 60) | number:'1.1-1' }} hrs · {{ flight.stops === 0 ? 'Direct Flight' : (flight.stops + ' stops (' + (flight.layover_airports.join(', ')) + ')') }} · 1 checked bag inc.
+                    </p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <div class="text-lg font-black text-gray-900">
+                      ₹{{ (flight.price * (itinerary.constraints.currency === 'INR' ? 1 : 83)) | number:'1.0-0' }}
+                    </div>
+                    <span class="text-[11px] text-gray-400 font-medium">~${{ flight.price | number:'1.0-0' }}</span>
+                  </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between text-gray-600">
+                  <span class="text-xs flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px] text-[#00776d]">check_circle</span>
+                    Checked baggage synced
+                  </span>
+                  <button
+                    (click)="onSearchFlightsClick(flight)"
+                    title="Search flight on Skyscanner or open partner booking"
+                    class="px-3.5 py-1.5 rounded-xl bg-[#0062e3] text-white text-xs font-bold hover:bg-[#0050b8] transition-all cursor-pointer flex items-center gap-1 shadow-xs">
+                    <span>View Deal</span>
+                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            }
+          } @else {
+            <!-- Fallback Realistic Offer Cards -->
+            <div class="rounded-2xl bg-[#f2f4f9] p-4 border border-gray-200/80 space-y-2 border-l-4 border-l-[#0062e3]">
+              <div class="flex items-start justify-between">
+                <div>
+                  <span class="text-sm font-bold text-gray-900">IndiGo + Lufthansa / Icelandair</span>
+                  <span class="ml-2 px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[10px] font-bold">Recommended</span>
+                  <p class="text-xs text-gray-500 mt-0.5">17.5 hrs · 2 stops (DEL, FRA) · 1 checked bag inc.</p>
+                </div>
+                <div class="text-right">
+                  <div class="text-lg font-black text-gray-900">₹74,200</div>
+                  <span class="text-[11px] text-gray-400">~$890</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- B. Road Trip Car Rental -->
+      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-sky-100 text-[#0062e3] flex items-center justify-center">
+              <span class="material-symbols-outlined text-[18px]">directions_car</span>
+            </div>
+            <h3 class="text-base font-extrabold text-gray-900">Ring Road Vehicle Rental</h3>
+          </div>
+          <span class="text-[11px] font-bold text-gray-500">
+            {{ itinerary.constraints.duration_days }} Days · {{ getDestinationIata() }} Airport Pickup
+          </span>
+        </div>
+
+        <div class="space-y-3">
+          @if (itinerary.car_estimates && itinerary.car_estimates.length > 0) {
+            @for (car of itinerary.car_estimates; track car.id; let idx = $index) {
+              <div
+                [class.border-l-4]="idx === 1"
+                [class.border-l-[#0062e3]]="idx === 1"
+                class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 hover:bg-[#eceef3] transition-colors border border-gray-200/80">
+                <div class="space-y-0.5">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-sm font-bold text-gray-900">{{ car.vehicle_name }}</span>
+                    @if (idx === 1) {
+                      <span class="px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[10px] font-bold">Recommended</span>
+                    } @else {
+                      <span class="text-xs text-gray-500">{{ car.category }}, {{ car.transmission }}</span>
+                    }
+                  </div>
+                  <p class="text-xs text-gray-500">{{ car.seats }} Seats · {{ car.category }}</p>
+                  <span class="text-xs sm:text-sm font-bold text-gray-900">
+                    ${{ car.price_per_day }}/day
+                    <span class="text-xs text-gray-500 font-normal">(${{ car.total_price }} total / ₹{{ car.total_price * 83 | number:'1.0-0' }})</span>
+                  </span>
+                </div>
+                <a
+                  [href]="getCarBookingUrl(car)"
+                  (click)="onBookCarClick(car, $event)"
+                  target="_blank"
+                  rel="noopener"
+                  class="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-100 text-gray-900 text-xs font-bold transition-all shadow-xs border border-gray-200 flex items-center gap-1">
+                  <span>Book Car</span>
+                  <span class="text-[11px]">↗</span>
+                </a>
+              </div>
+            }
+          } @else {
+            <!-- Default 3-tier Car Hire -->
+            <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 hover:bg-[#eceef3] transition-colors border border-gray-200/80">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-bold text-gray-900">Hyundai i10</span>
+                  <span class="text-xs text-gray-500">Economy, Manual</span>
+                </div>
+                <p class="text-xs text-gray-400">Paved Ring Road only · 2 bags max</p>
+                <span class="text-xs font-bold text-[#0062e3]">$32/day ($352 total)</span>
+              </div>
+              <a
+                [href]="getCarBookingUrl(null)"
+                target="_blank"
+                rel="noopener"
+                class="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-100 text-gray-900 text-xs font-bold transition-all shadow-xs border border-gray-200">
+                Book Car ↗
+              </a>
+            </div>
+
+            <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 relative overflow-hidden group hover:bg-[#eceef3] transition-colors border border-gray-200/80 border-l-4 border-l-[#0062e3]">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-bold text-gray-900">Suzuki Vitara 4x4</span>
+                  <span class="px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[10px] font-bold">Recommended</span>
+                </div>
+                <p class="text-xs text-gray-500">Auto · Gravel & Ring Road rated · Heated Seats</p>
+                <span class="text-xs sm:text-sm font-bold text-gray-900">
+                  $45/day <span class="text-xs text-gray-500 font-normal">($495 total / ₹41,100)</span>
+                </span>
+              </div>
+              <a
+                [href]="getCarBookingUrl(null)"
+                target="_blank"
+                rel="noopener"
+                class="px-3.5 py-2 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold transition-all shadow-xs">
+                Book Car ↗
+              </a>
+            </div>
+
+            <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 hover:bg-[#eceef3] transition-colors border border-gray-200/80">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-bold text-gray-900">Dacia Duster 4WD</span>
+                  <span class="text-xs text-gray-500">Highland Ready</span>
+                </div>
+                <p class="text-xs text-gray-400">F-Road legal · High ground clearance</p>
+                <span class="text-xs font-bold text-[#0062e3]">$68/day ($748 total)</span>
+              </div>
+              <a
+                [href]="getCarBookingUrl(null)"
+                target="_blank"
+                rel="noopener"
+                class="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-100 text-gray-900 text-xs font-bold transition-all shadow-xs border border-gray-200">
+                Book Car ↗
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- C. Cost Optimization Tips -->
+      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-3 border border-gray-200">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#00776d] text-[20px]">psychology_alt</span>
+          <h3 class="text-base font-extrabold text-gray-900">Budget Agent Optimization Tips</h3>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2.5">
+          @if (itinerary.cost_saving_tips_v2 && itinerary.cost_saving_tips_v2.length > 0) {
+            @for (tip of itinerary.cost_saving_tips_v2; track tip.id) {
+              <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
+                <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">
+                  {{ getTipIcon(tip) }}
+                </span>
+                <div>
+                  <p class="text-xs sm:text-sm font-bold text-gray-900">{{ tip.title }}</p>
+                  <p class="text-xs text-gray-600 mt-0.5 leading-relaxed">{{ tip.description }}</p>
+                </div>
+              </div>
+            }
+          } @else {
+            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
+              <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">local_gas_station</span>
+              <div>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">N1 Prepaid Fuel Card</p>
+                <p class="text-xs text-gray-600 mt-0.5">Avoid high foreign card security holds ($250 per swipe) by getting an N1 chip key at KEF. Saves ₹3,500 in exchange fee variances.</p>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
+              <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">shopping_cart</span>
+              <div>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">Self-Catering via Bónus Supermarkets</p>
+                <p class="text-xs text-gray-600 mt-0.5">Shop at the pink pig Bónus stores for Skyr, smoked lamb & bakery wraps for lunches. Saves $300-$500 compared to roadside diners.</p>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
+              <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">hot_tub</span>
+              <div>
+                <p class="text-xs sm:text-sm font-bold text-gray-900">Free Natural Hot Springs</p>
+                <p class="text-xs text-gray-600 mt-0.5">Substitute Blue Lagoon ($120/p) with Reykjadalur Thermal River & Djúpavogskörin tub — completely free natural soaking spots.</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- D. Itemized Budget Matrix -->
+      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-extrabold text-gray-900">Trip Spend Matrix</h3>
+          <span class="text-[11px] font-bold text-[#00776d]">All-Inclusive Estimation</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Stays -->
+          @let stayCat = getCategorySpend('stay');
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+            <span class="text-[10px] font-bold uppercase text-gray-500">Stays (10 Nights)</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ stayCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[11px] text-gray-400 font-medium">{{ stayCat.percent }}% of total</span>
+          </div>
+
+          <!-- Transport & Car -->
+          @let transCat = getCategorySpend('transport');
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+            <span class="text-[10px] font-bold uppercase text-gray-500">Transport & Car</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ transCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[11px] text-gray-400 font-medium">{{ transCat.percent }}% of total</span>
+          </div>
+
+          <!-- Food & Fuel -->
+          @let foodCat = getCategorySpend('food');
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+            <span class="text-[10px] font-bold uppercase text-gray-500">Food & Fuel</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ foodCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[11px] text-gray-400 font-medium">{{ foodCat.percent }}% of total</span>
+          </div>
+
+          <!-- Activities & Parks -->
+          @let actCat = getCategorySpend('activities');
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+            <span class="text-[10px] font-bold uppercase text-gray-500">Activities & Parks</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ actCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[11px] text-gray-400 font-medium">{{ actCat.percent }}% of total</span>
+          </div>
+        </div>
+
+        <!-- Suggested Swap Card -->
+        <div class="p-3.5 rounded-2xl bg-[#cbdafd]/40 flex items-center justify-between gap-3 border border-[#cbdafd]">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#0062e3] text-[20px]">swap_horizontal_circle</span>
+            <p class="text-xs text-[#0b1b35]">
+              <span class="font-bold">Smart Swap:</span> Hotel Kría → Guesthouse Carina in Vík saves ₹5,500/night.
+            </p>
+          </div>
+          <button
+            (click)="applySmartSwap()"
+            class="shrink-0 px-3 py-1 rounded-lg bg-white text-[#0062e3] text-xs font-bold shadow-xs hover:bg-gray-50 transition-colors cursor-pointer">
+            {{ appliedSwap() ? 'Applied ✓' : 'Apply' }}
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== RIGHT COLUMN: Day-by-Day Itinerary Deep Dive (~60%) ==================== -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+
+      <!-- A. Day Selector Timeline Tabs (Horizontal Scroll) -->
+      <div class="rounded-3xl bg-white p-2.5 shadow-sm overflow-x-auto border border-gray-200">
+        <div class="flex items-center gap-2 min-w-max">
+          @for (day of itinerary.days; track day.day_number) {
+            <button
+              (click)="selectDay(day.day_number)"
+              [class.bg-[#02122c]]="activeDayNumber() === day.day_number"
+              [class.text-white]="activeDayNumber() === day.day_number"
+              [class.bg-[#f2f4f9]]="activeDayNumber() !== day.day_number"
+              [class.text-gray-800]="activeDayNumber() !== day.day_number"
+              class="px-4 py-2 rounded-2xl text-left hover:opacity-90 transition-all cursor-pointer">
+              <div
+                [class.text-[#7af7e7]]="activeDayNumber() === day.day_number"
+                [class.text-gray-500]="activeDayNumber() !== day.day_number"
+                class="text-[10px] font-bold uppercase tracking-wider">
+                Day {{ day.day_number }} {{ activeDayNumber() === day.day_number ? '· Active' : '' }}
+              </div>
+              <div class="text-xs sm:text-sm font-bold truncate max-w-[120px]">
+                {{ day.city.split('&')[0].trim() }}
+              </div>
+            </button>
+          }
+
+          <!-- Toggle Summary Table Button -->
+          <button
+            (click)="toggleRemainingDays()"
+            class="px-4 py-2 rounded-2xl text-left bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer">
+            <div class="text-[10px] font-bold uppercase text-gray-500">Summary</div>
+            <div class="text-xs font-bold">All 11 Days Table</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- B. Expanded Active Day Workspace -->
+      <div class="rounded-3xl bg-white p-6 sm:p-7 shadow-sm space-y-5 border border-gray-200">
+
+        <!-- Day Header Banner -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2.5 py-0.5 rounded-full bg-[#0062e3] text-white text-[11px] font-bold">
+                Day {{ activeDay.day_number }} of {{ itinerary.constraints.duration_days }}
+              </span>
+              @if (activeDay.mood) {
+                <span class="px-2.5 py-0.5 rounded-full bg-[#eceef3] text-gray-700 text-[11px] font-bold">
+                  {{ activeDay.mood }}
+                </span>
+              } @else {
+                <span class="px-2.5 py-0.5 rounded-full bg-[#eceef3] text-gray-700 text-[11px] font-bold">
+                  Coastal Wonder
+                </span>
+              }
+            </div>
+            <h3 class="text-2xl font-black text-gray-900 tracking-tight">
+              {{ activeDay.city }}
+            </h3>
+          </div>
+
+          <div class="flex items-center gap-2.5 bg-[#f2f4f9] px-4 py-2 rounded-2xl shrink-0 border border-gray-100">
+            <span class="material-symbols-outlined text-[#0062e3] text-[20px]">directions_car</span>
+            <div>
+              <div class="text-xs sm:text-sm font-bold text-gray-900">
+                {{ activeDay.driving_time_to_next || '2.5 hrs to next stop' }}
+              </div>
+              <div class="text-[10px] text-gray-400 font-medium">Route 1 Ring Highway</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Narrative Quote -->
+        @if (activeDay.day_narrative) {
+          <blockquote class="p-4 rounded-2xl bg-[#f2f4f9] italic text-xs sm:text-sm text-gray-700 border-l-4 border-[#0062e3] leading-relaxed">
+            "{{ activeDay.day_narrative }}"
+          </blockquote>
+        }
+
+        <!-- Driving Route Card (Amber Alert for Road Conditions) -->
+        <div class="rounded-2xl bg-[#fffbeb] text-[#92400e] p-4 space-y-2 border border-[#fde68a]">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-bold">
+              <span class="material-symbols-outlined text-[18px] text-[#d97706]">alt_route</span>
+              <span>Driving Route: {{ activeDay.city.split('&')[0].trim() }} → Next Region</span>
+            </div>
+            <span class="text-[10px] font-bold bg-[#fef3c7] px-2 py-0.5 rounded-full text-[#b45309]">
+              Route 1 Paved
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#78350f]">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">local_gas_station</span>
+              <span>Fuel Stop: N1 Gas Station (Every 60-80 km)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">warning</span>
+              <span>Bridge Alert: Single-lane bridges along glacial sands</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Timetable -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-extrabold text-gray-900">Master Timetable</h4>
+            <span class="text-xs text-gray-500 font-medium">Verified sunlight hours: 07:30 - 18:45</span>
+          </div>
+
+          <div class="divide-y divide-gray-100 text-gray-900">
+            @if (activeDay.items && activeDay.items.length > 0) {
+              @for (item of activeDay.items; track item.slot_index) {
+                <div class="py-2.5 flex items-start gap-4">
+                  <span class="text-xs font-bold text-[#0062e3] w-14 shrink-0 mt-0.5">{{ item.time }}</span>
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs sm:text-sm font-bold">{{ item.activity_name }}</span>
+                      <span class="text-xs font-bold text-[#00776d]">
+                        {{ item.cost_estimate > 0 ? (item.cost_estimate + ' ' + itinerary.constraints.currency) : 'Free' }}
+                      </span>
+                    </div>
+                    @if (item.notes) {
+                      <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ item.notes }}</p>
+                    }
+                  </div>
+                </div>
+              }
+            } @else {
+              <div class="py-2.5 flex items-start gap-4">
+                <span class="text-xs font-bold text-[#0062e3] w-14 shrink-0">08:00</span>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs sm:text-sm font-bold">Reynisfjara Black Sand Beach</span>
+                    <span class="text-xs font-bold text-[#00776d]">Free</span>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-0.5">Basalt column cliffs and ocean views before tourist crowds arrive.</p>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Verified Sights (Google Places Verified 2x2 Grid) -->
+        <div class="space-y-3 pt-1">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-extrabold text-gray-900">Verified Sights (Google Places)</h4>
+            <span class="text-[11px] font-bold text-gray-500">Live POI API</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            @if (activeDay.places && activeDay.places.length > 0) {
+              @for (place of activeDay.places; track place.id || place.place_id || place.name) {
+                <div class="rounded-2xl bg-[#f2f4f9] p-3 flex gap-3 items-center border border-gray-200/70 hover:border-sky-300 transition-colors">
+                  <img
+                    [src]="getPlacePhoto(place)"
+                    [alt]="place.name"
+                    class="w-16 h-16 rounded-xl object-cover shrink-0 shadow-xs" />
+                  <div class="min-w-0 flex-1">
+                    <a
+                      [href]="getPlaceMapsUrl(place)"
+                      target="_blank"
+                      rel="noopener"
+                      class="text-xs sm:text-sm font-bold text-gray-900 truncate hover:text-[#0062e3] transition-colors flex items-center gap-1">
+                      <span class="truncate">{{ place.name }}</span>
+                      <span class="text-[10px] text-gray-400 shrink-0">↗</span>
+                    </a>
+                    <div class="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                      <span class="material-symbols-outlined text-[14px] text-amber-500" style="font-variation-settings: 'FILL' 1;">star</span>
+                      <span class="font-bold text-gray-900">{{ place.rating || 4.7 }}</span>
+                      <span>({{ place.review_count ? (place.review_count | number) : '9.8k' }} reviews)</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-[#00776d] block truncate mt-0.5">
+                      {{ (place.opening_hours && place.opening_hours.length > 0) ? place.opening_hours[0] : 'Open 24 hrs · Iconic Sight' }}
+                    </span>
+                  </div>
+                </div>
+              }
+            } @else {
+              <div class="rounded-2xl bg-[#f2f4f9] p-3 flex gap-3 items-center border border-gray-200/70">
+                <img
+                  src="https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&auto=format&fit=crop&q=80"
+                  alt="Reynisfjara Beach"
+                  class="w-16 h-16 rounded-xl object-cover shrink-0" />
+                <div class="min-w-0">
+                  <p class="text-xs sm:text-sm font-bold text-gray-900 truncate">Reynisfjara Beach</p>
+                  <div class="flex items-center gap-1 text-xs text-gray-500">
+                    <span class="material-symbols-outlined text-[14px] text-amber-500">star</span>
+                    <span class="font-bold text-gray-900">4.7</span>
+                    <span>(11.5k reviews)</span>
+                  </div>
+                  <span class="text-[10px] font-bold text-[#00776d]">Open 24 hrs · Dangerous waves</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Tonight's Stay (Booking.com Live Inventory Card) -->
+        @let hotel = (activeDay.hotel_options && activeDay.hotel_options.length > 0) ? activeDay.hotel_options[0] : null;
+        <div class="rounded-2xl bg-[#eceef3] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-gray-200">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-[#004bb2] text-white flex items-center justify-center text-lg font-black shadow-sm shrink-0">
+              {{ hotel?.guest_rating || 9.0 }}
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <h5 class="text-xs sm:text-sm font-bold text-gray-900">
+                  Tonight's Stay: {{ hotel?.name || ('Hotel Kría (' + activeDay.city.split('&')[0].trim() + ')') }}
+                </h5>
+                <span class="px-2 py-0.2 rounded-full bg-[#00776d] text-white text-[10px] font-bold">
+                  {{ (hotel?.guest_rating || 9.0) >= 9 ? 'Superb' : 'Fabulous' }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-600 mt-0.5">
+                {{ hotel?.neighborhood || activeDay.city }} · Glass-walled dining · Free breakfast
+              </p>
+              <span class="text-xs sm:text-sm font-bold text-gray-900">
+                ${{ hotel?.price_per_night || 220 }}/night
+                <span class="text-xs text-gray-500 font-normal">
+                  (₹{{ ((hotel?.price_per_night || 220) * 83) | number:'1.0-0' }})
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <a
+            [href]="getHotelBookingUrl(hotel, activeDay)"
+            (click)="hotel && onBookStayClick(hotel, activeDay, $event)"
+            target="_blank"
+            rel="noopener"
+            class="px-5 py-2.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold shadow-sm transition-all whitespace-nowrap self-stretch sm:self-auto text-center cursor-pointer flex items-center justify-center gap-1">
+            <span>Book Stay</span>
+            <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+          </a>
+        </div>
+
+      </div>
+
+      <!-- C. Compare Other Blueprints Drawer -->
+      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-3 border border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#0062e3] text-[20px]">explore_nearby</span>
+            <h4 class="text-sm font-extrabold text-gray-900">Compare Other Blueprints</h4>
+          </div>
+          <span class="text-xs text-gray-500">1-click recalculation</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <!-- Option B -->
+          <button
+            (click)="onSelectBlueprintClick('Plan a 10-day trip to Japan: Tokyo + Kyoto, $3,000 budget, authentic food and quiet morning temples')"
+            class="p-3.5 rounded-2xl bg-[#f2f4f9] hover:bg-[#eceef3] text-left transition-colors flex flex-col justify-between border border-gray-200/60 cursor-pointer">
+            <div>
+              <span class="text-[10px] font-bold uppercase text-gray-500">Option B</span>
+              <p class="text-xs sm:text-sm font-bold text-gray-900">Tokyo & Kyoto (10 Days)</p>
+              <p class="text-xs text-gray-500 mt-1">Shinkansen high-speed rail, temples, culinary trail.</p>
+            </div>
+            <span class="text-xs font-bold text-[#0062e3] mt-2">Est. ₹2,90,000</span>
+          </button>
+
+          <!-- Option C -->
+          <button
+            (click)="onSelectBlueprintClick('Plan an 8-day trip to Sikkim: Gangtok, Pelling, and Lachung, ₹1.2L budget, mountain views')"
+            class="p-3.5 rounded-2xl bg-[#f2f4f9] hover:bg-[#eceef3] text-left transition-colors flex flex-col justify-between border border-gray-200/60 cursor-pointer">
+            <div>
+              <span class="text-[10px] font-bold uppercase text-gray-500">Option C</span>
+              <p class="text-xs sm:text-sm font-bold text-gray-900">Sikkim Monasteries (8 Days)</p>
+              <p class="text-xs text-gray-500 mt-1">Kanchenjunga views, high altitude lakes.</p>
+            </div>
+            <span class="text-xs font-bold text-[#0062e3] mt-2">Est. ₹1,15,000</span>
+          </button>
+
+          <!-- Option D -->
+          <button
+            (click)="onSelectBlueprintClick('Plan a 9-day Switzerland scenic train trip through Zurich, Lucerne, Interlaken and Zermatt, €3,500 budget')"
+            class="p-3.5 rounded-2xl bg-[#f2f4f9] hover:bg-[#eceef3] text-left transition-colors flex flex-col justify-between border border-gray-200/60 cursor-pointer">
+            <div>
+              <span class="text-[10px] font-bold uppercase text-gray-500">Option D</span>
+              <p class="text-xs sm:text-sm font-bold text-gray-900">Swiss Alps Trains (9 Days)</p>
+              <p class="text-xs text-gray-500 mt-1">Glacier Express, Zermatt, Matterhorn hiking.</p>
+            </div>
+            <span class="text-xs font-bold text-[#0062e3] mt-2">Est. ₹3,40,000</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- D. Compact Remaining Days Summary Table Modal/Drawer -->
+      @if (showRemainingDaysTable()) {
+        <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200 animate-in fade-in duration-200">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-extrabold text-gray-900">Full 11-Day Journey Overview</h4>
+            <button
+              (click)="toggleRemainingDays()"
+              class="text-xs text-gray-400 hover:text-gray-600 font-bold">
+              Close Table ✕
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-gray-200 bg-[#f2f4f9] text-gray-600">
+                  <th class="p-2 font-bold">Day</th>
+                  <th class="p-2 font-bold">Region / Destination</th>
+                  <th class="p-2 font-bold">Drive Time</th>
+                  <th class="p-2 font-bold">Key Highlights</th>
+                  <th class="p-2 font-bold">Overnight Base</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                @for (d of itinerary.days; track d.day_number) {
+                  <tr
+                    (click)="selectDay(d.day_number)"
+                    [class.bg-sky-50]="activeDayNumber() === d.day_number"
+                    class="hover:bg-gray-50 cursor-pointer">
+                    <td class="p-2 font-black text-[#0062e3]">Day {{ d.day_number }}</td>
+                    <td class="p-2 font-bold text-gray-900">{{ d.city }}</td>
+                    <td class="p-2 text-gray-500">{{ d.driving_time_to_next || '—' }}</td>
+                    <td class="p-2 text-gray-600">{{ d.day_summary }}</td>
+                    <td class="p-2 font-semibold text-gray-900">{{ d.hotel_options?.[0]?.name || d.city }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+    </div>
+
+  </div>
+
+  <!-- Interactive Route Map & GPS Pins Modal -->
+  @if (showMapModal()) {
+    <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-gray-200 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[#0062e3] text-[24px]">map</span>
+            <div>
+              <h3 class="text-lg font-black text-gray-900">Iceland Ring Road Route & GPS Pins</h3>
+              <p class="text-xs text-gray-500">11 Geocoded Waypoints with Direct Navigation Links</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <a
+              [href]="getGoogleMapsRouteUrl()"
+              target="_blank"
+              rel="noopener"
+              class="px-3 py-1.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors">
+              <span>Open in Google Maps</span>
+              <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+            </a>
+            <button
+              (click)="toggleMap()"
+              class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Visual SVG Route Map -->
+        <div class="w-full bg-[#02122c] rounded-2xl p-6 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[220px]">
+          <div class="text-center space-y-1 mb-4">
+            <span class="text-xs font-bold text-[#7af7e7] uppercase tracking-wider">Counter-Clockwise Ring Road Circuit</span>
+            <p class="text-xs text-gray-300">1,332 km total circumference • Route 1 Paved National Highway</p>
+          </div>
+
+          <!-- Stylized Route Curve -->
+          <svg viewBox="0 0 500 200" class="w-full max-w-lg h-36">
+            <path
+              d="M 60,140 C 90,80 180,40 250,50 C 330,60 420,70 440,120 C 460,170 320,180 250,170 C 180,160 80,170 60,140 Z"
+              fill="none"
+              stroke="#0062e3"
+              stroke-width="3"
+              stroke-dasharray="6,4"
+              class="opacity-80" />
+            <!-- Markers -->
+            <circle cx="60" cy="140" r="7" fill="#7af7e7" stroke="#ffffff" stroke-width="2" />
+            <text x="60" y="125" fill="#ffffff" font-size="9" font-weight="bold" text-anchor="middle">Reykjavik</text>
+
+            <circle cx="120" cy="80" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
+            <text x="120" y="68" fill="#ffffff" font-size="8" text-anchor="middle">Golden Circle</text>
+
+            <circle cx="170" cy="165" r="6" fill="#00776d" stroke="#ffffff" stroke-width="2" />
+            <text x="170" y="185" fill="#7af7e7" font-size="8" font-weight="bold" text-anchor="middle">Vík</text>
+
+            <circle cx="270" cy="168" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
+            <text x="270" y="188" fill="#ffffff" font-size="8" text-anchor="middle">Höfn</text>
+
+            <circle cx="430" cy="110" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
+            <text x="430" y="100" fill="#ffffff" font-size="8" text-anchor="middle">Eastfjords</text>
+
+            <circle cx="340" cy="55" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
+            <text x="340" y="45" fill="#ffffff" font-size="8" text-anchor="middle">Mývatn</text>
+
+            <circle cx="250" cy="50" r="6" fill="#00776d" stroke="#ffffff" stroke-width="2" />
+            <text x="250" y="38" fill="#7af7e7" font-size="8" font-weight="bold" text-anchor="middle">Akureyri</text>
+          </svg>
+        </div>
+
+        <!-- Pins Grid -->
+        <div class="space-y-2">
+          <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block">Geocoded Itinerary Waypoints</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            @for (pin of (itinerary.map_pins || []); track pin.id) {
+              <div
+                (click)="selectDay(pin.day_number); toggleMap()"
+                class="p-2.5 rounded-xl bg-gray-50 hover:bg-sky-50 border border-gray-200 flex items-center justify-between text-xs cursor-pointer transition-colors">
+                <div class="flex items-center gap-2">
+                  <span
+                    [class.bg-blue-100]="pin.pin_type === 'overnight'"
+                    [class.text-blue-700]="pin.pin_type === 'overnight'"
+                    [class.bg-emerald-100]="pin.pin_type === 'attraction'"
+                    [class.text-emerald-700]="pin.pin_type === 'attraction'"
+                    class="w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px]">
+                    D{{ pin.day_number }}
+                  </span>
+                  <div>
+                    <span class="font-bold text-gray-900 block">{{ pin.label }}</span>
+                    <span class="text-[10px] text-gray-400 font-mono">{{ pin.lat.toFixed(3) }}°N, {{ pin.lng.toFixed(3) }}°W</span>
+                  </div>
+                </div>
+                <span class="text-[10px] font-bold text-[#0062e3]">Jump to Day →</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

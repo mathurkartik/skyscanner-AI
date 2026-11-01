@@ -1,0 +1,188 @@
+<div class="bg-[#02122c] pt-4 pb-10 px-4 sm:px-6 lg:px-8 text-white">
+  <div class="max-w-7xl mx-auto">
+    
+    <div class="mb-6">
+      <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight">Car hire for any kind of trip</h1>
+      <p class="text-sm sm:text-base text-gray-300 mt-1">Compare rental deals from top providers with free cancellation on most bookings.</p>
+    </div>
+
+    <!-- Car Search Bar Card -->
+    <div class="bg-[#072044] rounded-2xl p-4 sm:p-6 shadow-2xl border border-slate-700/60">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        
+        <!-- Pick-up Location -->
+        <div class="md:col-span-5">
+          <label class="block text-[11px] font-semibold text-gray-300 mb-1">Pick-up location</label>
+          <div class="bg-white text-gray-900 rounded-xl p-3 flex items-center space-x-2 shadow-sm">
+            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <input 
+              type="text" 
+              [value]="location()" 
+              (input)="location.set($any($event.target).value)" 
+              placeholder="City or airport" 
+              class="w-full text-sm font-semibold bg-transparent border-0 p-0 focus:ring-0 text-gray-800" />
+          </div>
+        </div>
+
+        <!-- Pick-up Date -->
+        <div class="md:col-span-3">
+          <label class="block text-[11px] font-semibold text-gray-300 mb-1">Pick-up date</label>
+          <div class="bg-white text-gray-900 rounded-xl p-3 flex items-center space-x-2 shadow-sm">
+            <input 
+              type="date" 
+              [value]="pickupDate()" 
+              (input)="pickupDate.set($any($event.target).value)" 
+              class="w-full text-xs font-semibold bg-transparent border-0 p-0 focus:ring-0 text-gray-800" />
+          </div>
+        </div>
+
+        <!-- Drop-off Date -->
+        <div class="md:col-span-3">
+          <label class="block text-[11px] font-semibold text-gray-300 mb-1">Drop-off date</label>
+          <div class="bg-white text-gray-900 rounded-xl p-3 flex items-center space-x-2 shadow-sm">
+            <input 
+              type="date" 
+              [value]="dropoffDate()" 
+              (input)="dropoffDate.set($any($event.target).value)" 
+              class="w-full text-xs font-semibold bg-transparent border-0 p-0 focus:ring-0 text-gray-800" />
+          </div>
+        </div>
+
+        <!-- Search CTA -->
+        <div class="md:col-span-1 pt-2 md:pt-5">
+          <button class="w-full h-11 bg-[#0062e3] hover:bg-[#0050b8] text-white rounded-xl font-bold flex items-center justify-center shadow-lg transition-transform active:scale-95">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Quick filters -->
+      <div class="mt-4 pt-3 border-t border-slate-700/50 flex flex-wrap items-center gap-2 text-xs">
+        @for (cat of ['All', 'Small', 'SUV', 'Electric', 'Luxury']; track cat) {
+          <button 
+            (click)="setCategory(cat)"
+            [class.bg-sky-500]="categoryFilter() === cat"
+            [class.text-white]="categoryFilter() === cat"
+            [class.bg-slate-800]="categoryFilter() !== cat"
+            [class.text-gray-300]="categoryFilter() !== cat"
+            class="px-3 py-1 rounded-full font-medium hover:bg-slate-700 transition-colors">
+            {{ cat }}
+          </button>
+        }
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Car Results List -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-black text-gray-900">Rental cars in {{ location() }}</h2>
+      <p class="text-xs text-gray-500">Showing {{ filteredCars().length }} available models</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    @for (car of filteredCars(); track car.id) {
+      <div class="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between p-5 group">
+        
+        <div>
+          <!-- Category & Supplier -->
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-[#0062e3] border border-sky-200">
+              {{ car.category }}
+            </span>
+            <span class="text-xs font-black text-gray-700">{{ car.supplier }}</span>
+          </div>
+
+          <!-- Car Image -->
+          <div class="h-32 w-full flex items-center justify-center overflow-hidden mb-3">
+            <img [src]="car.imageUrl" [alt]="car.name" class="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300" />
+          </div>
+
+          <!-- Title -->
+          <h3 class="font-bold text-sm text-gray-900 leading-snug">{{ car.name }}</h3>
+
+          <!-- Specs Icons -->
+          <div class="mt-3 grid grid-cols-2 gap-2 text-[11px] text-gray-600 border-t border-gray-100 pt-3">
+            <span class="flex items-center space-x-1.5">
+              <span>👤</span>
+              <span>{{ car.seats }} Seats</span>
+            </span>
+            <span class="flex items-center space-x-1.5">
+              <span>🧳</span>
+              <span>{{ car.bags }} Large bags</span>
+            </span>
+            <span class="flex items-center space-x-1.5">
+              <span>⚙️</span>
+              <span>{{ car.transmission }}</span>
+            </span>
+            <span class="flex items-center space-x-1.5">
+              <span>❄️</span>
+              <span>Air Conditioning</span>
+            </span>
+          </div>
+
+          <!-- Perks -->
+          <div class="mt-3 space-y-1 text-[11px]">
+            @if (car.freeCancellation) {
+              <div class="text-emerald-700 font-semibold flex items-center space-x-1">
+                <span>✓</span>
+                <span>Free cancellation</span>
+              </div>
+            }
+            @if (car.unlimitedMileage) {
+              <div class="text-gray-500 flex items-center space-x-1">
+                <span>✓</span>
+                <span>Unlimited mileage</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Price & CTA -->
+        <div class="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+          <div>
+            <div class="text-base font-black text-gray-900">
+              {{ currencyService.format(car.pricePerDayUSD) }}
+              <span class="text-xs font-normal text-gray-500">/ day</span>
+            </div>
+            <span class="text-[10px] text-gray-400 block">{{ currencyService.format(car.totalPriceUSD) }} total</span>
+          </div>
+
+          <button 
+            (click)="book(car)"
+            class="px-3.5 py-1.5 bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold rounded-xl shadow transition-colors">
+            Select
+          </button>
+        </div>
+
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Booking Confirmation Modal -->
+@if (bookedCar(); as c) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center text-gray-800">
+      <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h3 class="text-lg font-black text-gray-900">Selected {{ c.name }}</h3>
+      <p class="text-xs text-gray-500 mt-2">
+        Provided by <strong>{{ c.supplier }}</strong> for <strong>{{ currencyService.format(c.pricePerDayUSD) }} / day</strong>.
+      </p>
+      <button 
+        (click)="closeBooking()"
+        class="mt-6 w-full py-2.5 bg-[#0062e3] hover:bg-[#0050b8] text-white font-bold rounded-xl text-xs shadow">
+        Continue to {{ c.supplier }}
+      </button>
+    </div>
+  </div>
+}
+

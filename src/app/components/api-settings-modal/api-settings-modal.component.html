@@ -1,0 +1,99 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative">
+    
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+      <div class="flex items-center space-x-2">
+        <span class="text-xl">⚡</span>
+        <h3 class="text-lg font-black text-gray-900">Skyscanner Live API Settings</h3>
+      </div>
+      <button (click)="close()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="space-y-4 text-xs">
+      <!-- Status Badge -->
+      <div class="p-3 rounded-xl border flex items-center justify-between"
+        [class.bg-emerald-50]="apiService.isLiveMode() && apiService.apiKey()"
+        [class.border-emerald-200]="apiService.isLiveMode() && apiService.apiKey()"
+        [class.bg-slate-50]="!apiService.isLiveMode() || !apiService.apiKey()"
+        [class.border-slate-200]="!apiService.isLiveMode() || !apiService.apiKey()">
+        <div>
+          <span class="font-bold text-gray-900 block">
+            {{ apiService.isLiveMode() && apiService.apiKey() ? 'Live Skyscanner Mode: ACTIVE' : 'Realistic Hub-and-Spoke Engine: ACTIVE' }}
+          </span>
+          <p class="text-[11px] text-gray-500 mt-0.5">
+            {{ apiService.isLiveMode() && apiService.apiKey() ? 'Directly querying RapidAPI skyscanner44' : 'Accurate real-world schedules & airline hubs (Zero API Key required)' }}
+          </p>
+        </div>
+        <span class="text-xs px-2.5 py-1 rounded-full font-bold"
+          [class.bg-emerald-600]="apiService.isLiveMode() && apiService.apiKey()"
+          [class.text-white]="apiService.isLiveMode() && apiService.apiKey()"
+          [class.bg-gray-200]="!apiService.isLiveMode() || !apiService.apiKey()"
+          [class.text-gray-700]="!apiService.isLiveMode() || !apiService.apiKey()">
+          {{ apiService.isLiveMode() && apiService.apiKey() ? 'LIVE' : 'STANDALONE' }}
+        </span>
+      </div>
+
+      <!-- RapidAPI Key Input -->
+      <div>
+        <label class="block font-bold text-gray-700 uppercase tracking-wider mb-1">
+          RapidAPI Key (Skyscanner44 Endpoint)
+        </label>
+        <input 
+          type="password" 
+          placeholder="Paste your RapidAPI key here..."
+          [value]="inputKey()"
+          (input)="inputKey.set($any($event.target).value)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-sky-500 focus:border-sky-500" />
+        <p class="text-[11px] text-gray-400 mt-1">
+          Obtain your key from <a href="https://rapidapi.com/3b-data-3b-data-default/api/skyscanner44" target="_blank" class="text-sky-600 hover:underline">RapidAPI Skyscanner44</a>.
+        </p>
+      </div>
+
+      <!-- Live Mode Toggle -->
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200">
+        <div>
+          <span class="font-bold text-gray-800">Enable Live API Requests</span>
+          <p class="text-[11px] text-gray-500">Query live airfares instead of local hub routing</p>
+        </div>
+        <input 
+          type="checkbox" 
+          [checked]="apiService.isLiveMode()"
+          (change)="toggleLive($any($event.target).checked)"
+          class="rounded text-[#0062e3] focus:ring-0 w-4 h-4 cursor-pointer" />
+      </div>
+
+      <!-- Error Notification if any -->
+      @if (apiService.lastApiError(); as err) {
+        <div class="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs">
+          <strong>API Notice:</strong> {{ err }}
+          <p class="mt-1 text-[11px]">System automatically fell back to realistic hub routing.</p>
+        </div>
+      }
+
+      @if (savedNotification()) {
+        <div class="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold text-center">
+          ✓ Key saved successfully! Live mode updated.
+        </div>
+      }
+
+      <div class="pt-2 flex justify-end space-x-2">
+        <button 
+          (click)="close()" 
+          class="px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50">
+          Cancel
+        </button>
+        <button 
+          (click)="saveKey()" 
+          class="px-5 py-2 bg-[#0062e3] hover:bg-[#0050b8] text-white font-bold rounded-lg shadow">
+          Save Settings
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+

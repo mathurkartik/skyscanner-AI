@@ -1,0 +1,322 @@
+<div class="bg-[#02122c] pt-4 pb-14 px-4 sm:px-6 lg:px-8 text-white relative">
+  <div class="max-w-7xl mx-auto">
+
+    <!-- Headline (Exact match to screenshot) -->
+    <div class="mb-5">
+      <h1 class="text-3xl sm:text-4xl lg:text-[40px] font-black tracking-tight leading-tight">
+        Millions of cheap flights. One simple search.
+      </h1>
+    </div>
+
+    <!-- Small Control Dropdowns above Search Bar: Return ▾, Bags ▾ -->
+    <div class="flex items-center space-x-2.5 mb-3">
+      
+      <!-- Trip Type Dropdown (Return ▾) -->
+      <div class="relative">
+        <button 
+          (click)="isTripTypeDropdownOpen.update(v => !v)"
+          class="flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-700 bg-[#072044] hover:bg-[#0c2f60] text-xs font-semibold text-white transition-colors">
+          <span>{{ tripTypeLabel() }}</span>
+          <svg class="w-3.5 h-3.5 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+          </svg>
+        </button>
+
+        @if (isTripTypeDropdownOpen()) {
+          <div class="absolute left-0 mt-1 w-36 bg-white rounded-xl shadow-xl py-1 text-gray-800 text-xs font-semibold z-50 border border-gray-200">
+            <button (click)="setTripType('round-trip')" class="w-full text-left px-3 py-2 hover:bg-sky-50 transition-colors">Return</button>
+            <button (click)="setTripType('one-way')" class="w-full text-left px-3 py-2 hover:bg-sky-50 transition-colors">One way</button>
+            <button (click)="setTripType('multi-city')" class="w-full text-left px-3 py-2 hover:bg-sky-50 transition-colors">Multi-city</button>
+          </div>
+        }
+      </div>
+
+      <!-- Bags Dropdown (Bags ▾) -->
+      <div class="relative">
+        <button 
+          (click)="isBagsDropdownOpen.update(v => !v)"
+          class="flex items-center space-x-1 px-3 py-1.5 rounded-lg border border-slate-700 bg-[#072044] hover:bg-[#0c2f60] text-xs font-semibold text-white transition-colors">
+          <span>{{ bagsCount() }} Bag{{ bagsCount() > 1 ? 's' : '' }}</span>
+          <svg class="w-3.5 h-3.5 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+          </svg>
+        </button>
+
+        @if (isBagsDropdownOpen()) {
+          <div class="absolute left-0 mt-1 w-44 bg-white rounded-xl shadow-xl p-3 text-gray-800 text-xs z-50 border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold">Cabin Bags</span>
+              <span class="font-semibold text-emerald-600">Included</span>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+              <span class="font-bold">Checked Bags</span>
+              <div class="flex items-center space-x-2">
+                <button (click)="bagsCount() > 0 ? bagsCount.update(v => v - 1) : null" class="w-6 h-6 rounded border border-gray-300 font-bold">-</button>
+                <span class="font-bold">{{ bagsCount() }}</span>
+                <button (click)="bagsCount.update(v => v + 1)" class="w-6 h-6 rounded border border-gray-300 font-bold">+</button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+    </div>
+
+    <!-- Unified White Segmented Search Bar (Exact Skyscanner Layout) -->
+    <div class="bg-white rounded-xl shadow-2xl flex flex-col lg:flex-row items-stretch border border-gray-200">
+      
+      <!-- Segment 1: From (Nagpur NAG) -->
+      <div 
+        (click)="isOriginOpen.set(true)"
+        class="relative flex-1 p-3.5 border-b lg:border-b-0 lg:border-r border-gray-200 cursor-pointer hover:bg-sky-50/40 transition-colors">
+        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">From</label>
+        <div class="text-sm sm:text-base font-extrabold text-gray-900 truncate mt-0.5">
+          {{ origin().city }} ({{ origin().code }})
+        </div>
+
+        <!-- Origin Autocomplete Dropdown -->
+        @if (isOriginOpen()) {
+          <div 
+            (click)="$event.stopPropagation()"
+            class="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl p-2 z-50 border border-gray-200 text-gray-800 max-h-80 overflow-y-auto">
+            <div class="flex items-center justify-between px-2 py-1 mb-2 border-b border-gray-100">
+              <span class="text-xs font-bold text-gray-500">Departure Airport</span>
+              <button (click)="isOriginOpen.set(false)" class="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+            </div>
+            <input 
+              type="text" 
+              placeholder="Search city or airport..."
+              [value]="originSearch()"
+              (input)="originSearch.set($any($event.target).value)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2 focus:ring-2 focus:ring-sky-500" 
+              autofocus />
+            <div class="space-y-1">
+              @for (airport of filteredOriginAirports(); track airport.code) {
+                <div 
+                  (click)="selectOrigin(airport)"
+                  class="p-2 hover:bg-sky-50 rounded-lg cursor-pointer flex items-center justify-between transition-colors">
+                  <div>
+                    <div class="text-sm font-semibold text-gray-900">{{ airport.city }} ({{ airport.code }})</div>
+                    <div class="text-xs text-gray-500">{{ airport.name }}</div>
+                  </div>
+                  <span class="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ airport.code }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Airport Swap Circular Button (⇄) -->
+      <div class="relative flex items-center justify-center -my-2 lg:-my-0 lg:-mx-4 z-10 self-center">
+        <button 
+          (click)="swapAirports($event)" 
+          type="button" 
+          title="Swap departure and destination"
+          class="w-8 h-8 rounded-full bg-white border border-gray-300 hover:bg-gray-100 text-[#0062e3] shadow-md flex items-center justify-center transition-transform active:rotate-180">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Segment 2: To (Country, city or airport) -->
+      <div 
+        (click)="isDestinationOpen.set(true)"
+        class="relative flex-1 p-3.5 border-b lg:border-b-0 lg:border-r border-gray-200 cursor-pointer hover:bg-sky-50/40 transition-colors">
+        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">To</label>
+        <div class="text-sm sm:text-base font-extrabold truncate mt-0.5" [class.text-gray-400]="!destination()" [class.text-gray-900]="destination()">
+          @if (destination()) {
+            {{ destination()!.city }} ({{ destination()!.code }})
+          } @else {
+            Country, city or airport
+          }
+        </div>
+
+        <!-- Destination Dropdown -->
+        @if (isDestinationOpen()) {
+          <div 
+            (click)="$event.stopPropagation()"
+            class="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl p-2 z-50 border border-gray-200 text-gray-800 max-h-80 overflow-y-auto">
+            
+            <!-- Explore Everywhere Tile -->
+            <div 
+              (click)="triggerExploreEverywhere()"
+              class="p-2.5 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded-lg cursor-pointer flex items-center space-x-2.5 text-sky-900 mb-2 transition-colors">
+              <span class="text-lg">🧭</span>
+              <div>
+                <span class="text-xs font-black block">Can't decide where?</span>
+                <span class="text-[11px] text-sky-700">Search "Explore everywhere"</span>
+              </div>
+            </div>
+
+            <input 
+              type="text" 
+              placeholder="Search destination city or airport..."
+              [value]="destinationSearch()"
+              (input)="destinationSearch.set($any($event.target).value)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2 focus:ring-2 focus:ring-sky-500" 
+              autofocus />
+            <div class="space-y-1">
+              @for (airport of filteredDestinationAirports(); track airport.code) {
+                <div 
+                  (click)="selectDestination(airport)"
+                  class="p-2 hover:bg-sky-50 rounded-lg cursor-pointer flex items-center justify-between transition-colors">
+                  <div>
+                    <div class="text-sm font-semibold text-gray-900">{{ airport.city }} ({{ airport.code }})</div>
+                    <div class="text-xs text-gray-500">{{ airport.name }}, {{ airport.country }}</div>
+                  </div>
+                  <span class="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ airport.code }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Segment 3: Depart (Add date) -->
+      <div 
+        class="relative w-full lg:w-36 p-3.5 border-b lg:border-b-0 lg:border-r border-gray-200 cursor-pointer hover:bg-sky-50/40 transition-colors">
+        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">Depart</label>
+        <input 
+          type="date" 
+          [value]="departDate()" 
+          (input)="departDate.set($any($event.target).value)"
+          class="w-full text-sm font-bold bg-transparent border-0 p-0 focus:ring-0 text-gray-900 cursor-pointer mt-0.5" />
+      </div>
+
+      <!-- Segment 4: Return (Add date) -->
+      <div 
+        [class.opacity-40]="tripType() === 'one-way'"
+        class="relative w-full lg:w-36 p-3.5 border-b lg:border-b-0 lg:border-r border-gray-200 cursor-pointer hover:bg-sky-50/40 transition-colors">
+        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">Return</label>
+        <input 
+          type="date" 
+          [disabled]="tripType() === 'one-way'"
+          [value]="returnDate()" 
+          (input)="returnDate.set($any($event.target).value)"
+          class="w-full text-sm font-bold bg-transparent border-0 p-0 focus:ring-0 text-gray-900 cursor-pointer mt-0.5 disabled:cursor-not-allowed" />
+      </div>
+
+      <!-- Segment 5: Travellers and cabin class (1 Adult, Economy) -->
+      <div 
+        (click)="isPassengersOpen.update(v => !v)"
+        class="relative flex-1 p-3.5 border-b lg:border-b-0 cursor-pointer hover:bg-sky-50/40 transition-colors">
+        <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">Travellers and cabin class</label>
+        <div class="text-sm font-extrabold text-gray-900 truncate mt-0.5">
+          {{ totalPassengers() }} Adult{{ totalPassengers() > 1 ? 's' : '' }}, {{ cabinClassLabel() }}
+        </div>
+
+        <!-- Passengers Popover -->
+        @if (isPassengersOpen()) {
+          <div 
+            (click)="$event.stopPropagation()"
+            class="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-2xl p-4 text-gray-900 z-50 border border-gray-200">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Cabin Class</label>
+                <select 
+                  [value]="cabinClass()" 
+                  (change)="cabinClass.set($any($event.target).value)"
+                  class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-sm font-medium focus:ring-2 focus:ring-sky-500">
+                  <option value="economy">Economy</option>
+                  <option value="premium_economy">Premium Economy</option>
+                  <option value="business">Business Class</option>
+                  <option value="first">First Class</option>
+                </select>
+              </div>
+
+              <div class="border-t border-gray-200 pt-3 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-semibold text-gray-800">Adults</p>
+                    <p class="text-xs text-gray-500">Ages 18+</p>
+                  </div>
+                  <div class="flex items-center space-x-3">
+                    <button (click)="decrementAdults()" [disabled]="adults() <= 1" class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center font-bold text-gray-600 disabled:opacity-40">-</button>
+                    <span class="w-4 text-center font-bold text-sm">{{ adults() }}</span>
+                    <button (click)="incrementAdults()" class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center font-bold text-gray-600">+</button>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-semibold text-gray-800">Children</p>
+                    <p class="text-xs text-gray-500">Ages 0-17</p>
+                  </div>
+                  <div class="flex items-center space-x-3">
+                    <button (click)="decrementChildren()" [disabled]="children() <= 0" class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center font-bold text-gray-600 disabled:opacity-40">-</button>
+                    <span class="w-4 text-center font-bold text-sm">{{ children() }}</span>
+                    <button (click)="incrementChildren()" class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center font-bold text-gray-600">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                (click)="isPassengersOpen.set(false)"
+                class="w-full bg-[#0062e3] text-white py-2 rounded-lg text-xs font-bold hover:bg-[#0050b8] transition-colors">
+                Done
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Search Button (Exact match: blue #0062e3 button on the right) -->
+      <button 
+        (click)="onSearch()"
+        class="bg-[#0062e3] hover:bg-[#0050b8] text-white font-extrabold text-base px-8 py-4 sm:py-3.5 flex items-center justify-center transition-colors active:opacity-90">
+        <span>Search</span>
+      </button>
+
+    </div>
+
+    <!-- Checkboxes Row Below Search Bar (Exact match to screenshot) -->
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-y-3 text-xs text-white font-medium">
+      
+      <div class="flex flex-wrap items-center gap-6">
+        <!-- Add nearby airports (under From) -->
+        <label class="flex items-center space-x-2 cursor-pointer hover:text-sky-300">
+          <input 
+            type="checkbox" 
+            [checked]="nearbyOrigin()" 
+            (change)="nearbyOrigin.set($any($event.target).checked)"
+            class="rounded border-gray-400 bg-transparent text-[#0062e3] focus:ring-0" />
+          <span>Add nearby airports</span>
+        </label>
+
+        <!-- Add nearby airports (under To) -->
+        <label class="flex items-center space-x-2 cursor-pointer hover:text-sky-300">
+          <input 
+            type="checkbox" 
+            [checked]="nearbyDestination()" 
+            (change)="nearbyDestination.set($any($event.target).checked)"
+            class="rounded border-gray-400 bg-transparent text-[#0062e3] focus:ring-0" />
+          <span>Add nearby airports</span>
+        </label>
+
+        <!-- Direct flights -->
+        <label class="flex items-center space-x-2 cursor-pointer hover:text-sky-300">
+          <input 
+            type="checkbox" 
+            [checked]="directOnly()" 
+            (change)="directOnly.set($any($event.target).checked)"
+            class="rounded border-gray-400 bg-transparent text-[#0062e3] focus:ring-0" />
+          <span>Direct flights</span>
+        </label>
+      </div>
+
+      <!-- Add a place to stay (Checked by default in screenshot) -->
+      <label class="flex items-center space-x-2 cursor-pointer hover:text-sky-300">
+        <input 
+          type="checkbox" 
+          [checked]="addPlaceToStay()" 
+          (change)="addPlaceToStay.set($any($event.target).checked)"
+          class="rounded border-gray-400 bg-transparent text-[#0062e3] focus:ring-0" />
+        <span>Add a place to stay</span>
+      </label>
+
+    </div>
+
+  </div>
+</div>

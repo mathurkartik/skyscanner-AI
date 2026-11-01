@@ -1,0 +1,150 @@
+<div class="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-sm space-y-6 text-gray-800">
+  
+  <!-- Header & Reset -->
+  <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+    <div class="flex items-center space-x-2">
+      <svg class="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+      <h3 class="font-bold text-sm text-gray-900">Filter results</h3>
+    </div>
+    <button 
+      (click)="resetAll()"
+      class="text-xs font-semibold text-[#0062e3] hover:underline">
+      Reset all
+    </button>
+  </div>
+
+  <!-- Stops Filter -->
+  <div>
+    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Stops</h4>
+    <div class="space-y-2">
+      
+      <!-- Direct -->
+      <label class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <div class="flex items-center space-x-2.5">
+          <input 
+            type="checkbox" 
+            [checked]="isStopSelected(0)" 
+            (change)="toggleStop(0)"
+            class="rounded border-gray-300 text-[#0062e3] focus:ring-sky-500" />
+          <span class="text-sm font-medium text-gray-800">Direct</span>
+        </div>
+        @if (flightService.stopsSummary().direct; as price) {
+          <span class="text-xs font-bold text-gray-500">{{ currencyService.format(price) }}</span>
+        }
+      </label>
+
+      <!-- 1 Stop -->
+      <label class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <div class="flex items-center space-x-2.5">
+          <input 
+            type="checkbox" 
+            [checked]="isStopSelected(1)" 
+            (change)="toggleStop(1)"
+            class="rounded border-gray-300 text-[#0062e3] focus:ring-sky-500" />
+          <span class="text-sm font-medium text-gray-800">1 stop</span>
+        </div>
+        @if (flightService.stopsSummary().oneStop; as price) {
+          <span class="text-xs font-bold text-gray-500">{{ currencyService.format(price) }}</span>
+        }
+      </label>
+
+      <!-- 2+ Stops -->
+      <label class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <div class="flex items-center space-x-2.5">
+          <input 
+            type="checkbox" 
+            [checked]="isStopSelected(2)" 
+            (change)="toggleStop(2)"
+            class="rounded border-gray-300 text-[#0062e3] focus:ring-sky-500" />
+          <span class="text-sm font-medium text-gray-800">2+ stops</span>
+        </div>
+        @if (flightService.stopsSummary().twoPlus; as price) {
+          <span class="text-xs font-bold text-gray-500">{{ currencyService.format(price) }}</span>
+        }
+      </label>
+
+    </div>
+  </div>
+
+  <!-- Departure Time Filter -->
+  <div class="pt-4 border-t border-gray-100">
+    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Departure Times</h4>
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <button 
+        (click)="setDepartureTimeRange('all')"
+        [class.bg-[#0062e3]]="flightService.filterState().departureTimeRange === 'all'"
+        [class.text-white]="flightService.filterState().departureTimeRange === 'all'"
+        [class.bg-gray-100]="flightService.filterState().departureTimeRange !== 'all'"
+        class="py-2 px-3 rounded-lg font-semibold transition-colors">
+        All Day
+      </button>
+
+      <button 
+        (click)="setDepartureTimeRange('morning')"
+        [class.bg-[#0062e3]]="flightService.filterState().departureTimeRange === 'morning'"
+        [class.text-white]="flightService.filterState().departureTimeRange === 'morning'"
+        [class.bg-gray-100]="flightService.filterState().departureTimeRange !== 'morning'"
+        class="py-2 px-3 rounded-lg font-semibold transition-colors">
+        Morning (05:00 - 12:00)
+      </button>
+
+      <button 
+        (click)="setDepartureTimeRange('afternoon')"
+        [class.bg-[#0062e3]]="flightService.filterState().departureTimeRange === 'afternoon'"
+        [class.text-white]="flightService.filterState().departureTimeRange === 'afternoon'"
+        [class.bg-gray-100]="flightService.filterState().departureTimeRange !== 'afternoon'"
+        class="py-2 px-3 rounded-lg font-semibold transition-colors">
+        Afternoon (12:00 - 18:00)
+      </button>
+
+      <button 
+        (click)="setDepartureTimeRange('evening')"
+        [class.bg-[#0062e3]]="flightService.filterState().departureTimeRange === 'evening'"
+        [class.text-white]="flightService.filterState().departureTimeRange === 'evening'"
+        [class.bg-gray-100]="flightService.filterState().departureTimeRange !== 'evening'"
+        class="py-2 px-3 rounded-lg font-semibold transition-colors">
+        Evening (18:00 - 24:00)
+      </button>
+    </div>
+  </div>
+
+  <!-- Airlines Filter -->
+  <div class="pt-4 border-t border-gray-100">
+    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Airlines</h4>
+    <div class="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+      @for (airline of flightService.availableAirlines(); track airline.name) {
+        <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+          <div class="flex items-center space-x-2.5 truncate">
+            <input 
+              type="checkbox" 
+              [checked]="isAirlineSelected(airline.name)"
+              (change)="toggleAirline(airline.name)"
+              class="rounded border-gray-300 text-[#0062e3] focus:ring-sky-500" />
+            <span class="text-xs font-medium text-gray-800 truncate">{{ airline.name }}</span>
+          </div>
+          <span class="text-xs font-bold text-gray-500 ml-2">{{ currencyService.format(airline.minPrice) }}</span>
+        </label>
+      }
+    </div>
+  </div>
+
+  <!-- Greener Choices Toggle -->
+  <div class="pt-4 border-t border-gray-100">
+    <label class="flex items-start space-x-3 cursor-pointer">
+      <input 
+        type="checkbox" 
+        [checked]="flightService.filterState().greenerChoiceOnly"
+        (change)="toggleGreenerChoice()"
+        class="mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span class="text-xs font-bold text-gray-900">Greener choices only</span>
+        </div>
+        <p class="text-[11px] text-gray-500 mt-0.5 leading-normal">Show only flights with lower CO₂ emissions than average for this route.</p>
+      </div>
+    </label>
+  </div>
+
+</div>
+

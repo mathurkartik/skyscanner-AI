@@ -1,0 +1,118 @@
+<div class="bg-[#02122c] pt-4 pb-12 px-4 sm:px-6 lg:px-8 text-white">
+  <div class="max-w-7xl mx-auto">
+    
+    <div class="mb-6 max-w-2xl">
+      <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/20 text-sky-400 border border-sky-400/30 mb-3">
+        <span>✨ Skyscanner signature feature</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight">Can't decide where to go? Explore everywhere.</h1>
+      <p class="text-sm sm:text-base text-gray-300 mt-2">
+        See the cheapest flight destinations worldwide from <strong>{{ flightService.searchQuery().origin.city }} ({{ flightService.searchQuery().origin.code }})</strong>.
+      </p>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-[#072044] rounded-2xl p-4 shadow-xl border border-slate-700/60 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-2 text-xs font-semibold">
+        <span class="text-gray-400">Budget:</span>
+        @for (b of [500, 700, 1000]; track b) {
+          <button 
+            (click)="maxBudgetUSD.set(b)"
+            [class.bg-[#0062e3]]="maxBudgetUSD() === b"
+            [class.text-white]="maxBudgetUSD() === b"
+            [class.bg-slate-800]="maxBudgetUSD() !== b"
+            [class.text-gray-300]="maxBudgetUSD() !== b"
+            class="px-3 py-1.5 rounded-lg transition-colors">
+            Under {{ currencyService.format(b) }}
+          </button>
+        }
+      </div>
+
+      <div class="flex items-center space-x-2 text-xs font-semibold">
+        <span class="text-gray-400">Stops:</span>
+        <button 
+          (click)="flightTypeFilter.set('All')"
+          [class.bg-[#0062e3]]="flightTypeFilter() === 'All'"
+          [class.text-white]="flightTypeFilter() === 'All'"
+          [class.bg-slate-800]="flightTypeFilter() !== 'All'"
+          [class.text-gray-300]="flightTypeFilter() !== 'All'"
+          class="px-3 py-1.5 rounded-lg transition-colors">
+          All flights
+        </button>
+        <button 
+          (click)="flightTypeFilter.set('Direct')"
+          [class.bg-[#0062e3]]="flightTypeFilter() === 'Direct'"
+          [class.text-white]="flightTypeFilter() === 'Direct'"
+          [class.bg-slate-800]="flightTypeFilter() !== 'Direct'"
+          [class.text-gray-300]="flightTypeFilter() !== 'Direct'"
+          class="px-3 py-1.5 rounded-lg transition-colors">
+          Direct only
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Destinations Grid -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-black text-gray-900">
+      Popular destinations from {{ flightService.searchQuery().origin.city }}
+    </h2>
+    <span class="text-xs text-gray-500 font-semibold">{{ destinations().length }} places found</span>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    @for (dest of destinations(); track dest.id) {
+      <div 
+        (click)="selectDestination(dest)"
+        class="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col justify-between">
+        
+        <div>
+          <!-- Image -->
+          <div class="relative h-52 w-full overflow-hidden bg-gray-100">
+            <img [src]="dest.imageUrl" [alt]="dest.city" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+            
+            <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-bold text-gray-800 shadow">
+              {{ dest.tag }}
+            </div>
+
+            <div class="absolute bottom-3 left-4 text-white">
+              <h3 class="text-2xl font-black tracking-tight leading-tight">{{ dest.city }}</h3>
+              <p class="text-xs text-gray-200 font-medium">{{ dest.country }} ({{ dest.airportCode }})</p>
+            </div>
+          </div>
+
+          <!-- Season / Flight info -->
+          <div class="p-4 space-y-2 text-xs text-gray-600">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">📅</span>
+              <span>Best time to visit: <strong class="text-gray-800">{{ dest.popularMonth }}</strong></span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-base">✈️</span>
+              <span>Route: <strong class="text-gray-800">{{ dest.flightType }} flight</strong> from {{ flightService.searchQuery().origin.code }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Price Bar -->
+        <div class="p-4 pt-3 border-t border-gray-100 flex items-center justify-between bg-slate-50/60">
+          <div>
+            <span class="text-[10px] text-gray-400 block font-semibold uppercase tracking-wider">Flight from</span>
+            <span class="text-xl font-black text-gray-900">{{ currencyService.format(dest.priceFromUSD) }}</span>
+          </div>
+
+          <button class="px-4 py-2 bg-[#0062e3] group-hover:bg-[#0050b8] text-white text-xs font-bold rounded-xl shadow transition-colors flex items-center space-x-1">
+            <span>View Flights</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+
+      </div>
+    }
+  </div>
+</div>
+

@@ -1,0 +1,287 @@
+<header class="bg-[#02122c] text-white sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Top Bar: Logo & Actions -->
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo: 3 arcs + "skyscanner" -->
+      <div class="flex items-center space-x-2.5 cursor-pointer" (click)="setTab('flights')">
+        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v2"/>
+          <path d="m4.93 4.93 1.41 1.41"/>
+          <path d="M2 12h2"/>
+          <path d="m4.93 19.07 1.41-1.41"/>
+          <path d="M12 22v-2"/>
+          <path d="m19.07 19.07-1.41-1.41"/>
+          <path d="M22 12h-2"/>
+          <path d="m19.07 4.93-1.41 1.41"/>
+          <circle cx="12" cy="12" r="4" fill="currentColor"/>
+        </svg>
+        <span class="text-2xl font-bold tracking-tight text-white leading-none">skyscanner</span>
+      </div>
+
+      <!-- Right Header Actions (Help, Locale/Currency, Favorites, Log in) -->
+      <div class="flex items-center space-x-4 sm:space-x-6 text-sm font-semibold">
+        
+        <!-- Help -->
+        <button 
+          (click)="toggleHelpModal()" 
+          class="hover:text-sky-300 transition-colors hidden sm:inline text-xs sm:text-sm font-medium">
+          Help
+        </button>
+
+        <!-- API Mode Button (RapidAPI / Standalone) -->
+        <button 
+          (click)="flightService.openApiSettings()"
+          class="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-sky-400/50 text-sky-300 hover:bg-sky-900/60 transition-colors"
+          title="Configure Skyscanner Live API Key">
+          <span>⚡</span>
+          <span class="hidden sm:inline">Data:</span>
+          <span class="font-bold text-white">{{ flightService.dataSource() === 'live' ? 'Live API' : 'Real Hubs' }}</span>
+        </button>
+
+        <!-- Locale / Currency Selector Pill: English (UK) 🇺🇸 United States · $ USD -->
+        <button 
+          (click)="toggleLocaleModal()"
+          class="flex items-center space-x-1.5 text-xs sm:text-sm hover:text-sky-300 transition-colors font-medium">
+          <span class="hidden md:inline">English (UK)</span>
+          <span class="text-base">🇺🇸</span>
+          <span class="hidden sm:inline">United States ·</span>
+          <span class="font-bold text-white">{{ currencyService.selectedCurrency().symbol }} {{ currencyService.selectedCurrency().code }}</span>
+        </button>
+
+        <!-- Saved / Favorites Heart -->
+        <button 
+          (click)="toggleFavorites()"
+          class="relative p-1 text-white hover:text-pink-400 transition-colors" 
+          title="Saved Trips">
+          <svg class="w-5 h-5 text-white hover:text-pink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+          </svg>
+          @if (favoritesService.savedList().length > 0) {
+            <span class="absolute -top-1 -right-1 bg-[#ff5452] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              {{ favoritesService.savedList().length }}
+            </span>
+          }
+        </button>
+
+        <!-- Log in Button (White rounded button with dark text as in screenshot) -->
+        @if (isLoggedIn()) {
+          <button 
+            (click)="handleLogout()"
+            class="bg-white text-[#02122c] hover:bg-gray-100 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors">
+            Log out
+          </button>
+        } @else {
+          <button 
+            (click)="toggleLoginModal()"
+            class="bg-white text-[#02122c] hover:bg-gray-100 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors">
+            Log in
+          </button>
+        }
+
+      </div>
+
+    </div>
+
+    <!-- Product Sub-tabs Row (Flights, Stays, Cars) -->
+    <div class="flex items-center space-x-2 pb-5 pt-1">
+      
+      <!-- Flights Pill (Active: Blue #0062e3) -->
+      <button 
+        (click)="setTab('flights')"
+        [class.bg-[#0062e3]]="activeTab() === 'flights'"
+        [class.text-white]="activeTab() === 'flights'"
+        [class.bg-[#072044]]="activeTab() !== 'flights'"
+        [class.text-gray-200]="activeTab() !== 'flights'"
+        class="flex items-center space-x-2 px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm hover:opacity-90 transition-all">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/></svg>
+        <span>Flights</span>
+      </button>
+
+      <!-- Stays Pill -->
+      <button 
+        (click)="setTab('hotels')"
+        [class.bg-[#0062e3]]="activeTab() === 'hotels'"
+        [class.text-white]="activeTab() === 'hotels'"
+        [class.bg-[#072044]]="activeTab() !== 'hotels'"
+        [class.text-gray-200]="activeTab() !== 'hotels'"
+        class="flex items-center space-x-2 px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm hover:bg-[#0c2f60] transition-all">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+        <span>Stays</span>
+      </button>
+
+      <!-- Cars Pill -->
+      <button 
+        (click)="setTab('cars')"
+        [class.bg-[#0062e3]]="activeTab() === 'cars'"
+        [class.text-white]="activeTab() === 'cars'"
+        [class.bg-[#072044]]="activeTab() !== 'cars'"
+        [class.text-gray-200]="activeTab() !== 'cars'"
+        class="flex items-center space-x-2 px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm hover:bg-[#0c2f60] transition-all">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+        <span>Cars</span>
+      </button>
+
+      <!-- Plan with AI Pill -->
+      <button 
+        (click)="setTab('ai')"
+        [class.bg-[#0062e3]]="activeTab() === 'ai'"
+        [class.text-white]="activeTab() === 'ai'"
+        [class.bg-[#072044]]="activeTab() !== 'ai'"
+        [class.text-gray-200]="activeTab() !== 'ai'"
+        class="flex items-center space-x-2 px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm hover:bg-[#0c2f60] transition-all">
+        <svg class="w-4 h-4 text-sky-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>
+        </svg>
+        <span>Plan with AI</span>
+      </button>
+
+    </div>
+
+  </div>
+</header>
+
+<!-- Currency & Locale Modal -->
+@if (isLocaleModalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative">
+      <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+        <h3 class="text-lg font-black text-gray-900">Regional & Currency Settings</h3>
+        <button (click)="toggleLocaleModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Country / Region</label>
+          <div class="p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-semibold flex items-center justify-between">
+            <span>🇺🇸 United States (USD)</span>
+            <span class="text-xs text-sky-600 font-bold">Standard</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Currency</label>
+          <div class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+            @for (curr of currencyService.currencies; track curr.code) {
+              <button 
+                (click)="selectCurrency(curr.code)"
+                [class.bg-sky-50]="curr.code === currencyService.selectedCurrency().code"
+                [class.border-[#0062e3]]="curr.code === currencyService.selectedCurrency().code"
+                class="p-2.5 rounded-xl border border-gray-200 text-left text-xs hover:border-sky-400 transition-colors flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-gray-900">{{ curr.code }}</span>
+                  <p class="text-[11px] text-gray-500">{{ curr.name }}</p>
+                </div>
+                <span class="font-black text-sm text-[#0062e3]">{{ curr.symbol }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Login Modal -->
+@if (isLoginModalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-gray-800 relative">
+      <button (click)="toggleLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-10 h-10 rounded-full bg-[#0062e3] flex items-center justify-center text-white font-bold">
+          ✈
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">Sign in to Skyscanner</h2>
+          <p class="text-xs text-gray-500">Track flight prices and save trips across devices</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Email address</label>
+          <input 
+            type="email" 
+            [value]="userEmail()" 
+            (input)="userEmail.set($any($event.target).value)" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Password</label>
+          <input type="password" value="••••••••••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+
+        <button 
+          (click)="handleLogin()"
+          class="w-full py-2.5 bg-[#0062e3] hover:bg-[#0050b8] text-white font-semibold rounded-lg text-sm transition-colors shadow">
+          Sign In
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Help Modal -->
+@if (isHelpModalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative">
+      <button (click)="toggleHelpModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+      <h3 class="text-lg font-black text-gray-900 mb-2">Skyscanner Help Centre</h3>
+      <p class="text-xs text-gray-600 mb-4">Find answers regarding booking, cancellations, ticket changes, and refunds.</p>
+      
+      <div class="space-y-2 text-xs">
+        <div class="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer">
+          <span class="font-bold text-gray-900">How do I change or cancel my flight?</span>
+          <p class="text-gray-500 mt-0.5">Contact the airline or travel provider listed in your booking confirmation email.</p>
+        </div>
+        <div class="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer">
+          <span class="font-bold text-gray-900">Where is my booking confirmation?</span>
+          <p class="text-gray-500 mt-0.5">Check your inbox or spam folder for an email from the travel provider you booked with.</p>
+        </div>
+        <div class="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer">
+          <span class="font-bold text-gray-900">Does Skyscanner charge any fees?</span>
+          <p class="text-gray-500 mt-0.5">No, Skyscanner is completely free to use with zero hidden booking commissions.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Favorites / Saved Drawer -->
+@if (isFavoritesOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-gray-800 relative">
+      <button (click)="toggleFavorites()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+
+      <div class="flex items-center space-x-2 mb-4">
+        <svg class="w-5 h-5 text-pink-500 fill-current" viewBox="0 0 24 24">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+        </svg>
+        <h3 class="text-base font-black text-gray-900">Saved Flights ({{ favoritesService.savedList().length }})</h3>
+      </div>
+
+      @if (favoritesService.savedList().length === 0) {
+        <p class="text-xs text-gray-500 py-6 text-center">No flights saved yet. Click the heart icon on any flight offer to save it here.</p>
+      } @else {
+        <div class="space-y-2 text-xs py-2 max-h-60 overflow-y-auto">
+          @for (id of favoritesService.savedList(); track id) {
+            <div class="p-3 bg-gray-50 rounded-xl flex items-center justify-between border border-gray-200">
+              <span class="font-bold text-gray-800">Saved Flight {{ id }}</span>
+              <button (click)="favoritesService.toggleFlight(id)" class="text-pink-600 hover:underline font-semibold">Remove</button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -1,0 +1,54 @@
+<div class="min-h-screen flex flex-col bg-[#ffffff] text-gray-900 font-sans selection:bg-[#0062e3] selection:text-white">
+  
+  <!-- Global Skyscanner Header & Top Navigation -->
+  <app-navbar (tabChanged)="onTabChange($event)"></app-navbar>
+
+  <main class="flex-grow">
+    
+    <!-- Flights Tab Content -->
+    @if (currentTab() === 'flights') {
+      <!-- Hero Search Section (Exact match to screenshot) -->
+      <app-flight-search (exploreRequested)="navigateToExplore()"></app-flight-search>
+
+      <!-- View 1: 1st Screen Home Feed (4 category tiles, Campervan promo, FAQs, International sites) -->
+      @if (!flightService.isResultsView()) {
+        <app-home-feed (navigateTab)="onTabChange($event)"></app-home-feed>
+      }
+
+      <!-- View 2: Flight Results View (Triggered on Search) -->
+      @if (flightService.isResultsView()) {
+        <app-flight-results></app-flight-results>
+      }
+    }
+
+    <!-- Stays / Hotels Tab Content -->
+    @if (currentTab() === 'hotels') {
+      <app-hotel-search></app-hotel-search>
+    }
+
+    <!-- Cars / Car Hire Tab Content -->
+    @if (currentTab() === 'cars') {
+      <app-car-search></app-car-search>
+    }
+
+    <!-- Explore Everywhere Tab Content -->
+    @if (currentTab() === 'explore') {
+      <app-explore-everywhere (destinationChosen)="onDestinationChosen()"></app-explore-everywhere>
+    }
+
+    <!-- Plan with AI Tab Content (Full Page View) -->
+    @if (currentTab() === 'ai') {
+      <app-ai-travel-planner (switchTab)="onTabChange($event)"></app-ai-travel-planner>
+    }
+
+  </main>
+
+  <!-- Global Footer (Exact match to screenshot) -->
+  <app-footer></app-footer>
+
+  <!-- Skyscanner Live API Settings Modal -->
+  @if (flightService.showApiSettingsModal()) {
+    <app-api-settings-modal></app-api-settings-modal>
+  }
+
+</div>

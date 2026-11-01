@@ -1,0 +1,219 @@
+<div class="bg-[#f1f3f8] min-h-[calc(100vh-80px)] py-6 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-[1240px] mx-auto space-y-6">
+
+    <!-- 1. Hero Input Card (Matches Stitch screen.png) -->
+    <section class="rounded-3xl bg-[#02122c] text-white p-6 sm:p-7 shadow-xl relative overflow-hidden border border-slate-800">
+      <!-- Ambient Glow Orbs -->
+      <div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[#0062e3]/20 blur-3xl pointer-events-none"></div>
+      <div class="absolute left-1/3 bottom-0 w-64 h-32 rounded-full bg-[#00776d]/20 blur-2xl pointer-events-none"></div>
+
+      <div class="relative z-10 flex flex-col gap-4">
+        <!-- Header Row -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-[#0062e3] flex items-center justify-center text-white shadow-md">
+              <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white">Plan with AI</h1>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00776d] text-[#85ffef] text-[10px] font-bold uppercase tracking-wider">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#7af7e7] animate-pulse"></span>
+                  Multi-Agent System
+                </span>
+              </div>
+              <p class="text-xs text-gray-400">Live Skyscanner Flights · Booking.com Hotels · Google Places POIs</p>
+            </div>
+          </div>
+
+          <!-- Fast Demo Mode Toggle Pill -->
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full border border-white/15 cursor-pointer text-xs text-gray-300 hover:text-white transition-colors">
+              <input
+                type="checkbox"
+                [checked]="fastDemoMode()"
+                (change)="fastDemoMode.set($any($event.target).checked)"
+                class="rounded text-[#0062e3] focus:ring-0 cursor-pointer" />
+              <span class="font-bold">Fast Demo Mode (Instant)</span>
+            </label>
+
+            <div class="hidden md:flex items-center gap-1.5 text-gray-400 text-xs bg-white/5 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+              <span class="material-symbols-outlined text-[16px] text-[#5bdacb]">verified</span>
+              <span>2026/2027 Live Data</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Horizontal Input Toolbar -->
+        <div class="rounded-2xl bg-white/10 backdrop-blur-md p-2 flex flex-col md:flex-row items-stretch md:items-center gap-2 border border-white/15 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-400/30 transition-all shadow-inner">
+          <div class="relative flex-1 flex items-center">
+            <span class="material-symbols-outlined text-gray-400 absolute left-3 text-[20px]">explore</span>
+            <input
+              [value]="promptText()"
+              (input)="promptText.set($any($event.target).value)"
+              (keyup.enter)="generatePlan()"
+              placeholder="Describe your trip (e.g. 11-day Iceland road trip starting from Nagpur, ₹3.5L budget, waterfalls & baths...)"
+              type="text"
+              class="w-full bg-transparent pl-11 pr-3 py-2.5 text-white placeholder:text-gray-400 text-xs sm:text-sm md:text-base font-medium focus:outline-none" />
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            @if (promptText()) {
+              <button
+                (click)="promptText.set('')"
+                class="px-3 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                Clear
+              </button>
+            }
+
+            @if (plannerService.currentItinerary()) {
+              <button
+                (click)="resetPlan()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                New Plan
+              </button>
+            }
+
+            <button
+              (click)="generatePlan()"
+              [disabled]="plannerService.isLoading() || !promptText().trim()"
+              class="px-5 py-2.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs sm:text-sm font-black flex items-center gap-1.5 shadow-md shadow-[#0062e3]/40 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+              @if (plannerService.isLoading()) {
+                <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>Agents Working ({{ elapsedSeconds() }}s)...</span>
+              } @else {
+                <span>Generate Itinerary</span>
+                <span class="material-symbols-outlined text-[18px]">bolt</span>
+              }
+            </button>
+          </div>
+        </div>
+
+        <!-- Suggestion Chips Row -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 select-none">
+          <span class="text-xs font-bold text-gray-400 whitespace-nowrap pr-1">Sample Blueprints:</span>
+          @for (chip of suggestions; track chip.label) {
+            <button
+              (click)="applySuggestion(chip)"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border border-white/10">
+              <span>{{ chip.flag }}</span>
+              <span>{{ chip.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Loading State: Stepper & Active Multi-Agent Pipeline -->
+    @if (plannerService.isLoading()) {
+      <div class="rounded-3xl bg-white p-6 sm:p-8 shadow-sm border border-gray-200 space-y-6">
+        
+        <!-- Header & Live Timer -->
+        <div class="flex items-center justify-between border-b border-gray-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-sky-50 text-[#0062e3] flex items-center justify-center animate-spin">
+              <span class="material-symbols-outlined text-[24px]">sync</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-extrabold text-gray-900">Planning Your Trip</h3>
+                <span class="text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+                  Elapsed: {{ elapsedSeconds() }}s
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 font-medium mt-0.5">{{ progressMessage() }}</p>
+            </div>
+          </div>
+          <span class="text-xs font-bold text-[#00776d] bg-[#00776d]/10 px-3 py-1 rounded-full animate-pulse hidden sm:inline-block">
+            Multi-Agent Pipeline Active
+          </span>
+        </div>
+
+        <!-- 5-Agent Pipeline Stepper -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          @for (stage of stages; track stage.name; let idx = $index) {
+            <div
+              [class.border-[#0062e3]]="currentStageIndex() === idx"
+              [class.bg-sky-50/50]="currentStageIndex() === idx"
+              [class.border-emerald-300]="currentStageIndex() > idx"
+              [class.bg-emerald-50/30]="currentStageIndex() > idx"
+              class="p-3 rounded-2xl border border-gray-200 transition-all text-left space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="material-symbols-outlined text-[18px]"
+                  [class.text-[#0062e3]]="currentStageIndex() === idx"
+                  [class.text-emerald-600]="currentStageIndex() > idx"
+                  [class.text-gray-400]="currentStageIndex() < idx">
+                  {{ currentStageIndex() > idx ? 'check_circle' : stage.icon }}
+                </span>
+                <span class="text-[10px] font-bold uppercase"
+                  [class.text-[#0062e3]]="currentStageIndex() === idx"
+                  [class.text-emerald-600]="currentStageIndex() > idx"
+                  [class.text-gray-400]="currentStageIndex() < idx">
+                  {{ currentStageIndex() > idx ? 'Done' : (currentStageIndex() === idx ? 'Running' : 'Queued') }}
+                </span>
+              </div>
+              <span class="text-xs font-bold text-gray-900 block truncate">{{ stage.name }}</span>
+              <span class="text-[10px] text-gray-500 block truncate">{{ stage.role }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Skeleton Preview -->
+        <div class="space-y-3 pt-2 animate-pulse">
+          <div class="h-5 bg-gray-200 rounded w-1/3"></div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="h-28 bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-2">
+              <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div class="h-7 bg-gray-200 rounded w-3/4"></div>
+            </div>
+            <div class="h-28 bg-gray-50 rounded-2xl p-4 border border-gray-100 space-y-2">
+              <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div class="h-7 bg-gray-200 rounded w-3/4"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    }
+
+    <!-- 3. Error State with Retry & Instant Fallback -->
+    @if (plannerService.errorMessage()) {
+      <div class="rounded-3xl bg-red-50 border border-red-200 p-6 text-red-900 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg shrink-0">!</div>
+          <div>
+            <h3 class="text-sm font-extrabold text-red-900">Itinerary Generation Alert</h3>
+            <p class="text-xs text-red-700 mt-0.5 leading-relaxed">{{ plannerService.errorMessage() }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 self-end md:self-auto shrink-0">
+          <button
+            (click)="loadInstantDemoBlueprint()"
+            class="px-4 py-2 rounded-xl bg-white hover:bg-gray-100 text-gray-900 text-xs font-bold transition-all shadow-xs border border-gray-200 cursor-pointer">
+            Load Instant Blueprint
+          </button>
+          <button
+            (click)="retryPlan()"
+            class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all cursor-pointer shadow-sm">
+            Retry Live Generation
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- 4. Success State: Delegated to ItineraryDisplayComponent -->
+    @if (plannerService.currentItinerary(); as plan) {
+      <app-itinerary-display
+        [itinerary]="plan"
+        (searchFlights)="searchFlightsForTrip($event)"
+        (selectPrompt)="onSelectPrompt($event)"
+        (bookStay)="onBookStay($event)"
+        (bookCar)="onBookCar($event)">
+      </app-itinerary-display>
+    }
+
+  </div>
+</div>

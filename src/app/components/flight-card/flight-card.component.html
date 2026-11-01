@@ -1,0 +1,201 @@
+<div 
+  class="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md transition-all p-4 sm:p-5 mb-4 relative cursor-pointer group"
+  (click)="onSelect()">
+
+  <!-- Top Badges Row -->
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+    <div class="flex items-center space-x-2">
+      @if (flight().cheapest) {
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          Cheapest
+        </span>
+      }
+      @if (flight().fastest) {
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+          Fastest
+        </span>
+      }
+      @if (flight().best && !flight().cheapest) {
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-[#0062e3] border border-sky-300">
+          Best Value
+        </span>
+      }
+      @if (flight().co2ReductionPercent) {
+        <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+          <svg class="w-3.5 h-3.5 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span>{{ flight().co2ReductionPercent }}% less CO₂</span>
+        </span>
+      }
+    </div>
+
+    <!-- Favorite Heart Button -->
+    <button 
+      (click)="toggleFavorite($event)" 
+      class="text-gray-400 hover:text-pink-500 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+      title="Save flight">
+      <svg class="w-5 h-5" [class.text-pink-500]="isSaved()" [class.fill-current]="isSaved()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+    
+    <!-- Flight Itinerary Legs (Col 1-9) -->
+    <div class="lg:col-span-9 space-y-4">
+      
+      <!-- Outbound Leg -->
+      <div class="flex items-center justify-between">
+        
+        <!-- Airline Logo & Name -->
+        <div class="flex items-center space-x-3 w-36 sm:w-44 flex-shrink-0">
+          <div class="w-9 h-9 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center p-1 overflow-hidden">
+            <img [src]="flight().outbound.airlineLogo" [alt]="flight().outbound.airline" class="max-h-7 max-w-7 object-contain" />
+          </div>
+          <div class="truncate">
+            <p class="text-xs font-bold text-gray-900 truncate">{{ flight().outbound.airline }}</p>
+            <p class="text-[11px] text-gray-500">{{ flight().outbound.flightNumber }}</p>
+          </div>
+        </div>
+
+        <!-- Times & Route Diagram -->
+        <div class="flex items-center space-x-4 sm:space-x-8 flex-grow justify-center px-2">
+          <!-- Departure -->
+          <div class="text-right">
+            <span class="text-base sm:text-lg font-black text-gray-900">{{ flight().outbound.departureTime }}</span>
+            <span class="block text-xs font-semibold text-gray-500">{{ flight().outbound.originCode }}</span>
+          </div>
+
+          <!-- Duration & Stops Line -->
+          <div class="flex flex-col items-center w-24 sm:w-36">
+            <span class="text-[11px] text-gray-500 font-medium">{{ formatDuration(flight().outbound.durationMinutes) }}</span>
+            <div class="relative w-full flex items-center my-1">
+              <div class="h-0.5 w-full bg-gray-300"></div>
+              @if (flight().outbound.stopsCount === 0) {
+                <!-- Direct Flight Dot (Green) -->
+                <div class="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-500"></div>
+              } @else {
+                <!-- Layover Dot (Red/Orange) -->
+                <div class="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white"></div>
+              }
+            </div>
+            <span class="text-[11px] font-semibold" [class.text-emerald-600]="flight().outbound.stopsCount === 0" [class.text-amber-600]="flight().outbound.stopsCount > 0">
+              @if (flight().outbound.stopsCount === 0) {
+                Direct
+              } @else {
+                {{ flight().outbound.stopsCount }} stop ({{ flight().outbound.stops.join(', ') }})
+              }
+            </span>
+          </div>
+
+          <!-- Arrival -->
+          <div class="text-left">
+            <div class="flex items-center space-x-1">
+              <span class="text-base sm:text-lg font-black text-gray-900">{{ flight().outbound.arrivalTime }}</span>
+              @if (flight().outbound.overnight) {
+                <span class="text-[10px] font-bold text-red-500 align-top">+1</span>
+              }
+            </div>
+            <span class="block text-xs font-semibold text-gray-500">{{ flight().outbound.destinationCode }}</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Inbound Leg (if roundtrip) -->
+      @if (flight().inbound) {
+        <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+          
+          <!-- Return Airline -->
+          <div class="flex items-center space-x-3 w-36 sm:w-44 flex-shrink-0">
+            <div class="w-9 h-9 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center p-1 overflow-hidden">
+              <img [src]="flight().inbound!.airlineLogo" [alt]="flight().inbound!.airline" class="max-h-7 max-w-7 object-contain" />
+            </div>
+            <div class="truncate">
+              <p class="text-xs font-bold text-gray-900 truncate">{{ flight().inbound!.airline }}</p>
+              <p class="text-[11px] text-gray-500">{{ flight().inbound!.flightNumber }}</p>
+            </div>
+          </div>
+
+          <!-- Times & Route Diagram -->
+          <div class="flex items-center space-x-4 sm:space-x-8 flex-grow justify-center px-2">
+            <div class="text-right">
+              <span class="text-base sm:text-lg font-black text-gray-900">{{ flight().inbound!.departureTime }}</span>
+              <span class="block text-xs font-semibold text-gray-500">{{ flight().inbound!.originCode }}</span>
+            </div>
+
+            <div class="flex flex-col items-center w-24 sm:w-36">
+              <span class="text-[11px] text-gray-500 font-medium">{{ formatDuration(flight().inbound!.durationMinutes) }}</span>
+              <div class="relative w-full flex items-center my-1">
+                <div class="h-0.5 w-full bg-gray-300"></div>
+                @if (flight().inbound!.stopsCount === 0) {
+                  <div class="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-500"></div>
+                } @else {
+                  <div class="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white"></div>
+                }
+              </div>
+              <span class="text-[11px] font-semibold" [class.text-emerald-600]="flight().inbound!.stopsCount === 0" [class.text-amber-600]="flight().inbound!.stopsCount > 0">
+                @if (flight().inbound!.stopsCount === 0) {
+                  Direct
+                } @else {
+                  {{ flight().inbound!.stopsCount }} stop ({{ flight().inbound!.stops.join(', ') }})
+                }
+              </span>
+            </div>
+
+            <div class="text-left">
+              <span class="text-base sm:text-lg font-black text-gray-900">{{ flight().inbound!.arrivalTime }}</span>
+              <span class="block text-xs font-semibold text-gray-500">{{ flight().inbound!.destinationCode }}</span>
+            </div>
+          </div>
+
+        </div>
+      }
+
+    </div>
+
+    <!-- Pricing & Select CTA (Col 10-12) -->
+    <div class="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-gray-100 pt-3 lg:pt-0 lg:pl-5 flex lg:flex-col items-center lg:items-end justify-between">
+      
+      <div class="text-left lg:text-right">
+        <span class="text-xs text-gray-400 block font-medium">{{ flight().providers.length }} deals from</span>
+        <div class="text-xl sm:text-2xl font-black text-gray-900 leading-tight">
+          {{ currencyService.format(flight().priceUSD) }}
+        </div>
+        <div class="text-[11px] text-gray-500">
+          via <span class="font-semibold text-gray-700">{{ flight().providers[0].name }}</span>
+        </div>
+      </div>
+
+      <button 
+        (click)="onSelect()"
+        class="mt-0 lg:mt-3 px-5 py-2.5 bg-[#0062e3] hover:bg-[#0050b8] text-white font-bold rounded-xl text-sm flex items-center space-x-1.5 shadow transition-all group-hover:scale-[1.02]">
+        <span>Select</span>
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- Card Footer Details Bar -->
+  <div class="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+    <div class="flex items-center space-x-4">
+      <span class="flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="14" x="3" y="6" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+        <span>Cabin bag included</span>
+      </span>
+      <span class="flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 20h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/></svg>
+        <span>{{ flight().baggage.checkedBagCount }} checked bag{{ flight().baggage.checkedBagCount > 1 ? 's' : '' }}</span>
+      </span>
+    </div>
+
+    <span class="text-[#0062e3] font-semibold flex items-center space-x-1 group-hover:underline">
+      <span>View flight details & providers</span>
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+    </span>
+  </div>
+
+</div>
+

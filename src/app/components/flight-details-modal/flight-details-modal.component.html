@@ -1,0 +1,161 @@
+@if (flightService.selectedOffer(); as offer) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col text-gray-800 relative animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/80 rounded-t-2xl">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center text-[#0062e3]">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/></svg>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Flight Details & Booking Options</h2>
+            <p class="text-xs text-gray-500">{{ offer.outbound.originCity }} ({{ offer.outbound.originCode }}) to {{ offer.outbound.destinationCity }} ({{ offer.outbound.destinationCode }})</p>
+          </div>
+        </div>
+
+        <button 
+          (click)="close()"
+          class="text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 transition-colors">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-6 overflow-y-auto space-y-6">
+        
+        <!-- Outbound Timeline -->
+        <div>
+          <div class="flex items-center space-x-2 mb-3">
+            <span class="px-2 py-0.5 rounded bg-sky-100 text-[#0062e3] font-bold text-xs uppercase tracking-wider">Outbound</span>
+            <span class="text-xs font-bold text-gray-700">{{ offer.outbound.airline }} • {{ formatDuration(offer.outbound.durationMinutes) }}</span>
+          </div>
+
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+            @for (segment of offer.outbound.segments; track segment.flightNumber; let last = $last) {
+              <div class="relative pl-6 border-l-2 border-sky-500 space-y-2">
+                <!-- Departure -->
+                <div class="flex items-center justify-between text-xs">
+                  <div>
+                    <span class="font-bold text-sm text-gray-900">{{ segment.departureTime }}</span>
+                    <span class="font-semibold text-gray-700 ml-1.5">{{ segment.originCity }} ({{ segment.originCode }})</span>
+                    <p class="text-[11px] text-gray-500">{{ segment.originAirport }}</p>
+                  </div>
+                  <span class="text-[11px] font-semibold text-gray-500">{{ segment.flightNumber }}</span>
+                </div>
+
+                <!-- Aircraft & Flight Duration -->
+                <div class="py-1 text-[11px] text-gray-500 flex items-center space-x-3 bg-white px-2.5 py-1 rounded border border-gray-200/60 inline-flex">
+                  <span>{{ segment.aircraft }}</span>
+                  <span>•</span>
+                  <span>Flight duration: {{ formatDuration(segment.durationMinutes) }}</span>
+                </div>
+
+                <!-- Arrival -->
+                <div class="flex items-center justify-between text-xs">
+                  <div>
+                    <span class="font-bold text-sm text-gray-900">{{ segment.arrivalTime }}</span>
+                    <span class="font-semibold text-gray-700 ml-1.5">{{ segment.destinationCity }} ({{ segment.destinationCode }})</span>
+                    <p class="text-[11px] text-gray-500">{{ segment.destinationAirport }}</p>
+                  </div>
+                </div>
+
+                <!-- Layover Notice (if any) -->
+                @if (segment.layoverDurationMinutes) {
+                  <div class="my-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-xs flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-amber-600 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span><strong>{{ formatDuration(segment.layoverDurationMinutes) }} layover</strong> in {{ segment.layoverCity }} ({{ segment.layoverAirportCode }}) • Connection on same ticket</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Baggage Policy Info -->
+        <div class="bg-sky-50/60 border border-sky-100 rounded-xl p-4 flex items-center justify-around text-xs text-gray-700">
+          <div class="flex items-center space-x-2">
+            <svg class="w-4 h-4 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="14" x="3" y="6" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+            <span>Personal item included</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <svg class="w-4 h-4 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 20h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/></svg>
+            <span>Cabin bag (up to 7kg) included</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <svg class="w-4 h-4 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            <span>{{ offer.baggage.checkedBagCount }} Checked bag(s) included</span>
+          </div>
+        </div>
+
+        <!-- Booking Providers Comparison Table -->
+        <div>
+          <h3 class="font-bold text-sm text-gray-900 mb-3 flex items-center justify-between">
+            <span>Compare deals across {{ offer.providers.length }} travel providers</span>
+            <span class="text-xs text-gray-400 font-normal">Prices include estimated taxes & fees</span>
+          </h3>
+
+          <div class="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+            @for (provider of offer.providers; track provider.name; let first = $first) {
+              <div class="p-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                
+                <div class="flex items-center space-x-3">
+                  <span class="text-xl">{{ provider.logo }}</span>
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <span class="text-sm font-bold text-gray-900">{{ provider.name }}</span>
+                      @if (first) {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Cheapest Provider</span>
+                      }
+                      @if (provider.isDirectAirline) {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-[#0062e3]">Book with Airline</span>
+                      }
+                    </div>
+                    <p class="text-[11px] text-gray-500">★ {{ provider.rating }} ({{ provider.reviewCount }} reviews)</p>
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                  <div class="text-right">
+                    <span class="text-base font-black text-gray-900">{{ currencyService.format(provider.priceUSD) }}</span>
+                    <span class="text-[10px] block text-gray-400">Total</span>
+                  </div>
+
+                  <button 
+                    (click)="book(provider)"
+                    class="px-4 py-2 bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold rounded-lg transition-colors shadow">
+                    Select Deal
+                  </button>
+                </div>
+
+              </div>
+            }
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Confirmation Overlay -->
+      @if (bookingConfirmed() && bookedProvider()) {
+        <div class="absolute inset-0 bg-white/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center z-20">
+          <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 shadow">
+            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3 class="text-xl font-extrabold text-gray-900">Redirecting to {{ bookedProvider()!.name }}...</h3>
+          <p class="text-xs text-gray-600 mt-2 max-w-md">
+            Your flight deal for <strong>{{ currencyService.format(bookedProvider()!.priceUSD) }}</strong> has been verified. In real operation, Skyscanner redirects you directly to {{ bookedProvider()!.name }} to complete your booking.
+          </p>
+          <div class="mt-6 flex space-x-3">
+            <button 
+              (click)="close()"
+              class="px-5 py-2.5 bg-[#0062e3] hover:bg-[#0050b8] text-white font-bold rounded-xl text-xs shadow">
+              Done / Return to Flights
+            </button>
+          </div>
+        </div>
+      }
+
+    </div>
+  </div>
+}
+
