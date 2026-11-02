@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     opentripmap_api_key: str | None = None
     enable_rapidapi: bool = False  # Disabled by default: use authentic built-in routing and Google Places
     
-    # LLM Provider (groq, gemini)
-    llm_provider: str = "groq"
+    # LLM Provider (gemini, groq)
+    llm_provider: str = "gemini"
 
     # Groq Configuration (Default — worked reliably for 7 months)
     groq_api_key: str | None = None
@@ -43,9 +43,11 @@ class Settings(BaseSettings):
     groq_fallback_model: str | None = "openai/gpt-oss-20b"
     groq_temperature: float = 0.1  # Low for structured extraction
 
-    # Gemini Configuration (Fallback)
+    # Gemini Configuration (Fallback / Primary)
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.5-flash"
+    gemini_api_key_2: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    llm_failover: bool = True
     
     # Token Budget Management (Groq = 100k tokens/day)
     enable_token_tracking: bool = True

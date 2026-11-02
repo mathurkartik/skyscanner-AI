@@ -21,6 +21,7 @@ from ..models import (
     RealFlightOffer,
     RealHotelOffer,
     CarEstimate,
+    TransportSegment,
 )
 from ..tools.flight_client import get_flight_client, resolve_iata
 from ..tools.hotel_client import get_hotel_client
@@ -130,6 +131,61 @@ class LogisticsAgent:
         if constraints.is_road_trip or "car" in [p.lower() for p in constraints.preferences]:
             car_estimates = self._generate_car_estimates(constraints, duration)
 
+        # 5. Assemble multi-modal transport segments (Getting There + Inter-City)
+        transport_segments: List[TransportSegment] = []
+        if constraints.transport_segments:
+            transport_segments.extend(constraints.transport_segments)
+        else:
+            orig_name = constraints.origin_city or "Origin"
+            dest_first = cities[0] if cities else (constraints.destination_region or "Destination")
+            arrival_mode = "flight"
+            if constraints.is_road_trip:
+                arrival_mode = "drive"
+            elif any("train" in p.lower() for p in constraints.preferences):
+                arrival_mode = "train"
+
+            booking_url = f"https://www.skyscanner.com/transport/flights/{origin_iata.lower()}/{dest_iata.lower()}" if arrival_mode == "flight" else f"https://www.thetrainline.com/book/results?origin={orig_name}&destination={dest_first}"
+            transport_segments.append(TransportSegment(
+                from_city=orig_name,
+                to_city=dest_first,
+                recommended_mode=arrival_mode,
+                reason=f"Arrival transport to {dest_first}",
+                estimated_duration_hours=round(flight_offers[0].duration_minutes / 60, 1) if (flight_offers and arrival_mode == "flight") else 2.5,
+                estimated_cost_usd=flight_offers[0].price if (flight_offers and arrival_mode == "flight") else 65.0,
+                operator_name=flight_offers[0].airline if (flight_offers and arrival_mode == "flight") else ("Regional Rail / Transit" if arrival_mode == "train" else "Rental Vehicle"),
+                line_or_flight_number=flight_offers[0].flight_number if (flight_offers and arrival_mode == "flight") else None,
+                booking_url=booking_url
+            ))
+
+        existing_pairs = {(ts.from_city.lower(), ts.to_city.lower()) for ts in transport_segments}
+        for mp in movement_plans:
+            pair = (mp.from_city.lower(), mp.to_city.lower())
+            if pair not in existing_pairs:
+                existing_pairs.add(pair)
+                mode_str = mp.mode if mp.mode in ["flight", "train", "bus", "drive", "ferry"] else ("drive" if constraints.is_road_trip else "train")
+                op_name = "Intercity Rail" if mode_str == "train" else ("FlixBus / Coach" if mode_str == "bus" else ("Rental Car" if mode_str == "drive" else "Regional Transit"))
+                notes_lower = mp.booking_notes.lower()
+                if "shinkansen" in notes_lower:
+                    op_name = "Shinkansen High-Speed Rail"
+                elif "tgv" in notes_lower:
+                    op_name = "SNCF TGV InOui"
+                elif "railway" in notes_lower or "irctc" in notes_lower:
+                    op_name = "Indian Railways"
+                elif "sbb" in notes_lower:
+                    op_name = "SBB Swiss Federal Railways"
+
+                b_url = f"https://www.thetrainline.com/book/results?origin={mp.from_city}&destination={mp.to_city}" if mode_str == "train" else (f"https://www.google.com/maps/dir/?api=1&origin={mp.from_city}&destination={mp.to_city}" if mode_str == "drive" else "https://global.flixbus.com/")
+                transport_segments.append(TransportSegment(
+                    from_city=mp.from_city,
+                    to_city=mp.to_city,
+                    recommended_mode=mode_str,
+                    reason=mp.booking_notes or f"Transit from {mp.from_city} to {mp.to_city}",
+                    estimated_duration_hours=mp.duration_hours,
+                    estimated_cost_usd=round(mp.duration_hours * 25.0, 2),
+                    operator_name=op_name,
+                    booking_url=b_url
+                ))
+
         return LogisticsOutput(
             lodging_plans=lodging_plans,
             movement_plans=movement_plans,
@@ -137,6 +193,7 @@ class LogisticsAgent:
             total_estimated_transit_hours=total_transit_hours,
             route_description=route_desc,
             flight_offers=flight_offers,
+            transport_segments=transport_segments,
             hotels_by_city=hotels_by_city,
             car_estimates=car_estimates,
             logistics_summary=self._generate_summary(movement_plans)

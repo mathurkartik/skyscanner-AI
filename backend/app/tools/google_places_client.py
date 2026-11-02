@@ -3,6 +3,7 @@ GooglePlacesClient - Google Places API client for attractions, POIs, ratings, an
 Phase 3: Nearby search, text search, place details, 24h caching, and realistic curated fallback.
 """
 
+import asyncio
 import logging
 import math
 import re
@@ -716,6 +717,14 @@ class GooglePlacesClient:
         cached = self._cache.get(cache_key)
         if cached and (time.time() - cached.get("timestamp", 0) < self.cache_ttl_seconds):
             return cached["data"]
+
+        # Fast path for curated demo / blueprint destinations
+        for city_key in CURATED_PLACES:
+            if re.search(r'\b' + re.escape(city_key) + r'\b', clean_query.lower()):
+                curated = self._generate_text_fallback(clean_query, location_bias, limit)
+                if curated:
+                    self._cache[cache_key] = {"data": curated, "timestamp": time.time()}
+                    return curated
 
         api_key = self._get_api_key()
         if api_key:

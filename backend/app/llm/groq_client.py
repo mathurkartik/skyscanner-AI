@@ -158,7 +158,19 @@ Respond with valid JSON matching this schema:
   "avoidances": ["what they want to avoid"],
   "hard_requirements": ["must-haves inferred from request"],
   "soft_preferences": ["nice-to-haves inferred"],
-  "is_road_trip": boolean
+  "is_road_trip": boolean,
+  "transport_segments": [
+    {
+      "from_city": "Origin or previous stop",
+      "to_city": "Destination city",
+      "recommended_mode": "flight | train | bus | drive | ferry",
+      "reason": "Clear justification (e.g. 2h TGV high-speed rail, domestic railway connectivity, intercontinental flight)",
+      "estimated_duration_hours": 2.5,
+      "estimated_cost_usd": 45.0,
+      "operator_name": "e.g. SNCF TGV, Shinkansen, Indian Railways, SBB, FlixBus, Turkish Airlines",
+      "booking_url": "e.g. https://www.thetrainline.com/ or https://www.skyscanner.com/"
+    }
+  ]
 }
 
 CRITICAL EXTRACTION RULES (STRICT - DO NOT INVENT MISSING DATA):
@@ -167,6 +179,11 @@ CRITICAL EXTRACTION RULES (STRICT - DO NOT INVENT MISSING DATA):
 - Start Date: Extract departure date in YYYY-MM-DD if mentioned (or first day of month if a month is mentioned, e.g. "December 2026" -> "2026-12-01"). If not mentioned, set to null.
 - Duration: Extract duration in days (e.g. 1 week = 7 days). If user does NOT mention duration or days, set duration_days to null.
 - Currency: Default to "USD" unless user explicitly writes INR/₹, EUR/€, GBP/£, JPY/¥, etc.
+- Multi-Modal Transport Mode Selection:
+  * For long-distance (>800km without bullet rail) or overseas travel -> recommended_mode: "flight"
+  * For domestic or intercity routes with reliable rail (e.g., Paris-Lyon, Tokyo-Kyoto, Zurich-Lucerne, Gandhinagar-Sholapur, Delhi-Agra, Rome-Florence) -> recommended_mode: "train"
+  * For scenic driving routes, road trips, or outback areas -> recommended_mode: "drive"
+  * For island hops or coastal water crossings -> recommended_mode: "ferry"
 - Budget:
   * If a numeric budget is stated ($2000, 50000 INR, 10000$, etc.), extract the number into budget_total and the 3-letter currency into currency.
   * If user specifies a budget style without an exact number (e.g., "cheap", "backpacking", "budget trip" -> "budget"; "moderate", "mid-range", "reasonable" -> "moderate"; "luxury", "5-star", "lavish" -> "luxury"), set budget_tier to "budget", "moderate", or "luxury".

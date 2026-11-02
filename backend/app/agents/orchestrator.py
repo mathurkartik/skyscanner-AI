@@ -595,7 +595,16 @@ class OrchestratorAgent:
         dest_target = trip_structure.route[0] if (trip_structure and trip_structure.route) else (constraints.cities[0] if constraints.cities else constraints.destination_region)
         dest_iata = resolve_iata(dest_target)
 
+        # Multi-modal check: skip flight query if user route is explicitly land-based (train/bus/drive)
+        needs_flight = True
+        if getattr(constraints, "transport_segments", None):
+            modes = {s.recommended_mode for s in constraints.transport_segments}
+            if "flight" not in modes:
+                needs_flight = False
+
         async def _query_trip_flights():
+            if not needs_flight:
+                return []
             try:
                 return await self.logistics_agent.flight_client.search_flights(
                     origin=origin_iata,
@@ -670,6 +679,10 @@ class OrchestratorAgent:
             return region, rcatalog, rlogistics
 
         region_results = await asyncio.gather(*(_process_region(r) for r in trip_structure.regions))
+        all_transport_segments = []
+        if getattr(constraints, "transport_segments", None):
+            all_transport_segments.extend(constraints.transport_segments)
+
         for region, rcatalog, rlogistics in region_results:
             all_activities.extend(rcatalog.activities)
             per_city.update(rcatalog.per_city)
@@ -682,6 +695,13 @@ class OrchestratorAgent:
             all_hotels_by_city.update(rlogistics.hotels_by_city)
             all_car_estimates.extend(rlogistics.car_estimates)
             total_transit += rlogistics.total_estimated_transit_hours
+            if getattr(rlogistics, "transport_segments", None):
+                for seg in rlogistics.transport_segments:
+                    if not any(
+                        s.from_city.lower() == seg.from_city.lower() and s.to_city.lower() == seg.to_city.lower()
+                        for s in all_transport_segments
+                    ):
+                        all_transport_segments.append(seg)
 
         # Resequence day numbers globally after merging all regions
         for i, skeleton in enumerate(all_day_skeletons):
@@ -708,6 +728,7 @@ class OrchestratorAgent:
             day_skeletons=all_day_skeletons,
             total_estimated_transit_hours=total_transit,
             flight_offers=flight_offers,
+            transport_segments=all_transport_segments,
             hotels_by_city=all_hotels_by_city,
             car_estimates=all_car_estimates,
             logistics_summary=f"Route: {' → '.join(trip_structure.route)}"
@@ -907,6 +928,10 @@ class OrchestratorAgent:
         
         # Calculate total cost
         total_cost = sum(d.day_cost for d in days)
+
+        transport_segs = list(getattr(logistics_output, "transport_segments", []))
+        if not transport_segs and getattr(constraints, "transport_segments", None):
+            transport_segs = list(constraints.transport_segments)
         
         return DraftItinerary(
             constraints=constraints,
@@ -916,6 +941,7 @@ class OrchestratorAgent:
             budget_summary=budget_breakdown,
             catalog_references=list(activity_by_id.keys()),
             flight_options=logistics_output.flight_offers,
+            transport_segments=transport_segs,
             car_estimates=logistics_output.car_estimates,
             merged_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc),
             version=1
@@ -1267,6 +1293,7 @@ class OrchestratorAgent:
             cost_optimization_tips=[fix_utf8(t) for t in insights.cost_optimization_tips] if insights else [],
             cost_saving_tips_v2=cost_saving_tips_v2,
             flight_options=draft.flight_options,
+            transport_segments=getattr(draft, "transport_segments", []),
             car_estimates=draft.car_estimates,
             map_pins=map_pins,
             why_this_plan=fix_utf8(insights.why_this_plan) if insights else None,

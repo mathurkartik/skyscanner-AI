@@ -173,6 +173,19 @@ export interface ExperienceHighlight {
   day_number?: number | null;
 }
 
+export interface TransportSegment {
+  id: string;
+  from_city: string;
+  to_city: string;
+  recommended_mode: 'flight' | 'train' | 'bus' | 'drive' | 'ferry';
+  reason: string;
+  estimated_duration_hours: number;
+  estimated_cost_usd: number;
+  operator_name?: string | null;
+  line_or_flight_number?: string | null;
+  booking_url?: string | null;
+}
+
 export interface FinalItinerary {
   id: string;
   constraints: TravelConstraints;
@@ -184,6 +197,7 @@ export interface FinalItinerary {
   cost_optimization_tips: string[];
   cost_saving_tips_v2?: CostSavingTip[];
   flight_options?: RealFlightOffer[];
+  transport_segments?: TransportSegment[];
   car_estimates?: CarEstimate[];
   map_pins?: MapPin[];
   why_this_plan?: string | null;

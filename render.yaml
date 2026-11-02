@@ -19,11 +19,17 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: LLM_PROVIDER
-        value: groq
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
       - key: CORS_ORIGINS
         value: "http://localhost:4200,https://skyscanner-ai-beige.vercel.app,https://*.vercel.app"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY_2
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: GOOGLE_PLACES_API_KEY

@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FinalItinerary, DayItinerary, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo, CostSavingTip } from '../../models/travel-planner.model';
+import { FinalItinerary, DayItinerary, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo, CostSavingTip, TransportSegment } from '../../models/travel-planner.model';
 
 @Component({
   selector: 'app-itinerary-display',
@@ -255,6 +255,50 @@ export class ItineraryDisplayComponent {
     }
     const segments = uniqueCities.map(c => encodeURIComponent(c)).join('/');
     return `https://www.google.com/maps/dir/${segments}`;
+  }
+
+  public getTransportBadge(mode: string): { icon: string; label: string; badgeClass: string } {
+    switch (mode?.toLowerCase()) {
+      case 'train':
+        return { icon: '🚆', label: 'High-Speed Rail', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-300' };
+      case 'bus':
+        return { icon: '🚌', label: 'Express Coach', badgeClass: 'bg-amber-50 text-amber-700 border-amber-300' };
+      case 'drive':
+        return { icon: '🚗', label: 'Self-Drive', badgeClass: 'bg-purple-50 text-purple-700 border-purple-300' };
+      case 'ferry':
+        return { icon: '⛴', label: 'Scenic Ferry', badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-300' };
+      case 'flight':
+      default:
+        return { icon: '✈', label: 'Flight', badgeClass: 'bg-sky-50 text-sky-700 border-sky-300' };
+    }
+  }
+
+  public getTransportBookingUrl(segment: TransportSegment): string {
+    if (segment.booking_url && segment.booking_url.startsWith('http')) {
+      return segment.booking_url;
+    }
+    const from = encodeURIComponent(segment.from_city);
+    const to = encodeURIComponent(segment.to_city);
+    switch (segment.recommended_mode?.toLowerCase()) {
+      case 'train':
+        return `https://www.thetrainline.com/book/results?origin=${from}&destination=${to}`;
+      case 'bus':
+        return `https://global.flixbus.com/`;
+      case 'drive':
+        return `https://www.google.com/maps/dir/${from}/${to}`;
+      case 'ferry':
+        return `https://www.directferries.com/`;
+      case 'flight':
+      default:
+        return `https://www.skyscanner.com/transport/flights/${from.slice(0, 3)}/${to.slice(0, 3)}`;
+    }
+  }
+
+  public onBookTransportClick(segment: TransportSegment): void {
+    const url = this.getTransportBookingUrl(segment);
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    }
   }
 
   // Action handlers

@@ -185,16 +185,30 @@ class GeminiClient:
 Respond with valid JSON matching this schema:
 {
   "destination_region": "Country or region name, or null if not mentioned",
+  "origin_city": "Departure city if mentioned, or null",
+  "start_date": "YYYY-MM-DD format if mentioned, or null",
   "cities": ["Stop1", "Stop2", ...],
   "duration_days": number or null,
   "budget_total": number or null,
   "budget_tier": "budget, moderate, luxury, or null",
-  "currency": "3-letter code like INR, USD, EUR (default to USD or INR)",
+  "currency": "3-letter code like USD, EUR, INR (default to USD)",
   "preferences": ["what they want to experience"],
   "avoidances": ["what they want to avoid"],
   "hard_requirements": ["must-haves inferred from request"],
   "soft_preferences": ["nice-to-haves inferred"],
-  "is_road_trip": boolean
+  "is_road_trip": boolean,
+  "transport_segments": [
+    {
+      "from_city": "Origin or previous stop",
+      "to_city": "Destination city",
+      "recommended_mode": "flight | train | bus | drive | ferry",
+      "reason": "Clear justification",
+      "estimated_duration_hours": 2.5,
+      "estimated_cost_usd": 45.0,
+      "operator_name": "e.g. SNCF TGV, Shinkansen, Indian Railways, SBB, FlixBus",
+      "booking_url": "e.g. https://www.thetrainline.com/ or https://www.skyscanner.com/"
+    }
+  ]
 }
 
 CRITICAL EXTRACTION RULES (STRICT - DO NOT INVENT MISSING DATA):

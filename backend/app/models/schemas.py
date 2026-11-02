@@ -61,6 +61,20 @@ class ReviewStatus(str, Enum):
 # Core Input/Constraint Models (Orchestrator Output, Worker Input)
 # ============================================================================
 
+class TransportSegment(BaseModel):
+    """A multi-modal transport connection between origin and cities or between cities."""
+    id: str = Field(default_factory=lambda: f"ts-{uuid4().hex[:8]}")
+    from_city: str
+    to_city: str
+    recommended_mode: Literal["flight", "train", "bus", "drive", "ferry"] = "flight"
+    reason: str = Field(default="", description="Why this mode is recommended (e.g., 2h TGV high-speed rail vs airport wait)")
+    estimated_duration_hours: float = Field(default=2.0, ge=0)
+    estimated_cost_usd: float = Field(default=50.0, ge=0)
+    operator_name: Optional[str] = Field(default=None, description="Transport company or line (e.g. SNCF TGV, Shinkansen, Indian Railways, SBB, FlixBus)")
+    line_or_flight_number: Optional[str] = Field(default=None, description="Flight or train service number")
+    booking_url: Optional[str] = Field(default=None, description="Direct booking link to Trainline, Skyscanner, IRCTC, SBB, etc.")
+
+
 class TravelConstraints(BaseModel):
     """
     Extracted from natural language request by Orchestrator.
@@ -79,6 +93,7 @@ class TravelConstraints(BaseModel):
     hard_requirements: List[str] = Field(default_factory=list, description="Must-haves inferred from request")
     soft_preferences: List[str] = Field(default_factory=list, description="Nice-to-haves inferred from request")
     is_road_trip: bool = Field(default=False, description="Whether the user wants a road trip (e.g., Iceland Ring Road)")
+    transport_segments: List[TransportSegment] = Field(default_factory=list, description="Multi-modal travel segments recommended by LLM")
     
     # Trace ID for observability
     trace_id: UUID = Field(default_factory=uuid4, description="Unique request trace ID")
@@ -308,6 +323,7 @@ class LogisticsOutput(BaseModel):
     total_estimated_transit_hours: float
     route_description: Optional[str] = Field(default=None, description="Overview of the road trip route if applicable")
     flight_offers: List[RealFlightOffer] = Field(default_factory=list, description="Live flight offers from Skyscanner")
+    transport_segments: List[TransportSegment] = Field(default_factory=list, description="Multi-modal transit connections")
     hotels_by_city: Dict[str, List[RealHotelOffer]] = Field(default_factory=dict, description="Live hotel offers by city")
     car_estimates: List[CarEstimate] = Field(default_factory=list, description="Car rental options if road trip")
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -593,6 +609,7 @@ class DraftItinerary(BaseModel):
         description="Activity IDs used in this itinerary"
     )
     flight_options: List[RealFlightOffer] = Field(default_factory=list, description="Real flight offers")
+    transport_segments: List[TransportSegment] = Field(default_factory=list, description="Multi-modal transport connections")
     car_estimates: List[CarEstimate] = Field(default_factory=list, description="Car rental options")
     merged_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     version: int = 1  # For re-review cycles
@@ -667,6 +684,7 @@ class FinalItinerary(BaseModel):
     cost_optimization_tips: List[str] = Field(default_factory=list, description="Practical ways to save money")
     cost_saving_tips_v2: List[CostSavingTip] = Field(default_factory=list, description="Structured money-saving tips")
     flight_options: List[RealFlightOffer] = Field(default_factory=list, description="Real flight offers from Skyscanner")
+    transport_segments: List[TransportSegment] = Field(default_factory=list, description="Multi-modal transport connections")
     car_estimates: List[CarEstimate] = Field(default_factory=list, description="Estimated car rental options for road trips")
     map_pins: List[MapPin] = Field(default_factory=list, description="Geocoded pins for map display")
     why_this_plan: Optional[str] = Field(default=None, description="Why this plan fits the user's specific preferences")
