@@ -40,6 +40,37 @@ export class AiTravelPlannerComponent implements OnInit {
     'Plan an 11-day Iceland Ring Road road trip starting from Nagpur, ₹3.5L budget, waterfalls & geothermal baths, love nature and scenic drives'
   );
 
+  public originCity = signal<string>('');
+  public travelDate = signal<string>('');
+  public showOriginSuggestions = signal<boolean>(false);
+
+  public readonly popularOrigins = [
+    'New York', 'London', 'Dubai', 'Singapore', 'Mumbai',
+    'Delhi', 'Tokyo', 'Sydney', 'Los Angeles', 'San Francisco',
+    'Toronto', 'Paris', 'Frankfurt', 'Hong Kong', 'Bangkok'
+  ];
+
+  public filteredOrigins(): string[] {
+    const query = this.originCity().toLowerCase();
+    if (!query) return this.popularOrigins.slice(0, 8);
+    return this.popularOrigins.filter(c => c.toLowerCase().includes(query));
+  }
+
+  public selectOrigin(city: string): void {
+    this.originCity.set(city);
+    this.showOriginSuggestions.set(false);
+  }
+
+  public hideOriginSuggestionsDelayed(): void {
+    setTimeout(() => this.showOriginSuggestions.set(false), 200);
+  }
+
+  public get minDate(): string {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }
+
   // Fast demo mode toggle (200ms pre-cached response vs live multi-agent API)
   public fastDemoMode = signal<boolean>(false);
 
