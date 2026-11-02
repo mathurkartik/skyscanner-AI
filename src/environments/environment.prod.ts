@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiBaseUrl: ''
+  apiBaseUrl: 'https://skyscanner-ai.onrender.com'
 };
 
