@@ -104,7 +104,13 @@ async def create_plan(request: Request, plan_request: PlanRequest):
         orchestrator = OrchestratorAgent(llm_client=llm_client)
         
         # Run full pipeline: extract → validate 3 pillars → parallel agents → merge → final
-        final_itinerary = await orchestrator.create_plan(plan_request.request, trace_id=trace_id)
+        final_itinerary = await orchestrator.create_plan(
+            plan_request.request,
+            trace_id=trace_id,
+            origin_city=plan_request.origin_city,
+            start_date=plan_request.start_date,
+            currency=plan_request.currency
+        )
         
         processing_time_ms = int((time.time() - start_time) * 1000)
         

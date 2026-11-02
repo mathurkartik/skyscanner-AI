@@ -422,6 +422,188 @@ CURATED_PLACES: Dict[str, List[Dict[str, Any]]] = {
             "description": "Ethereal walking pathway flanked by towering, densely packed green bamboo stalks that sway and rustle gently in the breeze.",
             "google_maps_url": "https://maps.google.com/?cid=505152535455"
         }
+    ],
+    "paris": [
+        {
+            "place_id": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+            "name": "Eiffel Tower",
+            "rating": 4.7,
+            "review_count": 340000,
+            "types": ["tourist_attraction", "point_of_interest"],
+            "opening_hours": ["Daily: 9:00 AM – 11:45 PM"],
+            "open_now": True,
+            "address": "Champ de Mars, 5 Av. Anatole France, 75007 Paris, France",
+            "city": "Paris",
+            "lat": 48.8584,
+            "lng": 2.2945,
+            "photo_url": "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?w=800&auto=format&fit=crop&q=80",
+            "price_level": 2,
+            "description": "Iconic wrought-iron lattice tower on the Champ de Mars, offering unmatched 360-degree panoramic views of Paris.",
+            "google_maps_url": "https://maps.google.com/?cid=123456789"
+        },
+        {
+            "place_id": "ChIJD39Ckep-5kcRKuEIcrAE-xA",
+            "name": "Louvre Museum",
+            "rating": 4.7,
+            "review_count": 280000,
+            "types": ["museum", "tourist_attraction"],
+            "opening_hours": ["Mon, Thu, Sat, Sun: 9:00 AM – 6:00 PM", "Wed, Fri: 9:00 AM – 9:00 PM", "Tue: Closed"],
+            "open_now": True,
+            "address": "Rue de Rivoli, 75001 Paris, France",
+            "city": "Paris",
+            "lat": 48.8606,
+            "lng": 2.3376,
+            "photo_url": "https://images.unsplash.com/photo-1543349689-9a4d426bee8e?w=800&auto=format&fit=crop&q=80",
+            "price_level": 2,
+            "description": "The world's largest art museum and historic monument housing the Mona Lisa, Venus de Milo, and vast royal masterpieces.",
+            "google_maps_url": "https://maps.google.com/?cid=987654321"
+        },
+        {
+            "place_id": "ChIJyXjhwtBx5kcRwfM0B035w3s",
+            "name": "Musée d'Orsay",
+            "rating": 4.7,
+            "review_count": 95000,
+            "types": ["museum", "tourist_attraction"],
+            "opening_hours": ["Tue-Sun: 9:30 AM – 6:00 PM", "Thu: until 9:45 PM", "Mon: Closed"],
+            "open_now": True,
+            "address": "1 Rue de la Légion d'Honneur, 75007 Paris, France",
+            "city": "Paris",
+            "lat": 48.8599,
+            "lng": 2.3265,
+            "photo_url": "https://images.unsplash.com/photo-1574958269340-fa927503f3dd?w=800&auto=format&fit=crop&q=80",
+            "price_level": 2,
+            "description": "Grand Beaux-Arts former railway station housing premier Impressionist and Post-Impressionist masterpieces by Monet, Van Gogh, and Renoir.",
+            "google_maps_url": "https://maps.google.com/?cid=11223344"
+        }
+    ],
+    "lyon": [
+        {
+            "place_id": "ChIJc861vj3q9EcRQF6g-c4q4Q8",
+            "name": "Basilica of Notre-Dame de Fourvière",
+            "rating": 4.8,
+            "review_count": 32000,
+            "types": ["place_of_worship", "tourist_attraction"],
+            "opening_hours": ["Daily: 7:00 AM – 8:00 PM"],
+            "open_now": True,
+            "address": "8 Pl. de Fourvière, 69005 Lyon, France",
+            "city": "Lyon",
+            "lat": 45.7623,
+            "lng": 4.8222,
+            "photo_url": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop&q=80",
+            "price_level": 0,
+            "description": "Dramatic hilltop 19th-century basilica perched over Lyon offering mosaic-filled interiors and sweeping city horizons.",
+            "google_maps_url": "https://maps.google.com/?cid=55667788"
+        }
+    ],
+    "nice": [
+        {
+            "place_id": "ChIJF1i8i6HLzRIR8-V_LwY98iM",
+            "name": "Promenade des Anglais",
+            "rating": 4.7,
+            "review_count": 48000,
+            "types": ["tourist_attraction", "point_of_interest"],
+            "opening_hours": ["Open 24 hours"],
+            "open_now": True,
+            "address": "Promenade des Anglais, 06000 Nice, France",
+            "city": "Nice",
+            "lat": 43.6953,
+            "lng": 7.2562,
+            "photo_url": "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&auto=format&fit=crop&q=80",
+            "price_level": 0,
+            "description": "Famous palm-fringed Mediterranean boulevard curving 7km along the azure Baie des Anges with iconic blue chairs.",
+            "google_maps_url": "https://maps.google.com/?cid=99887766"
+        }
+    ],
+    "moscow": [
+        {
+            "place_id": "ChIJw8gX671KtUYRQVb0xQOa8p0",
+            "name": "Red Square & Saint Basil's Cathedral",
+            "rating": 4.9,
+            "review_count": 82000,
+            "types": ["tourist_attraction", "point_of_interest"],
+            "opening_hours": ["Daily: 10:00 AM – 6:00 PM"],
+            "open_now": True,
+            "address": "Red Square, Moscow 109012, Russia",
+            "city": "Moscow",
+            "lat": 55.7539,
+            "lng": 37.6208,
+            "photo_url": "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?w=800&auto=format&fit=crop&q=80",
+            "price_level": 1,
+            "description": "World-famous central city square flanked by the Kremlin walls, GUM department store, and the multicolored onion domes of Saint Basil's.",
+            "google_maps_url": "https://maps.google.com/?cid=123123123"
+        },
+        {
+            "place_id": "ChIJt-17d91KtUYRE2Z8-8rL8lM",
+            "name": "The Moscow Kremlin",
+            "rating": 4.8,
+            "review_count": 65000,
+            "types": ["museum", "tourist_attraction"],
+            "opening_hours": ["Fri-Wed: 10:00 AM – 5:00 PM", "Thu: Closed"],
+            "open_now": True,
+            "address": "Moscow Kremlin, Moscow 103132, Russia",
+            "city": "Moscow",
+            "lat": 55.7520,
+            "lng": 37.6175,
+            "photo_url": "https://images.unsplash.com/photo-1547448415-e9f5b28e570d?w=800&auto=format&fit=crop&q=80",
+            "price_level": 2,
+            "description": "Fortified historic complex encompassing tsarist cathedrals, the Armory Chamber museum, and the Tsar Cannon.",
+            "google_maps_url": "https://maps.google.com/?cid=456456456"
+        }
+    ],
+    "saint petersburg": [
+        {
+            "place_id": "ChIJk956jM7xlkYRk6p0xQOa8p0",
+            "name": "The State Hermitage Museum",
+            "rating": 4.9,
+            "review_count": 91000,
+            "types": ["museum", "tourist_attraction"],
+            "opening_hours": ["Tue, Thu, Sun: 11:00 AM – 6:00 PM", "Wed, Fri, Sat: 11:00 AM – 8:00 PM", "Mon: Closed"],
+            "open_now": True,
+            "address": "Palace Square, 2, St Petersburg 190000, Russia",
+            "city": "Saint Petersburg",
+            "lat": 59.9398,
+            "lng": 30.3146,
+            "photo_url": "https://images.unsplash.com/photo-1556610961-2fecc5927173?w=800&auto=format&fit=crop&q=80",
+            "price_level": 2,
+            "description": "Vast museum of art and culture housed within the Winter Palace, featuring over 3 million items including Da Vinci and Rembrandt masterpieces.",
+            "google_maps_url": "https://maps.google.com/?cid=789789789"
+        }
+    ],
+    "murmansk": [
+        {
+            "place_id": "ChIJb9x7kM7xlkYRv8p0xQOa8p0",
+            "name": "Lenin Nuclear Icebreaker Museum",
+            "rating": 4.8,
+            "review_count": 14000,
+            "types": ["museum", "tourist_attraction"],
+            "opening_hours": ["Wed-Sun: 12:00 PM – 6:00 PM", "Mon-Tue: Closed"],
+            "open_now": True,
+            "address": "Portovy Spusk, 25, Murmansk 183038, Russia",
+            "city": "Murmansk",
+            "lat": 68.9744,
+            "lng": 33.0597,
+            "photo_url": "https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?w=800&auto=format&fit=crop&q=80",
+            "price_level": 1,
+            "description": "The world's first nuclear-powered surface ship now preserved as a museum ship in Murmansk harbor.",
+            "google_maps_url": "https://maps.google.com/?cid=321321321"
+        },
+        {
+            "place_id": "ChIJc861vj3q9EcRQF6g-c4q4Q9",
+            "name": "Teriberka Arctic Ocean & Aurora Base",
+            "rating": 4.9,
+            "review_count": 8500,
+            "types": ["natural_feature", "tourist_attraction"],
+            "opening_hours": ["Open 24 hours"],
+            "open_now": True,
+            "address": "Teriberka Coastal Settlement, Murmansk Oblast, Russia",
+            "city": "Murmansk",
+            "lat": 69.1650,
+            "lng": 35.1420,
+            "photo_url": "https://images.unsplash.com/photo-1579033461380-adb47c3eb938?w=800&auto=format&fit=crop&q=80",
+            "price_level": 0,
+            "description": "Dramatic Barents Sea coastline with dragon egg pebble beaches, ship graveyards, and world-class Northern Lights visibility.",
+            "google_maps_url": "https://maps.google.com/?cid=654654654"
+        }
     ]
 }
 

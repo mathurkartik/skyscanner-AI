@@ -146,12 +146,14 @@ class GroqClient:
 
 Respond with valid JSON matching this schema:
 {
+  "origin_city": "City or country departing from, or null if not mentioned (e.g. Cambodia, New York, London)",
   "destination_region": "Country or region name, or null if not mentioned",
   "cities": ["Stop1", "Stop2", ...],
+  "start_date": "YYYY-MM-DD format if mentioned, or null",
   "duration_days": number or null,
   "budget_total": number or null,
   "budget_tier": "budget, moderate, luxury, or null",
-  "currency": "3-letter code like INR, USD, EUR (default to USD or INR)",
+  "currency": "3-letter code like USD, EUR, INR (default to USD unless explicitly INR or EUR)",
   "preferences": ["what they want to experience"],
   "avoidances": ["what they want to avoid"],
   "hard_requirements": ["must-haves inferred from request"],
@@ -160,10 +162,13 @@ Respond with valid JSON matching this schema:
 }
 
 CRITICAL EXTRACTION RULES (STRICT - DO NOT INVENT MISSING DATA):
+- Origin: Extract departure origin if user states where they are traveling from (e.g., "trip from Cambodia", "flying from JFK", "departing London"). If not stated, set origin_city to null.
 - Destination: Extract the primary destination/country/city. If user does NOT state where they want to go, set destination_region to null and cities to [].
+- Start Date: Extract departure date in YYYY-MM-DD if mentioned (or first day of month if a month is mentioned, e.g. "December 2026" -> "2026-12-01"). If not mentioned, set to null.
 - Duration: Extract duration in days (e.g. 1 week = 7 days). If user does NOT mention duration or days, set duration_days to null.
+- Currency: Default to "USD" unless user explicitly writes INR/₹, EUR/€, GBP/£, JPY/¥, etc.
 - Budget:
-  * If a numeric budget is stated ($2000, 50000 INR, etc.), extract the number into budget_total and the 3-letter currency into currency.
+  * If a numeric budget is stated ($2000, 50000 INR, 10000$, etc.), extract the number into budget_total and the 3-letter currency into currency.
   * If user specifies a budget style without an exact number (e.g., "cheap", "backpacking", "budget trip" -> "budget"; "moderate", "mid-range", "reasonable" -> "moderate"; "luxury", "5-star", "lavish" -> "luxury"), set budget_tier to "budget", "moderate", or "luxury".
   * If neither amount nor tier is mentioned, set budget_total to null and budget_tier to null.
   * DO NOT guess or invent default budget or duration values if omitted.
@@ -178,9 +183,10 @@ TRIP TYPE DETECTION:
 - CITY TRIP destinations (Paris, Tokyo, NYC, Dubai, Singapore):
   Set is_road_trip=false. Use 1-3 cities as appropriate.
 
-- MULTI-CITY countries (Japan, Italy, Spain):
+- MULTI-CITY countries (Japan, Italy, Spain, Russia):
   Set is_road_trip=false. Generate 2-4 key cities.
   Example Japan: cities=["Tokyo","Kyoto","Osaka"]
+  Example Russia: cities=["Moscow","Saint Petersburg","Murmansk"]
 
 - Preferences: include nature, adventure, scenic drives, temples, food etc. based on request.
 - For road trips: add "self-drive", "scenic routes", "nature" to preferences automatically.
@@ -196,6 +202,16 @@ TRIP TYPE DETECTION:
             )
             content = self._extract_json(content)
             data = json.loads(content)
+            
+            # Rule fallback for origin if missed by LLM
+            if not data.get("origin_city"):
+                import re
+                m = re.search(r'\bfrom\s+([a-zA-Z\s]+?)(?:\s+to\b|\s+for\b|\s+in\b|$)', natural_language_request, re.IGNORECASE)
+                if m:
+                    candidate = m.group(1).strip()
+                    if candidate and candidate.lower() not in ["here", "home", "airport"]:
+                        data["origin_city"] = candidate
+                        
             constraints = TravelConstraints.model_validate(data)
             
             # Cache result

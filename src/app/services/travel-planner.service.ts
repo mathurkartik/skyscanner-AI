@@ -22,17 +22,26 @@ export class TravelPlannerService {
    * Request multi-agent AI travel plan from the FastAPI backend.
    * Timeout set to 90 seconds to accommodate multi-agent research pipeline.
    */
-  public generatePlan(prompt: string, stubMode: boolean = false): Observable<PlanResponse> {
+  public generatePlan(
+    prompt: string,
+    stubMode: boolean = false,
+    originCity?: string,
+    startDate?: string,
+    currency?: string
+  ): Observable<PlanResponse> {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
     const payload: PlanRequest = {
       request: prompt.trim(),
-      stub_mode: stubMode
+      stub_mode: stubMode,
+      ...(originCity ? { origin_city: originCity.trim() } : {}),
+      ...(startDate ? { start_date: startDate.trim() } : {}),
+      ...(currency ? { currency: currency.trim() } : { currency: 'USD' })
     };
 
     return this.http.post<PlanResponse>(`${this.baseUrl}/api/plan`, payload).pipe(
-      timeout(90000),
+      timeout(120000),
       tap({
         next: (response) => {
           this.isLoading.set(false);
@@ -68,7 +77,7 @@ export class TravelPlannerService {
 
   private handleError(error: any): void {
     if (error.name === 'TimeoutError') {
-      this.errorMessage.set('The AI travel planning agents took longer than 90 seconds. Please try again.');
+      this.errorMessage.set('The AI travel planning agents took longer than 120 seconds. Please try again.');
     } else if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
         this.errorMessage.set('Cannot connect to the AI planner backend at ' + this.baseUrl + '. Make sure the backend server is running on port 8000.');

@@ -94,25 +94,61 @@ class BudgetAgent:
                             rationale=f"Save {savings} {constraints.currency}/night with high guest rating ({cheapest_hotel.guest_rating}★)"
                         ))
 
-        # Update categories
-        updated_categories: List[BudgetCategory] = []
-        for cat in breakdown.categories:
-            if cat.category == "stay" and hotel_total_curr > 0:
-                updated_categories.append(BudgetCategory(
-                    category="stay",
-                    estimated_total=hotel_total_curr,
-                    currency=constraints.currency,
-                    notes="Real rates from Booking.com inventory"
-                ))
-            elif cat.category == "transport" and flight_cost_curr > 0:
-                updated_categories.append(BudgetCategory(
-                    category="transport",
-                    estimated_total=flight_cost_curr,
-                    currency=constraints.currency,
-                    notes="Real flight quotes from Skyscanner RapidAPI"
-                ))
-            else:
-                updated_categories.append(cat)
+        # Update or populate categories so rollup is always complete
+        cat_map = {c.category: c for c in breakdown.categories}
+        
+        if hotel_total_curr > 0:
+            cat_map["stay"] = BudgetCategory(
+                category="stay",
+                estimated_total=hotel_total_curr,
+                currency=constraints.currency,
+                notes="Real rates from Booking.com inventory"
+            )
+        elif "stay" not in cat_map:
+            cat_map["stay"] = BudgetCategory(
+                category="stay",
+                estimated_total=round(constraints.budget_total * 0.35, 2),
+                currency=constraints.currency,
+                notes="Estimated accommodations allocation"
+            )
+
+        if flight_cost_curr > 0:
+            cat_map["transport"] = BudgetCategory(
+                category="transport",
+                estimated_total=flight_cost_curr,
+                currency=constraints.currency,
+                notes="Real flight quotes from Skyscanner inventory"
+            )
+        elif "transport" not in cat_map:
+            cat_map["transport"] = BudgetCategory(
+                category="transport",
+                estimated_total=round(constraints.budget_total * 0.20, 2),
+                currency=constraints.currency,
+                notes="Estimated intercity and local transit"
+            )
+
+        if "food" not in cat_map:
+            cat_map["food"] = BudgetCategory(
+                category="food",
+                estimated_total=round(constraints.budget_total * 0.25, 2),
+                currency=constraints.currency,
+                notes="Estimated daily meals and dining"
+            )
+
+        if "activities" not in cat_map:
+            cat_map["activities"] = BudgetCategory(
+                category="activities",
+                estimated_total=round(constraints.budget_total * 0.15, 2),
+                currency=constraints.currency,
+                notes="Estimated attraction tickets and tours"
+            )
+
+        # Standard category order
+        order = ["stay", "transport", "food", "activities", "buffer"]
+        updated_categories = [cat_map[k] for k in order if k in cat_map]
+        for k, v in cat_map.items():
+            if k not in order:
+                updated_categories.append(v)
 
         grand_total = round(sum(c.estimated_total for c in updated_categories), 2)
         within_budget = grand_total <= constraints.budget_total

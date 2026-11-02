@@ -57,11 +57,22 @@ export class ItineraryDisplayComponent {
   }
 
   public getOriginIata(): string {
-    return this.itinerary?.flight_options?.[0]?.origin || this.itinerary?.constraints?.origin || 'NAG';
+    return this.itinerary?.flight_options?.[0]?.origin || this.itinerary?.constraints?.origin_city?.slice(0, 3)?.toUpperCase() || this.itinerary?.constraints?.origin || 'ORIG';
   }
 
   public getDestinationIata(): string {
-    return this.itinerary?.flight_options?.[0]?.destination || 'KEF';
+    if (this.itinerary?.flight_options?.[0]?.destination) {
+      return this.itinerary.flight_options[0].destination;
+    }
+    const dest = (this.itinerary?.constraints?.destination_region || '').toLowerCase();
+    if (dest.includes('france') || dest.includes('paris')) return 'CDG';
+    if (dest.includes('japan') || dest.includes('tokyo')) return 'HND';
+    if (dest.includes('swiss') || dest.includes('zurich')) return 'ZRH';
+    if (dest.includes('italy') || dest.includes('rome')) return 'FCO';
+    if (dest.includes('russia') || dest.includes('moscow')) return 'SVO';
+    if (dest.includes('australia') || dest.includes('melbourne')) return 'MEL';
+    if (dest.includes('iceland') || dest.includes('reykjavik')) return 'KEF';
+    return this.itinerary?.constraints?.cities?.[0]?.slice(0, 3)?.toUpperCase() || 'DEST';
   }
 
   public getAverageFlightFare(): number {

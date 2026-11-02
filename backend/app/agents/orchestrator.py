@@ -7,7 +7,7 @@ Phase 8: Timeouts, observability, and partial failure handling.
 
 import asyncio
 import time
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 from ..models import (
     TravelConstraints, DraftItinerary, FinalItinerary, ReviewReport,
@@ -25,6 +25,147 @@ from .review import ReviewAgent
 from .trip_structuring import TripStructuringAgent
 from ..tools import ToolRouter
 from ..utils.observability import ObservabilityLogger
+
+
+CITY_COORDINATES: Dict[str, Any] = {
+    "paris": (48.8566, 2.3522),
+    "lyon": (45.7640, 4.8357),
+    "nice": (43.7102, 7.2620),
+    "marseille": (43.2965, 5.3698),
+    "bordeaux": (44.8378, -0.5792),
+    "strasbourg": (48.5734, 7.7521),
+    "toulouse": (43.6047, 1.4442),
+    "london": (51.5074, -0.1278),
+    "edinburgh": (55.9533, -3.1883),
+    "manchester": (53.4808, -2.2426),
+    "rome": (41.9028, 12.4964),
+    "florence": (43.7696, 11.2558),
+    "venice": (45.4408, 12.3155),
+    "milan": (45.4642, 9.1900),
+    "naples": (40.8518, 14.2681),
+    "barcelona": (41.3879, 2.1699),
+    "madrid": (40.4168, -3.7038),
+    "seville": (37.3891, -5.9845),
+    "valencia": (39.4699, -0.3763),
+    "amsterdam": (52.3676, 4.9041),
+    "rotterdam": (51.9244, 4.4777),
+    "berlin": (52.5200, 13.4050),
+    "munich": (48.1351, 11.5820),
+    "vienna": (48.2082, 16.3738),
+    "prague": (50.0755, 14.4378),
+    "budapest": (47.4979, 19.0402),
+    "zurich": (47.3769, 8.5417),
+    "geneva": (46.2044, 6.1432),
+    "lucerne": (47.0502, 8.3093),
+    "interlaken": (46.6863, 7.8632),
+    "oslo": (59.9139, 10.7522),
+    "bergen": (60.3913, 5.3221),
+    "tromso": (69.6492, 18.9553),
+    "tromsø": (69.6492, 18.9553),
+    "stockholm": (59.3293, 18.0686),
+    "copenhagen": (55.6761, 12.5683),
+    "helsinki": (60.1699, 24.9384),
+    "reykjavik": (64.1466, -21.9426),
+    "vik": (63.4186, -19.0060),
+    "akureyri": (65.6835, -18.0878),
+    "hofn": (64.2539, -15.2082),
+    "egilsstadir": (65.2669, -14.3948),
+    "snaefellsnes": (64.8694, -23.1878),
+    "tokyo": (35.6762, 139.6503),
+    "kyoto": (35.0116, 135.7681),
+    "osaka": (34.6937, 135.5023),
+    "hiroshima": (34.3853, 132.4553),
+    "sapporo": (43.0618, 141.3545),
+    "nara": (34.6851, 135.8048),
+    "seoul": (37.5665, 126.9780),
+    "bangkok": (13.7563, 100.5018),
+    "chiang mai": (18.7883, 98.9853),
+    "phuket": (7.8804, 98.3923),
+    "siem reap": (13.3671, 103.8448),
+    "phnom penh": (11.5564, 104.9282),
+    "bali": (-8.4095, 115.1889),
+    "denpasar": (-8.6705, 115.2126),
+    "ubud": (-8.5069, 115.2625),
+    "singapore": (1.3521, 103.8198),
+    "hanoi": (21.0285, 105.8542),
+    "ho chi minh": (10.8231, 106.6297),
+    "delhi": (28.6139, 77.2090),
+    "mumbai": (19.0760, 72.8777),
+    "jaipur": (26.9124, 75.7873),
+    "agra": (27.1767, 78.0081),
+    "varanasi": (25.3176, 82.9739),
+    "rishikesh": (30.0869, 78.2676),
+    "dubai": (25.2048, 55.2708),
+    "cairo": (30.0444, 31.2357),
+    "cape town": (-33.9249, 18.4241),
+    "new york": (40.7128, -74.0060),
+    "los angeles": (34.0522, -118.2437),
+    "san francisco": (37.7749, -122.4194),
+    "sydney": (-33.8688, 151.2093),
+    "melbourne": (-37.8136, 144.9631),
+    "auckland": (-36.8485, 174.7633),
+    "queenstown": (-45.0312, 168.6626),
+    "moscow": (55.7558, 37.6173),
+    "saint petersburg": (59.9343, 30.3351),
+    "murmansk": (68.9585, 33.0827),
+}
+
+AIRPORT_COORDINATES: Dict[str, Tuple[float, float, str]] = {
+    "CDG": (49.0097, 2.5479, "Paris Charles de Gaulle Airport (CDG)"),
+    "ORY": (48.7262, 2.3652, "Paris Orly Airport (ORY)"),
+    "NCE": (43.6584, 7.2159, "Nice Côte d'Azur Airport (NCE)"),
+    "LYS": (45.7256, 5.0811, "Lyon-Saint Exupéry Airport (LYS)"),
+    "KEF": (63.9850, -22.6056, "Keflavík International Airport (KEF)"),
+    "HND": (35.5494, 139.7798, "Tokyo Haneda Airport (HND)"),
+    "NRT": (35.7720, 140.3929, "Tokyo Narita Airport (NRT)"),
+    "KIX": (34.4320, 135.2304, "Kansai International Airport (KIX)"),
+    "LHR": (51.4700, -0.4543, "London Heathrow Airport (LHR)"),
+    "FCO": (41.8003, 12.2389, "Rome Fiumicino Airport (FCO)"),
+    "BCN": (41.2974, 2.0833, "Barcelona-El Prat Airport (BCN)"),
+    "MAD": (40.4839, -3.5680, "Adolfo Suárez Madrid-Barajas Airport (MAD)"),
+    "AMS": (52.3105, 4.7683, "Amsterdam Airport Schiphol (AMS)"),
+    "ZRH": (47.4582, 8.5555, "Zurich Airport (ZRH)"),
+    "OSL": (60.1976, 11.1004, "Oslo Gardermoen Airport (OSL)"),
+    "BKK": (13.6900, 100.7501, "Suvarnabhumi Airport (BKK)"),
+    "SIN": (1.3644, 103.9915, "Singapore Changi Airport (SIN)"),
+    "DPS": (-8.7482, 115.1672, "Ngurah Rai International Airport (DPS)"),
+    "DEL": (28.5562, 77.1000, "Indira Gandhi International Airport (DEL)"),
+    "BOM": (19.0896, 72.8656, "Chhatrapati Shivaji Maharaj Airport (BOM)"),
+    "JFK": (40.6413, -73.7781, "John F. Kennedy International Airport (JFK)"),
+    "SVO": (55.9726, 37.4146, "Sheremetyevo International Airport (SVO)"),
+    "LED": (59.8003, 30.2625, "Pulkovo Airport (LED)"),
+    "MMK": (68.7817, 32.7508, "Murmansk Airport (MMK)"),
+    "PNH": (11.5466, 104.8441, "Phnom Penh International Airport (PNH)"),
+    "REP": (13.4117, 103.8128, "Siem Reap International Airport (REP)"),
+    "MEL": (-37.6690, 144.8410, "Melbourne Airport (MEL)"),
+    "SYD": (-33.9399, 151.1753, "Sydney Kingsford Smith Airport (SYD)"),
+    "DXB": (25.2532, 55.3657, "Dubai International Airport (DXB)"),
+}
+
+
+def _lookup_city_coords(name: str) -> Optional[Tuple[float, float]]:
+    if not name:
+        return None
+    name_clean = name.lower().strip()
+    if name_clean in CITY_COORDINATES:
+        return CITY_COORDINATES[name_clean]
+    for k, v in CITY_COORDINATES.items():
+        if k in name_clean or name_clean in k:
+            return v
+    return None
+
+
+def fix_utf8(text: Any) -> Any:
+    """Repair mojibake or double-encoded UTF-8 characters."""
+    if not isinstance(text, str):
+        return text
+    mojibake_markers = ("Ã©", "Ã¨", "Ã ", "Ã¢", "Ã®", "Ã¯", "Ã´", "Ã¹", "Ã»", "Ã§", "Ã±", "Ã–", "Ã¼", "â€™", "â€œ", "â€", "Ã¡", "Ã³", "Ãº")
+    if any(m in text for m in mojibake_markers):
+        try:
+            return text.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return text
 
 
 class OrchestratorAgent:
@@ -179,7 +320,14 @@ class OrchestratorAgent:
             print(f"Constraint extraction failed: {e}")
             raise RuntimeError(f"Failed to extract constraints: {e}") from e
     
-    async def create_plan(self, natural_language_request: str, trace_id: str = "unknown") -> FinalItinerary:
+    async def create_plan(
+        self,
+        natural_language_request: str,
+        trace_id: str = "unknown",
+        origin_city: Optional[str] = None,
+        start_date: Optional[str] = None,
+        currency: Optional[str] = None
+    ) -> FinalItinerary:
         """
         Phase 5-8: Full orchestration pipeline with Review, Repair loop, timeouts, and observability.
         """
@@ -201,12 +349,20 @@ class OrchestratorAgent:
                 "fallback_to_stub", "Constraint extraction timed out"
             )
             raise RuntimeError(f"Constraint extraction timed out after {timeout_seconds}s")
+
+        # Overlay explicit user parameters if provided
+        if origin_city:
+            constraints.origin_city = origin_city.strip()
+        if start_date:
+            constraints.start_date = start_date.strip()
+        if currency:
+            constraints.currency = currency.strip()
             
         # Step 1.2: STRICT 3-PILLAR VALIDATION (Destination, Duration, Budget)
         # Halts IMMEDIATELY if any are missing, before invoking expensive downstream agents
         constraints = self.validate_constraints(constraints)
         
-        # Step 1.5: Trip Structuring (NEW - from improvement.md)
+        # Step 1.5: Trip Structuring (from improvement.md)
         trip_structure = None
         use_structuring = constraints.duration_days > 7 or constraints.is_road_trip
         
@@ -214,20 +370,12 @@ class OrchestratorAgent:
             try:
                 trip_structure = await self.trip_structuring_agent.structure(constraints)
                 print(f"Trip structured: {trip_structure.trip_type}, {len(trip_structure.regions)} regions, pace={trip_structure.pace}")
-                # Update constraints cities from trip structure route
+                # Update constraints cities from trip structure route while preserving all fields
                 structured_cities = [r.base_location for r in trip_structure.regions]
-                constraints = TravelConstraints(
-                    destination_region=constraints.destination_region,
-                    cities=structured_cities,
-                    duration_days=constraints.duration_days,
-                    budget_total=constraints.budget_total,
-                    currency=constraints.currency,
-                    preferences=constraints.preferences,
-                    avoidances=constraints.avoidances,
-                    hard_requirements=constraints.hard_requirements,
-                    soft_preferences=constraints.soft_preferences,
-                    is_road_trip=constraints.is_road_trip or trip_structure.trip_type == "road_trip",
-                )
+                constraints = constraints.model_copy(update={
+                    "cities": structured_cities,
+                    "is_road_trip": constraints.is_road_trip or trip_structure.trip_type == "road_trip"
+                })
             except Exception as e:
                 print(f"Trip structuring failed, using flat pipeline: {e}")
                 trip_structure = None
@@ -405,18 +553,63 @@ class OrchestratorAgent:
         return activity_catalog, logistics_output, budget_breakdown
     
     async def _run_agents_per_region(self, constraints, trip_structure, timeout_seconds, trace_id):
-        """NEW: Run agents per-region, then merge results. From improvement.md."""
+        """Run agents per-region concurrently, merge all inventory (flights, hotels, places), and calibrate budget."""
         from ..models import LogisticsOutput, ActivityCatalog, Activity, BudgetBreakdown, BudgetCategory
+        from ..tools.flight_client import resolve_iata
+        from datetime import datetime, timedelta
         
         all_activities = []
         all_movement_plans = []
         all_lodging_plans = []
         all_day_skeletons = []
+        all_places_by_city: Dict[str, List[PlaceInfo]] = {}
+        all_hotels_by_city: Dict[str, List[RealHotelOffer]] = {}
+        all_car_estimates: List[CarEstimate] = []
         total_transit = 0.0
         per_city = {}
         neighborhood_notes = {}
 
-        # One trip-wide neighborhoods call instead of one per region (Groq free tier is 8k TPM)
+        # 1. Concurrently launch trip-level flight search
+        departure_date = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        return_date = (datetime.now() + timedelta(days=30 + constraints.duration_days)).strftime("%Y-%m-%d")
+        if constraints.start_date:
+            try:
+                dt = datetime.strptime(constraints.start_date, "%Y-%m-%d")
+                departure_date = constraints.start_date
+                return_date = (dt + timedelta(days=constraints.duration_days)).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        origin_iata = "DEL"
+        if constraints.origin_city:
+            origin_iata = resolve_iata(constraints.origin_city)
+        else:
+            for pref in constraints.preferences:
+                if "from " in pref.lower():
+                    from_c = pref.lower().split("from ")[-1].strip()
+                    origin_iata = resolve_iata(from_c)
+                    break
+
+        dest_target = trip_structure.route[0] if (trip_structure and trip_structure.route) else (constraints.cities[0] if constraints.cities else constraints.destination_region)
+        dest_iata = resolve_iata(dest_target)
+
+        async def _query_trip_flights():
+            try:
+                return await self.logistics_agent.flight_client.search_flights(
+                    origin=origin_iata,
+                    destination=dest_iata,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    cabin_class="economy",
+                    adults=1
+                )
+            except Exception as e:
+                print(f"Trip flight query failed: {e}")
+                return []
+
+        flight_task = asyncio.create_task(_query_trip_flights())
+
+        # 2. Trip-wide neighborhoods map
         region_cities = [r.base_location for r in trip_structure.regions]
         neighborhoods_map = {}
         if self.logistics_agent.llm_client:
@@ -425,12 +618,14 @@ class OrchestratorAgent:
             except Exception as e:
                 print(f"LLM neighborhood generation failed: {e}")
 
-        for region in trip_structure.regions:
-            print(f"  Processing region: {region.name} ({region.days} days)")
-            
-            # Create region-scoped constraints
+        # 3. Process each region concurrently
+        async def _process_region(region):
+            clean_name = str(region.name).encode('ascii', 'ignore').decode('ascii')
+            print(f"  Processing region: {clean_name} ({region.days} days)")
             region_constraints = TravelConstraints(
                 destination_region=constraints.destination_region,
+                origin_city=constraints.origin_city,
+                start_date=constraints.start_date,
                 cities=[region.base_location],
                 duration_days=region.days,
                 budget_total=constraints.budget_total * (region.days / constraints.duration_days),
@@ -441,72 +636,91 @@ class OrchestratorAgent:
                 soft_preferences=constraints.soft_preferences,
                 is_road_trip=constraints.is_road_trip,
             )
-            
-            # Run destination for this region
+            # Run destination
             try:
-                region_catalog = await asyncio.wait_for(
+                rcatalog = await asyncio.wait_for(
                     self.destination_agent.research(region_constraints),
                     timeout=timeout_seconds
                 )
-                all_activities.extend(region_catalog.activities)
-                per_city.update(region_catalog.per_city)
-                neighborhood_notes.update(region_catalog.neighborhood_notes)
             except Exception as e:
-                print(f"  Region {region.name} destination failed: {e}")
+                print(f"  Region {clean_name} destination fallback: {e}")
                 from ..models import ActivityCatalog
                 region_acts = self.destination_agent._generate_generic_activities(region.base_location, region_constraints)
-                region_catalog = ActivityCatalog(
+                rcatalog = ActivityCatalog(
                     activities=region_acts,
                     per_city={region.base_location: [a.id for a in region_acts]},
-                    neighborhood_notes={}
+                    neighborhood_notes={},
+                    places_by_city={}
                 )
-                all_activities.extend(region_catalog.activities)
-                per_city.update(region_catalog.per_city)
-            
-            # Run logistics for this region
+
+            # Run logistics
             try:
-                region_logistics = await asyncio.wait_for(
-                    self.logistics_agent.plan(region_constraints, region_catalog, neighborhoods_map),
+                rlogistics = await asyncio.wait_for(
+                    self.logistics_agent.plan(region_constraints, rcatalog, neighborhoods_map),
                     timeout=timeout_seconds
                 )
-                all_lodging_plans.extend(region_logistics.lodging_plans)
-                all_movement_plans.extend(region_logistics.movement_plans)
-                all_day_skeletons.extend(region_logistics.day_skeletons)
-                total_transit += region_logistics.total_estimated_transit_hours
             except Exception as e:
-                print(f"  Region {region.name} logistics failed: {e}")
-        
+                print(f"  Region {clean_name} logistics fallback: {e}")
+                rlogistics = LogisticsOutput(
+                    lodging_plans=[], movement_plans=[], day_skeletons=[],
+                    total_estimated_transit_hours=0.0
+                )
+            return region, rcatalog, rlogistics
+
+        region_results = await asyncio.gather(*(_process_region(r) for r in trip_structure.regions))
+        for region, rcatalog, rlogistics in region_results:
+            all_activities.extend(rcatalog.activities)
+            per_city.update(rcatalog.per_city)
+            neighborhood_notes.update(rcatalog.neighborhood_notes)
+            all_places_by_city.update(rcatalog.places_by_city)
+
+            all_lodging_plans.extend(rlogistics.lodging_plans)
+            all_movement_plans.extend(rlogistics.movement_plans)
+            all_day_skeletons.extend(rlogistics.day_skeletons)
+            all_hotels_by_city.update(rlogistics.hotels_by_city)
+            all_car_estimates.extend(rlogistics.car_estimates)
+            total_transit += rlogistics.total_estimated_transit_hours
+
         # Resequence day numbers globally after merging all regions
         for i, skeleton in enumerate(all_day_skeletons):
             skeleton.day_number = i + 1
-        
-        # Merge all region results
+
+        # Await flights
+        flight_offers = await flight_task
+
+        # Generate car estimates if road trip and none collected
+        if (constraints.is_road_trip or "car" in [p.lower() for p in constraints.preferences]) and not all_car_estimates:
+            all_car_estimates = self.logistics_agent._generate_car_estimates(constraints, constraints.duration_days)
+
+        # Merge all region results with full inventory
         activity_catalog = ActivityCatalog(
             activities=all_activities,
             per_city=per_city,
-            neighborhood_notes=neighborhood_notes
+            neighborhood_notes=neighborhood_notes,
+            places_by_city=all_places_by_city
         )
-        
+
         logistics_output = LogisticsOutput(
             lodging_plans=all_lodging_plans,
             movement_plans=all_movement_plans,
             day_skeletons=all_day_skeletons,
             total_estimated_transit_hours=total_transit,
+            flight_offers=flight_offers,
+            hotels_by_city=all_hotels_by_city,
+            car_estimates=all_car_estimates,
             logistics_summary=f"Route: {' → '.join(trip_structure.route)}"
         )
-        
+
         budget_constraints = constraints.model_copy(update={"cities": region_cities})
         try:
             budget_breakdown = await asyncio.wait_for(
-                self.budget_agent.analyze(budget_constraints),
+                self.budget_agent.analyze(budget_constraints, logistics_output),
                 timeout=timeout_seconds
             )
         except Exception as e:
             print(f"  Trip budget failed: {e}")
-            budget_breakdown = BudgetBreakdown(
-                categories=[], grand_total=0.0, currency=constraints.currency,
-                within_budget=True, remaining_buffer=constraints.budget_total
-            )
+            budget_breakdown = await self.budget_agent._fallback_analyze(budget_constraints)
+            budget_breakdown = self.budget_agent._calibrate_with_real_data(budget_breakdown, budget_constraints, logistics_output)
 
         return activity_catalog, logistics_output, budget_breakdown
     
@@ -632,7 +846,11 @@ class OrchestratorAgent:
                     activity_use_count[activity_ref] = activity_use_count.get(activity_ref, 0) + 1
                     if activity_ref in activity_by_id:
                         activity = activity_by_id[activity_ref]
-                        cost_estimate = self._estimate_activity_cost(activity)
+                        cost_estimate = self._estimate_activity_cost(
+                            activity,
+                            destination=constraints.destination_region or "",
+                            budget_tier=constraints.budget_tier or "moderate"
+                        )
 
                 activity_name = slot.notes
                 activity_type = ActivityType.OTHER
@@ -743,15 +961,146 @@ class OrchestratorAgent:
 
         return None
     
-    def _estimate_activity_cost(self, activity: Any) -> float:
-        """Estimate cost for an activity based on its cost band."""
-        cost_map = {
-            "budget": 0,
-            "moderate": 20,
-            "expensive": 50,
-            "luxury": 100,
+    def _estimate_activity_cost(self, activity: Any, destination: str = "", budget_tier: str = "moderate") -> float:
+        """Estimate cost for an activity based on category, cost band, and destination."""
+        act_raw = getattr(activity, "type", "")
+        act_type = str(getattr(act_raw, "value", act_raw)).lower().replace("activitytype.", "").strip()
+        cost_band = str(getattr(activity, "cost_band", "moderate")).lower()
+        
+        type_cost_map = {
+            "museum": 22.0,
+            "sightseeing": 18.0,
+            "temple": 8.0,
+            "culture": 25.0,
+            "entertainment": 35.0,
+            "nature": 5.0,
+            "relaxation": 45.0,
+            "shopping": 30.0,
+            "food": 16.0,
+            "transport": 12.0,
+            "other": 15.0
         }
-        return cost_map.get(str(activity.cost_band).lower(), 20)
+        base = type_cost_map.get(act_type, 18.0)
+        
+        band_mult = {
+            "budget": 0.4,
+            "moderate": 1.0,
+            "expensive": 1.8,
+            "luxury": 3.0
+        }.get(cost_band, 1.0)
+        
+        tier_mult = {
+            "budget": 0.7,
+            "moderate": 1.0,
+            "luxury": 1.6
+        }.get(budget_tier.lower(), 1.0)
+        
+        dest_lower = destination.lower()
+        dest_mult = 1.0
+        if any(h in dest_lower for h in ["norway", "switzerland", "iceland", "japan", "singapore", "us", "usa", "uk", "london"]):
+            dest_mult = 1.3
+        elif any(l in dest_lower for l in ["india", "thailand", "vietnam", "cambodia", "bali", "indonesia"]):
+            dest_mult = 0.5
+            
+        cost = base * band_mult * tier_mult * dest_mult
+        
+        # Realistic individual variation so daily totals vary authentically
+        name_seed = sum(ord(c) for c in getattr(activity, "name", "")) % 9
+        cost = cost + (name_seed - 4) * 1.5
+        return round(max(3.0, cost), 2)
+
+    def _generate_destination_tips(self, destination: str, currency: str = "USD") -> List[CostSavingTip]:
+        dest_lower = (destination or "").lower()
+        if "france" in dest_lower or "paris" in dest_lower:
+            return [
+                CostSavingTip(
+                    title="Get the Paris Museum Pass",
+                    description="A 4-day Paris Museum Pass (€70) gives skip-the-line access to over 50 museums and monuments including the Louvre, Musée d'Orsay, and Arc de Triomphe.",
+                    estimated_savings="Save €40 - €70 vs individual tickets"
+                ),
+                CostSavingTip(
+                    title="Book TGV / OUIGO Trains Early",
+                    description="SNCF opens TGV high-speed and low-cost OUIGO bookings 3 months ahead with tickets from €19 compared to €80+ on travel week.",
+                    estimated_savings="Save 60% - 75% on intercity transit"
+                ),
+                CostSavingTip(
+                    title="Dine at Boulangeries and Set-Menu Bistros",
+                    description="Opt for a boulangerie formule déjeuner (sandwich, dessert, beverage for €8-€10) and bistros offering 'menu du jour' at lunch instead of pricey dinners.",
+                    estimated_savings="Save €25 - €40 per person daily"
+                )
+            ]
+        elif "japan" in dest_lower or "tokyo" in dest_lower or "kyoto" in dest_lower:
+            return [
+                CostSavingTip(
+                    title="Use 24/48/72-Hour Tokyo Subway Passes",
+                    description="Unlimited rides on all Tokyo Metro and Toei Subway lines for only ¥1,500 (72 hours), saving significant money over single IC fares.",
+                    estimated_savings="Save ¥1,000 - ¥2,000 per day"
+                ),
+                CostSavingTip(
+                    title="Take Advantage of Evening Depachika Sales",
+                    description="Department store basement food halls (depachika) discount gourmet bento and sushi boxes by 20% to 50% every evening after 7:30 PM.",
+                    estimated_savings="Save ¥1,500 - ¥3,000 per meal"
+                ),
+                CostSavingTip(
+                    title="Compare Regional Rail Passes with Individual Shinkansen",
+                    description="Unless doing heavy cross-country travel, point-to-point Shinkansen tickets via the SmartEX app often cost less than nationwide rail passes.",
+                    estimated_savings="Save $80 - $150 per person"
+                )
+            ]
+        elif "iceland" in dest_lower or "reykjavik" in dest_lower:
+            return [
+                CostSavingTip(
+                    title="Stock Up at Bónus or Krónan Discount Supermarkets",
+                    description="Icelandic restaurants and roadside diners carry high markups. Buying breakfast and road trip snacks at Bónus cuts food bills dramatically.",
+                    estimated_savings="Save $40 - $70 per person daily"
+                ),
+                CostSavingTip(
+                    title="Visit Local Geothermal Pools Over Commercial Spas",
+                    description="Local municipal pools like Laugardalslaug cost around 1,200 ISK ($9) and offer authentic hot pots, saunas, and steam rooms without $100+ resort fees.",
+                    estimated_savings="Save $80 - $120 per visit"
+                ),
+                CostSavingTip(
+                    title="Fill Up with Rental Fuel Key Discount Fobs",
+                    description="Most car rental agencies provide key fobs that give 3-5 ISK per liter discounts and free coffee at designated gas stations (N1, Olís, Orkan).",
+                    estimated_savings="Save 5% - 8% on total fuel"
+                )
+            ]
+        elif "russia" in dest_lower or "moscow" in dest_lower or "murmansk" in dest_lower:
+            return [
+                CostSavingTip(
+                    title="Use Troika & Podorozhnik Metro Smart Cards",
+                    description="Moscow and Saint Petersburg metros have world-class networks. A Troika card offers deeply discounted rides and seamless transfers between metro, MCC, and trams.",
+                    estimated_savings="Save 40% vs single ride tokens"
+                ),
+                CostSavingTip(
+                    title="Book Sapsan & Arctic Trains via Official RZD Portal",
+                    description="High-speed Sapsan trains between Moscow and St. Petersburg, and the Arctic overnight sleeper to Murmansk, open 90 days ahead with dynamic tiered pricing.",
+                    estimated_savings="Save 50% vs last-minute agencies"
+                ),
+                CostSavingTip(
+                    title="Book Multi-Night Aurora Chasing Packages",
+                    description="Northern lights in Murmansk/Teriberka require mobile weather tracking. Multi-night local guide passes guarantee re-runs on cloudy nights.",
+                    estimated_savings="Save 30% on combined aurora excursions"
+                )
+            ]
+        else:
+            return [
+                CostSavingTip(
+                    title="Book Flights 6-8 Weeks in Advance",
+                    description="Skyscanner historical pricing indicates airfare rises by 18-24% inside the 3-week departure window.",
+                    estimated_savings="Save 15% - 25% on flights"
+                ),
+                CostSavingTip(
+                    title="Opt for Neighborhood Stays with Transit Links",
+                    description="Choosing well-reviewed accommodations just 2-3 metro stops from the historic center yields 30-40% lower nightly rates.",
+                    estimated_savings="Save $30 - $60 per night"
+                ),
+                CostSavingTip(
+                    title="Use Multi-Attraction City Passes & Walking Tours",
+                    description="City tourism cards bundle public transit with top museum admissions and offer free guided walking tours.",
+                    estimated_savings="Save $20 - $40 per traveler"
+                )
+            ]
     
     def _generate_day_summary(
         self,
@@ -809,10 +1158,20 @@ class OrchestratorAgent:
         # Extract neighborhoods from all days
         neighborhoods: Dict[str, List[str]] = {}
         for day in draft.days:
-            if day.city not in neighborhoods:
-                neighborhoods[day.city] = []
-            if day.lodging_area and day.lodging_area not in neighborhoods[day.city]:
-                neighborhoods[day.city].append(day.lodging_area)
+            clean_city = fix_utf8(day.city)
+            if clean_city not in neighborhoods:
+                neighborhoods[clean_city] = []
+            if day.lodging_area and day.lodging_area not in neighborhoods[clean_city]:
+                neighborhoods[clean_city].append(fix_utf8(day.lodging_area))
+            # Clean day strings
+            day.city = clean_city
+            day.day_summary = fix_utf8(day.day_summary)
+            for itm in day.items:
+                itm.activity_name = fix_utf8(itm.activity_name)
+                itm.notes = fix_utf8(itm.notes)
+            for plc in day.places:
+                plc.name = fix_utf8(plc.name)
+                plc.description = fix_utf8(plc.description)
         
         # Create logistics summary
         logistics_summary = " | ".join(
@@ -825,96 +1184,90 @@ class OrchestratorAgent:
         review_status = ReviewStatus.PASS
         review_warnings = []
         
-        # Phase 7: Build comprehensive disclaimer
         base_disclaimer = "Generated by AI Travel Planner. Verify prices and availability before booking."
         
         if review_report:
             review_status = review_report.overall_status
-            review_warnings = review_report.advisory_warnings.copy()
+            review_warnings = [fix_utf8(w) for w in review_report.advisory_warnings]
             
             if review_report.overall_status == "fail":
                 base_disclaimer += f"\nWarning: This itinerary has blocking issues after {repair_cycles} repair attempts. Please review carefully before using."
             elif repair_cycles > 0:
                 base_disclaimer += f"\nNote: Itinerary required {repair_cycles} repair cycle(s) to resolve issues."
 
-        # Generate MapPins from hotels, attractions, and arrival airports
+        # Dynamic MapPins from arrival airport, overnight hotels, and attractions
         map_pins: List[MapPin] = []
-        dest_name = (constraints.destination_region or (constraints.cities[0] if constraints.cities else "Iceland")).lower()
+        dest_name = (constraints.destination_region or (constraints.cities[0] if constraints.cities else "")).lower()
 
-        # Airport pin
-        if "iceland" in dest_name or "reykjavik" in dest_name:
-            map_pins.append(MapPin(label="Keflavík International Airport (KEF)", lat=63.9850, lng=-22.6056, pin_type="airport"))
-        elif "japan" in dest_name or "tokyo" in dest_name:
-            map_pins.append(MapPin(label="Tokyo Haneda Airport (HND)", lat=35.5494, lng=139.7798, pin_type="airport"))
+        # 1. Airport Pin
+        dest_code = None
+        if draft.flight_options:
+            dest_code = draft.flight_options[0].destination
+        if not dest_code:
+            from ..tools.flight_client import resolve_iata
+            dest_code = resolve_iata(dest_name)
 
-        # Overnight hotel pins
+        if dest_code and dest_code.upper() in AIRPORT_COORDINATES:
+            alat, alng, aname = AIRPORT_COORDINATES[dest_code.upper()]
+            map_pins.append(MapPin(label=aname, lat=alat, lng=alng, pin_type="airport"))
+        else:
+            coords = _lookup_city_coords(dest_name)
+            if coords:
+                map_pins.append(MapPin(label=f"{dest_name.title()} Arrival Gateway", lat=coords[0], lng=coords[1], pin_type="airport"))
+
+        # 2. Overnight Hotel Pins
         seen_hotel_cities = set()
         for day in draft.days:
-            if day.hotel_options and day.city not in seen_hotel_cities:
+            if day.city not in seen_hotel_cities:
                 seen_hotel_cities.add(day.city)
-                h = day.hotel_options[0]
-                # Default coordinates for known cities if not in hotel
-                c_lower = day.city.lower()
-                lat = 64.1466 if "reykjavik" in c_lower else (63.4186 if "v" in c_lower else (65.6835 if "akureyri" in c_lower else (35.6762 if "tokyo" in c_lower else 35.0116)))
-                lng = -21.9426 if "reykjavik" in c_lower else (-19.0060 if "v" in c_lower else (-18.0878 if "akureyri" in c_lower else (139.6503 if "tokyo" in c_lower else 135.7681)))
+                h = day.hotel_options[0] if day.hotel_options else None
+                coords = _lookup_city_coords(day.city) or (64.1466, -21.9426)
+                hotel_label = f"Stay: {h.name} ({day.city})" if h else f"Stay in {day.city}"
+                hotel_desc = f"${h.price_per_night}/night • {h.guest_rating}★" if (h and h.guest_rating) else (f"${h.price_per_night}/night" if h else f"Overnight base in {day.city}")
                 map_pins.append(MapPin(
-                    label=f"Stay: {h.name} ({day.city})",
-                    lat=lat,
-                    lng=lng,
+                    label=fix_utf8(hotel_label),
+                    lat=coords[0],
+                    lng=coords[1],
                     day_number=day.day_number,
                     pin_type="overnight",
-                    description=f"${h.price_per_night}/night • {h.guest_rating}★" if h.guest_rating else f"${h.price_per_night}/night"
+                    description=fix_utf8(hotel_desc)
                 ))
 
-        # Attraction pins from day places
+        # 3. Attraction Pins
+        seen_attractions = set()
         for day in draft.days:
             for p in day.places:
-                if p.lat and p.lng:
+                if p.name not in seen_attractions and p.lat and p.lng:
+                    seen_attractions.add(p.name)
                     map_pins.append(MapPin(
-                        label=p.name,
+                        label=fix_utf8(p.name),
                         lat=p.lat,
                         lng=p.lng,
                         day_number=day.day_number,
                         pin_type="attraction",
-                        description=f"★ {p.rating} ({p.review_count:,} reviews)" if p.rating and p.review_count else p.name
+                        description=fix_utf8(f"★ {p.rating} ({p.review_count:,} reviews)" if p.rating and p.review_count else p.name)
                     ))
 
-        # Structured Cost Saving Tips
-        cost_saving_tips_v2: List[CostSavingTip] = [
-            CostSavingTip(
-                title="Book Flights 6-8 Weeks in Advance",
-                description="Skyscanner historical pricing indicates airfare rises by 18-24% inside the 3-week departure window.",
-                estimated_savings="Save 15% - 25% on flights"
-            ),
-            CostSavingTip(
-                title="Choose Stays with Self-Catering",
-                description="Packing light lunches and preparing breakfast reduces high restaurant meal costs significantly.",
-                estimated_savings="Save $30 - $50 per day"
-            ),
-            CostSavingTip(
-                title="Use Multi-Attraction or Transit Passes",
-                description="Regional tourist passes bundle top museum admissions with unlimited local transit.",
-                estimated_savings="Save $20 - $40 per traveler"
-            )
-        ]
+        # Structured Cost Saving Tips (Destination Specific)
+        cost_saving_tips_v2 = self._generate_destination_tips(dest_name, constraints.currency)
         
         return FinalItinerary(
             constraints=draft.constraints,
             days=draft.days,
             neighborhoods=neighborhoods,
             logistics_summary=logistics_summary,
-            strategic_insight=insights.strategic_insight if insights else None,
-            budget_analysis=insights.budget_analysis if insights else None,
-            cost_optimization_tips=insights.cost_optimization_tips if insights else [],
+            strategic_insight=fix_utf8(insights.strategic_insight) if insights else None,
+            budget_analysis=fix_utf8(insights.budget_analysis) if insights else None,
+            cost_optimization_tips=[fix_utf8(t) for t in insights.cost_optimization_tips] if insights else [],
             cost_saving_tips_v2=cost_saving_tips_v2,
             flight_options=draft.flight_options,
             car_estimates=draft.car_estimates,
             map_pins=map_pins,
-            why_this_plan=insights.why_this_plan if insights else None,
-            what_not_to_do=insights.what_not_to_do if insights else [],
-            base_selection_rationale=insights.base_selection_rationale if insights else {},
-            experience_highlights=insights.experience_highlights if insights else [],
-            best_time_to_visit=insights.best_time_to_visit if insights else None,
+            why_this_plan=fix_utf8(insights.why_this_plan) if insights else None,
+            what_not_to_do=[fix_utf8(w) for w in insights.what_not_to_do] if insights else [],
+            base_selection_rationale={fix_utf8(k): fix_utf8(v) for k, v in insights.base_selection_rationale.items()} if insights else {},
+            experience_highlights=[fix_utf8(h) for h in insights.experience_highlights] if insights else [],
+            best_time_to_visit=fix_utf8(insights.best_time_to_visit) if insights else None,
             budget_rollup=budget_breakdown,
             review_status=review_status,
             review_warnings=review_warnings,

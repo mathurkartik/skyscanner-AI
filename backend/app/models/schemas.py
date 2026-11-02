@@ -67,11 +67,13 @@ class TravelConstraints(BaseModel):
     Shared read-only input to all worker agents.
     """
     destination_region: Optional[str] = Field(default=None, max_length=100, description="Primary region/country")
+    origin_city: Optional[str] = Field(default=None, max_length=100, description="Departure/origin city")
+    start_date: Optional[str] = Field(default=None, description="Trip start date (YYYY-MM-DD)")
     cities: List[str] = Field(default_factory=list, max_length=10, description="Target cities to visit")
     duration_days: Optional[int] = Field(default=None, ge=1, le=90, description="Trip duration in days")
     budget_total: Optional[float] = Field(default=None, ge=0, le=100000000, description="Total budget in specified currency (supports INR and large amounts)")
     budget_tier: Optional[str] = Field(default=None, description="Budget style/tier: 'budget', 'moderate', 'luxury'")
-    currency: str = Field(default="INR", min_length=3, max_length=3, description="Currency code (ISO 4217)")
+    currency: str = Field(default="USD", min_length=3, max_length=3, description="Currency code (ISO 4217)")
     preferences: List[str] = Field(default_factory=list, description="What the user wants (e.g., 'food', 'temples')")
     avoidances: List[str] = Field(default_factory=list, description="What the user wants to avoid (e.g., 'crowds')")
     hard_requirements: List[str] = Field(default_factory=list, description="Must-haves inferred from request")
@@ -751,6 +753,19 @@ class PlanRequest(BaseModel):
         min_length=10,
         max_length=2000,
         description="Natural language travel request"
+    )
+    origin_city: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Optional user departure/origin city"
+    )
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Optional travel departure date (YYYY-MM-DD)"
+    )
+    currency: Optional[str] = Field(
+        default="USD",
+        description="Preferred currency code (USD, EUR, INR, GBP, etc.)"
     )
     flags: Dict[str, Any] = Field(
         default_factory=dict,

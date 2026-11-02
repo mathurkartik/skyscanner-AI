@@ -141,7 +141,10 @@ export class AiTravelPlannerComponent implements OnInit {
     const useStub = forceStub || this.fastDemoMode();
     this.startProgressSimulation();
 
-    this.plannerService.generatePlan(text, useStub).subscribe({
+    const origin = this.originCity().trim();
+    const date = this.travelDate().trim();
+
+    this.plannerService.generatePlan(text, useStub, origin, date, 'USD').subscribe({
       next: () => {
         this.stopProgressSimulation();
       },

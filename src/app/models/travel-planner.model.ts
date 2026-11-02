@@ -154,6 +154,8 @@ export interface DayItinerary {
 
 export interface TravelConstraints {
   origin?: string | null;
+  origin_city?: string | null;
+  start_date?: string | null;
   destination_region?: string | null;
   cities: string[];
   duration_days: number;
@@ -199,6 +201,9 @@ export interface FinalItinerary {
 export interface PlanRequest {
   request: string;
   stub_mode?: boolean;
+  origin_city?: string;
+  start_date?: string;
+  currency?: string;
 }
 
 export interface PlanResponse {

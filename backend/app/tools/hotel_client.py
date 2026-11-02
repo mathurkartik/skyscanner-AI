@@ -32,6 +32,19 @@ KNOWN_DESTINATIONS: Dict[str, Dict[str, Any]] = {
     "sydney": {"dest_id": "-1603135", "dest_type": "city", "label": "Sydney, New South Wales, Australia", "lat": -33.8688, "lng": 151.2093},
     "singapore": {"dest_id": "-73635", "dest_type": "city", "label": "Singapore, Singapore", "lat": 1.3521, "lng": 103.8198},
     "dubai": {"dest_id": "-782831", "dest_type": "city", "label": "Dubai, Emirate of Dubai, United Arab Emirates", "lat": 25.2048, "lng": 55.2708},
+"lyon": {"dest_id": "-1448471", "dest_type": "city", "label": "Lyon, Auvergne-Rhône-Alpes, France", "lat": 45.7640, "lng": 4.8357},
+    "nice": {"dest_id": "-1455208", "dest_type": "city", "label": "Nice, Provence-Alpes-Côte d'Azur, France", "lat": 43.7102, "lng": 7.2620},
+    "barcelona": {"dest_id": "-372490", "dest_type": "city", "label": "Barcelona, Catalonia, Spain", "lat": 41.3851, "lng": 2.1734},
+    "madrid": {"dest_id": "-390625", "dest_type": "city", "label": "Madrid, Community of Madrid, Spain", "lat": 40.4168, "lng": -3.7038},
+    "amsterdam": {"dest_id": "-2140479", "dest_type": "city", "label": "Amsterdam, North Holland, Netherlands", "lat": 52.3676, "lng": 4.9041},
+    "bangkok": {"dest_id": "-3414440", "dest_type": "city", "label": "Bangkok, Bangkok Province, Thailand", "lat": 13.7563, "lng": 100.5018},
+    "bali": {"dest_id": "-2679652", "dest_type": "city", "label": "Bali, Indonesia", "lat": -8.4095, "lng": 115.1889},
+    "new york": {"dest_id": "20088325", "dest_type": "city", "label": "New York, New York State, United States", "lat": 40.7128, "lng": -74.0060},
+    "moscow": {"dest_id": "-2960561", "dest_type": "city", "label": "Moscow, Central Federal District, Russia", "lat": 55.7558, "lng": 37.6173},
+    "saint petersburg": {"dest_id": "-2999464", "dest_type": "city", "label": "Saint Petersburg, Northwestern Federal District, Russia", "lat": 59.9343, "lng": 30.3351},
+    "murmansk": {"dest_id": "-2961556", "dest_type": "city", "label": "Murmansk, Murmansk Oblast, Russia", "lat": 68.9585, "lng": 33.0827},
+    "lucerne": {"dest_id": "-2552882", "dest_type": "city", "label": "Lucerne, Canton of Lucerne, Switzerland", "lat": 47.0502, "lng": 8.3093},
+    "interlaken": {"dest_id": "-2552467", "dest_type": "city", "label": "Interlaken, Bern, Switzerland", "lat": 46.6863, "lng": 7.8632},
 }
 
 # Curated high-fidelity hotel inventory for reliable demo fallback
@@ -220,6 +233,463 @@ CURATED_HOTELS: Dict[str, List[Dict[str, Any]]] = {
             "address": "531 Asakura-cho, Nakagyo-ku, Kyoto",
             "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
             "amenities": ["Terrace Bar", "Free Continental Breakfast", "Bike Rental", "Library"]
+        }
+    ],
+"paris": [
+        {
+            "name": "Generator Paris",
+            "price_per_night": 68.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.3,
+            "review_count": 4200,
+            "neighborhood": "Canal Saint-Martin / 10th Arr.",
+            "address": "9-11 Place du Colonel Fabien, 75010 Paris",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Rooftop Bar with Sacré-Cœur Views", "Free WiFi", "Metro Access", "24/7 Desk"]
+        },
+        {
+            "name": "CitizenM Paris Gare de Lyon",
+            "price_per_night": 165.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.9,
+            "review_count": 3100,
+            "neighborhood": "Gare de Lyon / 12th Arr.",
+            "address": "8 Rue Van Gogh, 75012 Paris",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Mood Lighting & iPad Controls", "Rooftop CloudM Bar", "Rain Showers", "Free High-Speed WiFi"]
+        },
+        {
+            "name": "Pullman Paris Tour Eiffel",
+            "price_per_night": 340.0,
+            "star_rating": 4.5,
+            "guest_rating": 9.1,
+            "review_count": 2850,
+            "neighborhood": "Eiffel Tower / 15th Arr.",
+            "address": "18 Avenue De Suffren, 75015 Paris",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Direct Eiffel Tower Balcony Views", "FR/AME French Brasserie", "Fitness Lounge", "Concierge"]
+        }
+    ],
+    "lyon": [
+        {
+            "name": "Away Hostel & Coffee Shop",
+            "price_per_night": 55.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.8,
+            "review_count": 1850,
+            "neighborhood": "Presqu'île / 1st Arr.",
+            "address": "21 Rue Alsace Lorraine, 69001 Lyon",
+            "image_url": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Artisan Coffee Shop", "Free WiFi", "Historic 19th Century Building", "Shared Kitchen"]
+        },
+        {
+            "name": "Hôtel Silky by HappyCulture",
+            "price_per_night": 135.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.7,
+            "review_count": 1200,
+            "neighborhood": "Presqu'île Downtown",
+            "address": "2 Place Francisque Régaud, 69002 Lyon",
+            "image_url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Boutique Silk Heritage Decor", "Nespresso Bar", "Afternoon Wine Tasting", "Air Conditioning"]
+        },
+        {
+            "name": "Villa Florentine & Spa",
+            "price_per_night": 310.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.3,
+            "review_count": 920,
+            "neighborhood": "Vieux Lyon / Fourvière",
+            "address": "25 Montée Saint-Barthélémy, 69005 Lyon",
+            "image_url": "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Panoramic Heated Rooftop Pool", "Michelin-Starred Restaurant", "Sauna & Hammam", "Old Lyon Views"]
+        }
+    ],
+    "nice": [
+        {
+            "name": "Villa Saint Exupéry Beach",
+            "price_per_night": 58.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.5,
+            "review_count": 2400,
+            "neighborhood": "Old Town / Port",
+            "address": "6 Rue Sacha Guitry, 06000 Nice",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["50m to Promenade des Anglais", "Beach Equipment", "Social Bar & Lounge", "Free WiFi"]
+        },
+        {
+            "name": "Hôtel Suisse",
+            "price_per_night": 165.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.9,
+            "review_count": 1650,
+            "neighborhood": "Promenade des Anglais",
+            "address": "15 Quai Rauba Capeu, 06300 Nice",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Unobstructed Baie des Anges Sea Views", "Italian-Style Architecture", "Balconies", "Breakfast on Terrace"]
+        },
+        {
+            "name": "Le Negresco",
+            "price_per_night": 380.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.2,
+            "review_count": 2100,
+            "neighborhood": "Promenade des Anglais",
+            "address": "37 Promenade des Anglais, 06000 Nice",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Iconic Belle Époque Palace", "Private Beach Club", "Chantecler Michelin Dining", "Curated Art Collection"]
+        }
+    ],
+    "london": [
+        {
+            "name": "Wombat's City Hostel London",
+            "price_per_night": 65.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.7,
+            "review_count": 3900,
+            "neighborhood": "Tower Bridge / Aldgate",
+            "address": "7 Dock Street, London E1 8LL",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Historic Victorian Brewery", "Wombar Lounge", "Courtyard", "Free High-Speed WiFi"]
+        },
+        {
+            "name": "The Hoxton, Holborn",
+            "price_per_night": 185.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.9,
+            "review_count": 2200,
+            "neighborhood": "Holborn / Covent Garden",
+            "address": "199-206 High Holborn, London WC1V 7BD",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Boutique Retro Style", "Rondo Restaurant", "Walk to West End Theatres", "Pet Friendly"]
+        },
+        {
+            "name": "The Savoy",
+            "price_per_night": 460.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.4,
+            "review_count": 3100,
+            "neighborhood": "Strand / Covent Garden",
+            "address": "Strand, London WC2R 0EZ",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Iconic River Thames Views", "American Bar (World's Best Bar)", "Gordon Ramsay Grill", "Butler Service"]
+        }
+    ],
+    "rome": [
+        {
+            "name": "The RomeHello",
+            "price_per_night": 55.0,
+            "star_rating": 3.0,
+            "guest_rating": 9.2,
+            "review_count": 3100,
+            "neighborhood": "Repubblica / Monti",
+            "address": "Via Torino 45, 00184 Rome",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Street Art Murals", "Courtyard Garden Bar", "Live Music Events", "Walk to Colosseum"]
+        },
+        {
+            "name": "Hotel Artemide",
+            "price_per_night": 165.0,
+            "star_rating": 4.0,
+            "guest_rating": 9.3,
+            "review_count": 2800,
+            "neighborhood": "Via Nazionale",
+            "address": "Via Nazionale 22, 00184 Rome",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Panoramic Ambrosia Rooftop Bar", "Artemis Spa & Turkish Bath", "Free Minibar", "Complimentary Breakfast"]
+        },
+        {
+            "name": "Hotel Hassler Roma",
+            "price_per_night": 420.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.4,
+            "review_count": 1400,
+            "neighborhood": "Spanish Steps",
+            "address": "Piazza Trinità dei Monti 6, 00187 Rome",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Top of the Spanish Steps", "Imàgo Michelin Dining", "Panoramic Terraces", "Luxury Wellness Suite"]
+        }
+    ],
+    "barcelona": [
+        {
+            "name": "Yeah Hostel Barcelona",
+            "price_per_night": 52.0,
+            "star_rating": 3.0,
+            "guest_rating": 9.3,
+            "review_count": 3400,
+            "neighborhood": "Eixample / Gràcia",
+            "address": "Carrer de Girona 176, 08037 Barcelona",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Rooftop Plunge Pool", "Communal Tapas Dinners", "Walk to Sagrada Família", "Bar & Terrace"]
+        },
+        {
+            "name": "Room Mate Gerard",
+            "price_per_night": 145.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.9,
+            "review_count": 1900,
+            "neighborhood": "Fort Pienc / Eixample",
+            "address": "Carrer d'Ausiàs Marc 49, 08010 Barcelona",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Rooftop Sun Terrace & Pool", "Jaime Beriestain Designer Interiors", "Gym", "Buffet Breakfast"]
+        },
+        {
+            "name": "W Barcelona",
+            "price_per_night": 350.0,
+            "star_rating": 5.0,
+            "guest_rating": 8.8,
+            "review_count": 3800,
+            "neighborhood": "Barceloneta Beach",
+            "address": "Plaça de la Rosa dels Vents 1, 08039 Barcelona",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Iconic Sail Tower on Beachfront", "WET Deck Infinity Pool", "ECLIPSE 26th Floor Skybar", "Bliss Spa"]
+        }
+    ],
+    "madrid": [
+        {
+            "name": "The Hat Madrid",
+            "price_per_night": 48.0,
+            "star_rating": 3.0,
+            "guest_rating": 9.0,
+            "review_count": 2700,
+            "neighborhood": "La Latina / Plaza Mayor",
+            "address": "Calle Imperial 9, 28012 Madrid",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Award-Winning Eco Rooftop Bar", "100m to Plaza Mayor", "Free WiFi", "Solarium"]
+        },
+        {
+            "name": "Only YOU Boutique Hotel",
+            "price_per_night": 160.0,
+            "star_rating": 4.0,
+            "guest_rating": 9.2,
+            "review_count": 1650,
+            "neighborhood": "Chueca / Downtown",
+            "address": "Calle del Barquillo 21, 28004 Madrid",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["19th Century Palace Setting", "Lázaro Rosa-Violán Design", "Cocktail Bar", "Thai Spa"]
+        },
+        {
+            "name": "The Westin Palace, Madrid",
+            "price_per_night": 370.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.1,
+            "review_count": 2200,
+            "neighborhood": "Literary Quarter / Prado",
+            "address": "Plaza de las Cortes 7, 28014 Madrid",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Stained Glass Dome Rotunda", "Facing Prado Museum", "Opera & Dim Sum Brunches", "Heavenly Beds"]
+        }
+    ],
+    "amsterdam": [
+        {
+            "name": "ClinkNOORD Hostel",
+            "price_per_night": 58.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.4,
+            "review_count": 4100,
+            "neighborhood": "Amsterdam Noord",
+            "address": "Badhuiskade 3, 1031 KV Amsterdam",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["3-Min Free Ferry to Centraal Station", "ZincBAR", "Atrium Lounge", "Bike Rental"]
+        },
+        {
+            "name": "Hotel V Nesplein",
+            "price_per_night": 175.0,
+            "star_rating": 4.0,
+            "guest_rating": 9.1,
+            "review_count": 1850,
+            "neighborhood": "Theater District / Dam Square",
+            "address": "Nes 49, 1012 KD Amsterdam",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["The Lobby Restaurant & Open Fireplace", "Canal District Walk", "Deep Soaking Tubs", "Artisanal Coffee"]
+        },
+        {
+            "name": "Conservatorium Hotel",
+            "price_per_night": 440.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.3,
+            "review_count": 1500,
+            "neighborhood": "Museumplein",
+            "address": "Van Baerlestraat 27, 1071 AN Amsterdam",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Opposite Rijksmuseum & Van Gogh", "Akasha Holistic Wellbeing Spa", "Taiko Asian Cuisine", "Glass Atrium"]
+        }
+    ],
+    "bangkok": [
+        {
+            "name": "Mad Monkey Bangkok",
+            "price_per_night": 22.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.8,
+            "review_count": 3100,
+            "neighborhood": "Khao San / Phra Nakhon",
+            "address": "55 Phra Sumen Rd, Chana Songkhram, Bangkok 10200",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Outdoor Swimming Pool", "Canalside Bar", "Social Tours & Pub Crawls", "Air Conditioning"]
+        },
+        {
+            "name": "Centara Grand at CentralWorld",
+            "price_per_night": 115.0,
+            "star_rating": 4.5,
+            "guest_rating": 8.9,
+            "review_count": 4800,
+            "neighborhood": "Siam / Pathum Wan",
+            "address": "999/99 Rama 1 Road, Pathumwan, Bangkok 10330",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Red Sky 55th Floor Rooftop", "Direct Mall Connection", "Infinity Pool & Tennis", "Lifestyles on 26 Spa"]
+        },
+        {
+            "name": "The Peninsula Bangkok",
+            "price_per_night": 275.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.4,
+            "review_count": 2900,
+            "neighborhood": "Chao Phraya Riverside",
+            "address": "333 Charoen Nakhon Rd, Khlong San, Bangkok 10600",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["3-Tiered Riverside Pool", "Private Peninsula River Ferry", "All River-View Rooms", "Authentic Thai Cooking Classes"]
+        }
+    ],
+    "bali": [
+        {
+            "name": "Kosta Hostel Seminyak",
+            "price_per_night": 24.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.9,
+            "review_count": 1850,
+            "neighborhood": "Seminyak",
+            "address": "Jl. Dewi Saraswati III No.77, Seminyak, Bali",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Tropical Swimming Pool", "Good Mantra Cafe", "Surf Board Storage", "Boutique Beach Style"]
+        },
+        {
+            "name": "Maya Ubud Resort & Spa",
+            "price_per_night": 135.0,
+            "star_rating": 4.5,
+            "guest_rating": 9.2,
+            "review_count": 2400,
+            "neighborhood": "Petanu River Valley, Ubud",
+            "address": "Jl. Gunung Sari, Peliatan, Ubud, Bali",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Hidden River Valley Spa", "Infinity Pool Overlooking Jungle", "Free Morning Yoga", "Shuttle to Ubud Centre"]
+        },
+        {
+            "name": "Four Seasons Resort Bali at Sayan",
+            "price_per_night": 460.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.6,
+            "review_count": 1600,
+            "neighborhood": "Sayan, Ubud",
+            "address": "Jl. Raya Sayan, Ubud, Bali",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Dramatic Suspension Bridge Entry", "Ayung Riverfront Villas", "Sacred River Spa", "Rice Bowl Architecture"]
+        }
+    ],
+    "new york": [
+        {
+            "name": "HI NYC Hostel",
+            "price_per_night": 72.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.5,
+            "review_count": 5200,
+            "neighborhood": "Upper West Side / Manhattan",
+            "address": "891 Amsterdam Ave, New York, NY 10025",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["2 Blocks to Central Park", "Large Private Courtyard Patio", "Organized Walking Tours", "Subway Line 1 Access"]
+        },
+        {
+            "name": "Arlo SoHo",
+            "price_per_night": 210.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.8,
+            "review_count": 3300,
+            "neighborhood": "SoHo / Hudson Square",
+            "address": "231 Hudson St, New York, NY 10013",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["A.R.T. Rooftop with Hudson River Views", "Courtyard Foosball & Games", "Lindens Restaurant", "Custom Bunk Rooms"]
+        },
+        {
+            "name": "The Plaza",
+            "price_per_night": 540.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.1,
+            "review_count": 2800,
+            "neighborhood": "Fifth Avenue / Central Park South",
+            "address": "768 5th Ave, New York, NY 10019",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Facing Central Park", "Palm Court Afternoon Tea", "Guerlain Spa", "White Glove Concierge"]
+        }
+    ],
+    "moscow": [
+        {
+            "name": "Ibis Moscow Centre Bakhrushina",
+            "price_per_night": 55.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.7,
+            "review_count": 2400,
+            "neighborhood": "Zamoskvorechye",
+            "address": "Bakhrushina St, 11, Moscow 115054",
+            "image_url": "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Close to Paveletskaya Metro", "Free High-Speed WiFi", "Restaurant & Bar", "Fitness Center"]
+        },
+        {
+            "name": "Hotel Baltschug Kempinski Moscow",
+            "price_per_night": 210.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.2,
+            "review_count": 1850,
+            "neighborhood": "Red Square / Moskva River",
+            "address": "Ulitsa Balchug, 1, Moscow 115035",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Direct View of Saint Basil's Cathedral", "Luxury Spa & Indoor Pool", "Fine Dining", "Concierge Service"]
+        }
+    ],
+    "saint petersburg": [
+        {
+            "name": "Station Hotel M19",
+            "price_per_night": 45.0,
+            "star_rating": 3.0,
+            "guest_rating": 8.6,
+            "review_count": 1900,
+            "neighborhood": "Nevsky Prospekt / Tsentralny",
+            "address": "Marata St, 19, St Petersburg 191025",
+            "image_url": "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["5-Minute Walk to Mayakovskaya Metro", "Free WiFi", "Breakfast Buffet", "24/7 Front Desk"]
+        },
+        {
+            "name": "Grand Hotel Europe, A Belmond Hotel",
+            "price_per_night": 260.0,
+            "star_rating": 5.0,
+            "guest_rating": 9.4,
+            "review_count": 1420,
+            "neighborhood": "Arts Square / Nevsky",
+            "address": "Mikhailovskaya Ulitsa 1/7, St Petersburg 191186",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Historic Caviar Bar", "Steps from Russian Museum & Hermitage", "World-Class Concierge", "Live Classical Music"]
+        }
+    ],
+    "murmansk": [
+        {
+            "name": "Azimut Hotel Murmansk",
+            "price_per_night": 65.0,
+            "star_rating": 4.0,
+            "guest_rating": 8.8,
+            "review_count": 2100,
+            "neighborhood": "Five Corners Central Square",
+            "address": "Lenina Prospekt 82, Murmansk 183038",
+            "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Highest Building above Arctic Circle", "Aurora Borealis Tour Desk", "Arctic Seafood Restaurant", "Panoramic City Views"]
+        },
+        {
+            "name": "Aurora Village Glamping",
+            "price_per_night": 185.0,
+            "star_rating": 4.0,
+            "guest_rating": 9.1,
+            "review_count": 820,
+            "neighborhood": "Lake Kanentyavr Wilderness",
+            "address": "Serebryanskoe Shosse 49 km, Murmansk Oblast",
+            "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+            "amenities": ["Glass-Domed Aurora Igloos", "Zero Light Pollution Sky Watching", "Open Air Wood Banya Hot Tub", "Snowmobile Safari Access"]
         }
     ]
 }

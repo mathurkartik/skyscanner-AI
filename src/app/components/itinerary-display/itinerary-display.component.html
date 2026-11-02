@@ -211,13 +211,14 @@
       </div>
 
       <!-- B. Road Trip Car Rental -->
+      @if (itinerary.constraints.is_road_trip || (itinerary.car_estimates && itinerary.car_estimates.length > 0)) {
       <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <div class="w-7 h-7 rounded-lg bg-sky-100 text-[#0062e3] flex items-center justify-center">
               <span class="material-symbols-outlined text-[18px]">directions_car</span>
             </div>
-            <h3 class="text-base font-extrabold text-gray-900">Ring Road Vehicle Rental</h3>
+            <h3 class="text-base font-extrabold text-gray-900">Vehicle Rental & Road Transit</h3>
           </div>
           <span class="text-[11px] font-bold text-gray-500">
             {{ itinerary.constraints.duration_days }} Days · {{ getDestinationIata() }} Airport Pickup
@@ -265,7 +266,7 @@
                   <span class="text-sm font-bold text-gray-900">Hyundai i10</span>
                   <span class="text-xs text-gray-500">Economy, Manual</span>
                 </div>
-                <p class="text-xs text-gray-400">Paved Ring Road only · 2 bags max</p>
+                <p class="text-xs text-gray-400">Paved highways & city transit · 2 bags max</p>
                 <span class="text-xs font-bold text-[#0062e3]">$32/day ($352 total)</span>
               </div>
               <a
@@ -283,7 +284,7 @@
                   <span class="text-sm font-bold text-gray-900">Suzuki Vitara 4x4</span>
                   <span class="px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[10px] font-bold">Recommended</span>
                 </div>
-                <p class="text-xs text-gray-500">Auto · Gravel & Ring Road rated · Heated Seats</p>
+                <p class="text-xs text-gray-500">Auto · All-Road & Highway rated · Heated Seats</p>
                 <span class="text-xs sm:text-sm font-bold text-gray-900">
                   $45/day <span class="text-xs text-gray-500 font-normal">($495 total / ₹41,100)</span>
                 </span>
@@ -317,6 +318,7 @@
           }
         </div>
       </div>
+      }
 
       <!-- C. Cost Optimization Tips -->
       <div class="rounded-3xl bg-white p-5 shadow-sm space-y-3 border border-gray-200">
@@ -767,8 +769,8 @@
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-[#0062e3] text-[24px]">map</span>
             <div>
-              <h3 class="text-lg font-black text-gray-900">Iceland Ring Road Route & GPS Pins</h3>
-              <p class="text-xs text-gray-500">11 Geocoded Waypoints with Direct Navigation Links</p>
+              <h3 class="text-lg font-black text-gray-900">{{ itinerary.constraints.destination_region || 'Destination' }} Route & GPS Pins</h3>
+              <p class="text-xs text-gray-500">{{ itinerary.map_pins?.length || 0 }} Geocoded Waypoints with Direct Navigation Links</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -791,8 +793,8 @@
         <!-- Visual SVG Route Map -->
         <div class="w-full bg-[#02122c] rounded-2xl p-6 text-white relative overflow-hidden flex flex-col items-center justify-center min-h-[220px]">
           <div class="text-center space-y-1 mb-4">
-            <span class="text-xs font-bold text-[#7af7e7] uppercase tracking-wider">Counter-Clockwise Ring Road Circuit</span>
-            <p class="text-xs text-gray-300">1,332 km total circumference • Route 1 Paved National Highway</p>
+            <span class="text-xs font-bold text-[#7af7e7] uppercase tracking-wider">{{ itinerary.logistics_summary || ((itinerary.constraints.destination_region || 'Destination') + ' Curated Circuit') }}</span>
+            <p class="text-xs text-gray-300">Geocoded GPS Waypoints • Interactive Navigation</p>
           </div>
 
           <!-- Stylized Route Curve -->

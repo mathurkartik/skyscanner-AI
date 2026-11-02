@@ -129,7 +129,13 @@ describe('AiTravelPlannerComponent (Phase 11 & Phase 12)', () => {
   it('should call plannerService.generatePlan with stubMode=true when loadInstantDemoBlueprint is called', () => {
     const spy = vi.spyOn(plannerService, 'generatePlan');
     component.loadInstantDemoBlueprint();
-    expect(spy).toHaveBeenCalledWith(component.promptText().trim(), true);
+    expect(spy).toHaveBeenCalledWith(
+      component.promptText().trim(),
+      true,
+      component.originCity(),
+      component.travelDate(),
+      'USD'
+    );
   });
 
   it('should clear plan when resetPlan is called', () => {
