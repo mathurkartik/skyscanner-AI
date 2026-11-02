@@ -1,251 +1,255 @@
-# AI Travel Planner — Improvement Spec
+# AI Travel Planner — Improvement Spec v2 (Dynamic-First)
 
-> **Purpose**: Actionable spec for Antigravity to fix every gap found via live testing and code review.
-> **Tested with**: `plan 10 days trip to france budget 10000$`
+> **Principle**: Everything must be dynamic and API-driven. No hardcoded curated data.
+> A Skyscanner clone should pull real data for any destination, not maintain static inventories.
+> **Tested with**: France 10-day, Norway 11-day — both confirmed all issues below.
 > **Date**: 2026-11-02
 
 ---
 
-## Critical Bugs (Output is broken)
+## Architecture: Current vs. Target
 
-### 1. Flight Options Are Empty
+### Current (Broken)
+```
+User Prompt → LLM extracts constraints → Agents query tools
+                                              ↓
+                                    Tools check: RapidAPI enabled?
+                                    ├── Yes → Call API (disabled, quota exhausted)
+                                    └── No → Return CURATED_HOTELS / CURATED_PLACES
+                                              (only Iceland/Japan have entries)
+                                              → Everything else = empty []
+```
 
-**Symptom**: `flight_options: []` — no flights shown for France.
+### Target (Dynamic)
+```
+User Prompt + Origin + Date → LLM extracts constraints → Agents query tools
+                                                              ↓
+                                                    Tools try API cascade:
+                                                    1. Primary free API (Kiwi/Google/Booking)
+                                                    2. LLM-estimated data (Groq generates realistic results)
+                                                    3. Never returns empty []
+```
 
-**Root Cause** (`backend/app/tools/flight_client.py`):
-- `_generate_realistic_fallback()` (line 425) has only **4 hardcoded route cases**: India→Iceland, India→Australia, India→Japan, and a "Default Global" fallback.
-- The Default Global case generates routes via DXB/DOH/SIN hubs — these are **not relevant for most destinations** (e.g. a US→France trip shouldn't route through Dubai).
-- Origin always defaults to `"DEL"` (Delhi) in `resolve_iata()` (line 167) because there is no origin city field.
-
-**Fix Required**:
-- Make the fallback engine **destination-aware**: detect the destination's region and pick sensible hub airports. E.g. North America origins → direct or via major European hubs (LHR, CDG, FRA); Indian origins → via Middle East hubs; etc.
-- Add **curated route templates** for at least: Europe (Paris CDG, Rome FCO, London LHR), Southeast Asia (Bangkok BKK, Singapore SIN), South America (Sao Paulo GRU), Africa (Johannesburg JNB, Cairo CAI).
-- Use the user's **origin city** (see New Feature #1 below) instead of hardcoding DEL.
-
----
-
-### 2. Hotel Options Are Empty for All 10 Days
-
-**Symptom**: Every day in the itinerary has `hotel_options: []`.
-
-**Root Cause** (`backend/app/tools/hotel_client.py`):
-- `CURATED_HOTELS` dictionary only has entries for: **Reykjavik, Vik, Akureyri** (Iceland) and **Tokyo, Kyoto** (Japan).
-- Paris IS in `KNOWN_DESTINATIONS` (has dest_id and coordinates) but has **no curated hotel entries**.
-- Lyon, Nice, Marseille, Bordeaux — not in either dictionary.
-
-**Fix Required**:
-- Add **curated hotel entries** for all major tourist cities. At minimum:
-  - **Europe**: Paris, Lyon, Nice, London, Rome, Florence, Barcelona, Madrid, Amsterdam, Berlin, Prague, Vienna, Zurich, Lucerne, Interlaken
-  - **Asia**: Bangkok, Bali, Seoul, Singapore, Hong Kong, Delhi, Mumbai, Jaipur, Varanasi, Rishikesh
-  - **Americas**: New York, Los Angeles, San Francisco, Cancun, Rio, Buenos Aires
-  - **Oceania**: Sydney, Melbourne
-- Each entry needs: hotel name, star rating, nightly rate (in USD), neighborhood, and coordinates.
-- Hotels should have **realistic price variation** — not all the same rate. Include budget ($50-80), mid-range ($100-180), and premium ($200-400) tiers.
+**Key shift**: Replace static `CURATED_*` dictionaries with **LLM-generated estimates** as the universal fallback. The LLM already knows hotel price ranges, airline routes, and attraction details for every city in the world — use that knowledge instead of maintaining hardcoded data.
 
 ---
 
-### 3. Map Pins Are Empty
+## Data Layer: Free API Stack
 
-**Symptom**: `map_pins: []` — the interactive map shows nothing.
+### Flights
 
-**Root Cause** (`backend/app/agents/orchestrator.py`, lines 842-859):
-- Map pin generation in `_draft_to_final()` is **hardcoded for Iceland and Japan only**.
-- For Iceland: generates pins for Reykjavik, Vik, Akureyri, etc. with hardcoded lat/lng.
-- For Japan: generates pins for Tokyo, Kyoto.
-- **All other destinations get zero pins**.
+| Priority | Source | Free Tier | What it Returns |
+|----------|--------|-----------|-----------------|
+| **Primary** | **Kiwi Tequila API** | Free for low-volume/testing | Real flight offers, prices, airlines, booking links |
+| **Fallback** | **LLM-estimated routes** | Uses existing Groq quota | Realistic airline + price + stops based on origin→destination |
 
-**Fix Required**:
-- Generate map pins **dynamically from the itinerary's cities/activities**.
-- Each day already has a `city` field and activities with location names. Geocode those into lat/lng.
-- Fallback: maintain a **coordinates lookup table** for 50+ major tourist cities worldwide, and use the city's coordinates as the pin for that day.
-- Pin type should indicate: hotel (lodging), attraction (activity), transport (airport/station).
+**Implementation** (`backend/app/tools/flight_client.py`):
+1. Register at [Kiwi Tequila](https://tequila.kiwi.com/) — free API key for testing.
+2. Add `KIWI_API_KEY` to config.py and .env.
+3. New method `_query_kiwi_api()` — call `https://api.tequila.kiwi.com/v2/search` with origin IATA, destination IATA, date, passengers.
+4. Replace `_generate_realistic_fallback()` hardcoded 4-route engine with an LLM call:
+   ```
+   Prompt: "Generate 3 realistic flight options from {origin} to {destination} 
+   departing {date}. Return JSON with: airline, flight_number, price_usd, 
+   duration_hours, stops, layover_city. Use real airline names and realistic 
+   2026 pricing."
+   ```
+5. **Delete** the hardcoded India→Iceland/Australia/Japan route cases.
+6. **Delete** the `"DEL"` default in `resolve_iata()` — use `origin_city` from constraints.
 
----
-
-### 4. Places/POIs Are Empty for All Days
-
-**Symptom**: Every day has `places: []`.
-
-**Root Cause**: Google Places API is configured but either:
-- Not being called for destinations outside the hardcoded set, OR
-- The API key quota is exhausted / returning errors silently.
-
-**Fix Required**:
-- Verify `GOOGLE_PLACES_API_KEY` is valid and has quota.
-- If Google Places is unreliable/costly, add **curated POI data** as fallback (similar to hotel/flight approach):
-  - Top 10 attractions per major city with: name, category, typical visit duration, estimated cost, coordinates, opening hours.
-- Ensure the places client is called for **every city** in the itinerary, not just hardcoded ones.
+**Why not Amadeus?** Amadeus Self-Service API shuts down July 17, 2026 — dead end.
+**Why not RapidAPI flights-sky?** 500 req/month free tier already exhausted.
 
 ---
 
-### 5. Budget Rollup Categories Are All Empty/Null
+### Hotels
 
-**Symptom**: `grand_total` shows $2,485 but individual category breakdowns (flights, hotels, activities, food, transport) are null/empty.
+| Priority | Source | Free Tier | What it Returns |
+|----------|--------|-----------|-----------------|
+| **Primary** | **Booking.com Affiliate API** | Free (affiliate program) | Real availability, prices, deep links |
+| **Fallback** | **LLM-estimated hotels** | Uses existing Groq quota | Realistic hotel names, prices, neighborhoods per city |
 
-**Root Cause** (`backend/app/agents/orchestrator.py`):
-- Budget rollup relies on data from flights, hotels, and activities.
-- Since flights and hotels are empty, those categories can't be calculated.
-- Activities each cost exactly $100/day (5 activities x $20 flat rate) regardless of destination.
-
-**Fix Required**:
-- `_estimate_activity_cost()` should use **destination-aware pricing**. Paris activities don't cost $20 each — Louvre entry is ~$17, Seine cruise is ~$15, Eiffel Tower is ~$30.
-- Even when hotel/flight data is empty, the budget agent should **estimate** reasonable ranges based on destination and budget tier (budget/mid/luxury).
-- Break down the grand total into categories with at least estimated ranges.
-
----
-
-### 6. UTF-8 Encoding Corruption
-
-**Symptom**: "MusÃ©e" instead of "Musée", "CafÃ©" instead of "Café" throughout the output.
-
-**Root Cause**: Double-encoding issue — UTF-8 bytes being interpreted as Latin-1 somewhere in the pipeline (likely in the Groq LLM response parsing or JSON serialization).
-
-**Fix Required**:
-- Ensure all string handling uses UTF-8 consistently.
-- Check `groq_client.py` response parsing — the LLM response content should be decoded as UTF-8.
-- Check FastAPI response serialization — ensure `json.dumps()` uses `ensure_ascii=False`.
-- Test with destinations that have diacritics: French (é, è, ê), German (ü, ö, ä), Spanish (ñ), Japanese (漢字), Thai (ภาษาไทย).
+**Implementation** (`backend/app/tools/hotel_client.py`):
+1. Apply for [Booking.com Affiliate Partner](https://www.booking.com/affiliate-program.html) — free, returns real data.
+2. Replace `_generate_fallback_hotels()` with an LLM call:
+   ```
+   Prompt: "Generate 3 real hotels in {city} for a {budget_tier} traveler.
+   Return JSON: name (real hotel), price_per_night_usd, star_rating, 
+   neighborhood, one-line description. Use actual hotel names that exist."
+   ```
+3. **Delete** entire `CURATED_HOTELS` dictionary (~200 lines of static data).
+4. **Delete** `KNOWN_DESTINATIONS` static lookup — use geocoding API instead (see below).
+5. Keep the RapidAPI booking-com15 path as a third option (if user re-enables).
 
 ---
 
-## Moderate Issues (Output is misleading)
+### POIs / Attractions
 
-### 7. Every Day Costs Exactly $100
+| Priority | Source | Free Tier | What it Returns |
+|----------|--------|-----------|-----------------|
+| **Primary** | **Google Places API** (existing key) | ~5,000-10,000 calls/mo | Name, rating, reviews, photos, hours, coords |
+| **Secondary** | **OpenTripMap** | 5,000 req/day | Attractions from Wikipedia/Wikidata with coords |
+| **Fallback** | **LLM-generated** | Uses existing Groq quota | Attraction details for any city |
 
-**Symptom**: All 10 days show identical $100 daily cost (5 activities x $20 each).
-
-**Root Cause**: `_estimate_activity_cost()` uses a **flat $20 per activity** regardless of destination, activity type, or budget level.
-
-**Fix Required**:
-- Create a cost estimation table by activity category and destination tier:
-  - **Museum/Gallery**: $10-30 (varies by city)
-  - **Guided Tour**: $30-80
-  - **Food/Market**: $5-20
-  - **Nature/Park**: $0-15
-  - **Landmark**: $0-35
-  - **Water Activity**: $20-60
-- Factor in the user's budget level (budget vs. luxury) when estimating.
-
----
-
-### 8. Hardcoded "Ring Road Vehicle Rental" & "KEF Airport Pickup"
-
-**Symptom**: Frontend shows "Ring Road Vehicle Rental" heading and "KEF Airport Pickup" even for France trips.
-
-**Root Cause** (`src/app/components/itinerary-display/itinerary-display.component.html`):
-- Line 220: `<h3>Ring Road Vehicle Rental</h3>` is hardcoded.
-- Line 223: `getDestinationIata()` returns `"KEF"` as default.
-
-**Fix Required**:
-- Change heading to dynamic: `"Vehicle Rental in {destination}"` or simply `"Vehicle Rental Options"`.
-- `getDestinationIata()` should return the actual destination airport code from the itinerary data, not default to KEF.
-- Only show the vehicle rental section when `car_estimates` is non-empty.
+**Implementation** (`backend/app/tools/google_places_client.py`):
+1. **Verify** the existing `GOOGLE_PLACES_API_KEY` is valid and has quota — the France test returned empty, suggesting an issue.
+2. Add OpenTripMap as secondary: `https://api.opentripmap.com/0.1/en/places/radius` — free, no billing, returns Wikipedia-sourced attractions.
+3. Replace `CURATED_PLACES` fallback with LLM-generated POIs:
+   ```
+   Prompt: "List 8 must-visit attractions in {city} with: name, category, 
+   typical_entry_cost_usd, visit_duration_hours, lat, lng. Use real places."
+   ```
+4. **Delete** entire `CURATED_PLACES` dictionary (~400 lines of static Iceland/Japan data).
 
 ---
 
-### 9. Cost-Saving Tips Are Generic
+### Geocoding / Map Pins
 
-**Symptom**: Tips like "Book Flights 6-8 Weeks in Advance" are identical for every destination.
+| Priority | Source | Free Tier | What it Returns |
+|----------|--------|-----------|-----------------|
+| **Primary** | **Google Geocoding** (existing key) | 10,000/mo | Precise lat/lng for any address |
+| **Fallback** | **LocationIQ** | 5,000 req/day | Forward/reverse geocoding, free key |
+| **Last resort** | **LLM-estimated** | Groq quota | Approximate lat/lng for major cities |
 
-**Root Cause** (`backend/app/agents/orchestrator.py`, lines 883-899): `cost_saving_tips_v2` is a static list, not generated per-destination.
-
-**Fix Required**:
-- Make tips destination-specific. Examples for France:
-  - "Buy a Paris Museum Pass (€62 for 4 days) — covers Louvre, Orsay, and 50+ museums"
-  - "Use TGV OUIGO trains between cities — book 3 months early for €19 fares vs €80+ last-minute"
-  - "Eat at boulangeries and marchés for lunch — a croque-monsieur + drink costs €8 vs €25 at a restaurant"
-
----
-
-### 10. Origin Always Defaults to Delhi
-
-**Symptom**: All flight routing assumes Delhi (DEL) as the origin.
-
-**Root Cause**:
-- `TravelConstraints` model (`backend/app/models/schemas.py`) has **no `origin_city` field**.
-- `resolve_iata()` defaults to `"DEL"`.
-- The LLM extraction prompt (`groq_client.py`, lines 145-187) does not ask for origin city.
-
-**Fix Required**: See New Feature #1 below.
+**Implementation** (`backend/app/agents/orchestrator.py`):
+1. **Delete** hardcoded Iceland/Japan map pin generation (lines 842-859).
+2. New function `_generate_dynamic_map_pins()`:
+   - For each day in the itinerary, geocode the city name → lat/lng.
+   - Use Google Geocoding API (already have key) or LLM knowledge for coordinates.
+   - Generate pins for: arrival airport, each day's city, key attractions.
+3. Pin types: `airport`, `hotel`, `attraction`, `restaurant`.
 
 ---
 
-## New Features Required
+## Pipeline Bugs (Non-API)
 
-### Feature 1: Origin City Input
-
-**What**: Add an origin city field so flights, transit times, and routing are personalized.
-
-**Backend Changes**:
-1. Add `origin_city: Optional[str] = None` to `TravelConstraints` in `schemas.py`.
-2. Update LLM extraction prompt in `groq_client.py` to extract origin city from the user's prompt.
-3. Pass `origin_city` to `flight_client.py` → `resolve_iata()` instead of defaulting to DEL.
-4. Update fallback routing logic to use origin's region for hub selection.
-
-**Frontend Changes**:
-1. Add an origin city input field above the Sample Blueprints row in `ai-travel-planner.component.html`.
-2. Style: match the dark hero card theme (`bg-white/10`, `border-white/15`, Skyscanner blue accents).
-3. Include an autocomplete dropdown with major airports/cities.
-4. Pass origin city as part of the prompt or as a separate parameter to the backend.
-
----
-
-### Feature 2: Travel Date Input
-
-**What**: Add departure date so the planner can show seasonal advice, festival timing, and price estimates.
-
-**Backend Changes**:
-1. Add `start_date: Optional[str] = None` to `TravelConstraints` in `schemas.py`.
-2. Update LLM extraction prompt to extract travel dates.
-3. Use date context in:
-   - `best_time_to_visit` — compare user's dates vs. optimal season.
-   - Activity suggestions — seasonal events (Christmas markets in Dec, lavender fields in June).
-   - Price estimates — peak vs. off-peak adjustments.
-
-**Frontend Changes**:
-1. Add a date picker input next to the origin city field.
-2. Style: match the dark hero card theme.
-3. Pass start date as part of the prompt or as a separate parameter.
-
----
-
-### Feature 3: Currency-Aware Pricing Throughout
-
-**What**: Backend currently defaults to INR (`currency` field in `TravelConstraints` defaults to `"INR"`). Frontend defaults to USD. These should be consistent.
-
+### 1. UTF-8 Encoding Corruption
+**Symptom**: "MusÃ©e" instead of "Musée" throughout output.
+**Root Cause**: Double-encoding — UTF-8 bytes interpreted as Latin-1 in the pipeline.
 **Fix**:
-1. Change `currency` default in `TravelConstraints` from `"INR"` to `"USD"` (matching frontend default).
-2. Or better: pass the frontend's selected currency to the backend with each request.
-3. All cost estimates (activities, hotels, flights) should use the user's selected currency.
+- In `groq_client.py`: ensure response `.text` or `.content` is decoded as UTF-8.
+- In FastAPI JSON responses: use `ensure_ascii=False` in any `json.dumps()`.
+- In orchestrator string concatenation: no `.encode().decode()` round-trips.
+- **Test**: Run prompts for France (é), Germany (ü), Japan (東京), Thailand (กรุงเทพ).
+
+### 2. Every Day Costs Exactly $100 ($20 × 5 activities)
+**Symptom**: Flat pricing regardless of destination or activity type.
+**Root Cause**: `_estimate_activity_cost()` uses a flat $20/activity.
+**Fix**: Ask the LLM to estimate costs per activity when generating them:
+```
+In the activity generation prompt, add: "estimated_cost_usd" field.
+The LLM already knows that Louvre entry = ~$17, Eiffel Tower = ~$30, 
+a Paris café lunch = ~$15. Let it estimate.
+```
+
+### 3. Budget Rollup Categories Are Empty
+**Symptom**: Grand total shows a number but category breakdown is null.
+**Root Cause**: Rollup depends on flight/hotel data which is empty.
+**Fix**: Once flights and hotels return dynamic data (even LLM-estimated), the budget agent can sum them. Add defensive logic: if a category has no data, use LLM-estimated range (e.g., "Hotels: ~$120-180/night for mid-range in Paris").
+
+### 4. Hardcoded "Ring Road Vehicle Rental" & "KEF Airport Pickup"
+**File**: `src/app/components/itinerary-display/itinerary-display.component.html`
+**Fix**:
+- Line 220: Change `<h3>Ring Road Vehicle Rental</h3>` → `<h3>Vehicle Rental</h3>` or use destination name.
+- `getDestinationIata()`: return first destination IATA from itinerary data, not hardcoded "KEF".
+- Only show vehicle rental section when `car_estimates.length > 0`.
+
+### 5. Generic Cost-Saving Tips
+**Root Cause**: Static list in orchestrator, same 3 tips for every destination.
+**Fix**: Include in the Review Agent's LLM prompt:
+```
+"Generate 3 cost-saving tips specific to {destination}. 
+Include local transit passes, museum passes, meal strategies, 
+and booking timing advice. Each tip needs: title, description, 
+estimated_savings."
+```
+
+### 6. Route Map Shows Iceland for Non-Iceland Trips
+**Symptom**: Norway trip opens "Iceland Ring Road Route & GPS Pins" modal.
+**Root Cause**: Route map component is hardcoded for Iceland Ring Road SVG.
+**Fix**: Either generate a dynamic map from the itinerary's map_pins (once they're populated), or hide the route map when destination is not Iceland.
 
 ---
 
-## Summary Priority Matrix
+## New Features (Frontend Already Done)
 
-| Priority | Issue | Impact | Effort |
-|----------|-------|--------|--------|
-| P0 | Empty flights | Users see no flight options | Medium |
-| P0 | Empty hotels | Users see no hotel options | Medium |
-| P0 | Empty map pins | Map is blank | Medium |
-| P0 | UTF-8 corruption | Text is garbled | Low |
-| P1 | Empty places/POIs | No attraction details | Medium |
-| P1 | Budget rollup empty | Cost breakdown missing | Low |
-| P1 | Flat $100/day cost | Pricing feels fake | Low |
-| P1 | Origin city feature | Always shows Delhi flights | Medium |
-| P2 | Hardcoded Ring Road/KEF | Wrong labels for non-Iceland | Low |
-| P2 | Generic saving tips | Tips not useful | Low |
-| P2 | Travel date feature | No seasonal context | Medium |
-| P2 | Currency mismatch | INR vs USD confusion | Low |
+### Feature 1: Origin City — Frontend ✅ / Backend ❌
+**Frontend**: Origin city input with autocomplete already added to `ai-travel-planner.component.html`.
+**Backend needed**:
+1. Add `origin_city: Optional[str] = None` to `TravelConstraints` in `schemas.py`.
+2. Add `origin_city` extraction to LLM prompt in `groq_client.py`.
+3. Pass it through the API: add `origin_city` field to `/api/plan` request body in `main.py`.
+4. Use in `flight_client.py` → `resolve_iata(origin_city)` instead of defaulting to "DEL"/"NAG".
+
+### Feature 2: Travel Date — Frontend ✅ / Backend ❌
+**Frontend**: Date picker already added to `ai-travel-planner.component.html`.
+**Backend needed**:
+1. Add `start_date: Optional[str] = None` to `TravelConstraints` in `schemas.py`.
+2. Add `start_date` extraction to LLM prompt in `groq_client.py`.
+3. Pass through API: add `start_date` field to `/api/plan` request body.
+4. Use in flight search (departure_date), hotel search (arrival_date), and seasonal activity suggestions.
+
+### Feature 3: Currency Consistency
+**Current**: Backend defaults to `"INR"`, frontend defaults to `"USD"`.
+**Fix**: Pass frontend's selected currency to backend with each request. Change `TravelConstraints.currency` default from `"INR"` to `"USD"`.
+
+---
+
+## Implementation Priority
+
+| Phase | What | Effort | Impact |
+|-------|------|--------|--------|
+| **Phase 1** | UTF-8 fix + delete hardcoded KEF/Ring Road labels | 1 hour | Stops embarrassing bugs |
+| **Phase 2** | Wire origin_city + start_date from frontend → backend | 2 hours | Flights use real origin |
+| **Phase 3** | Replace flight fallback with LLM-estimated routes | 2 hours | Flights work for ANY destination |
+| **Phase 4** | Replace hotel fallback with LLM-estimated hotels | 2 hours | Hotels work for ANY destination |
+| **Phase 5** | Fix Google Places API call + add OpenTripMap fallback | 2 hours | POIs work for ANY destination |
+| **Phase 6** | Dynamic map pins via geocoding | 1 hour | Map shows real locations |
+| **Phase 7** | LLM-estimated activity costs + budget rollup | 1 hour | Realistic per-activity pricing |
+| **Phase 8** | LLM-generated cost-saving tips + dynamic route map | 1 hour | Destination-specific tips |
+| **Phase 9** | Integrate Kiwi Tequila API (flights) | 2 hours | Real flight prices |
+| **Phase 10** | Integrate Booking.com Affiliate (hotels) | 2 hours | Real hotel availability |
+
+**Total**: ~16 hours of implementation work.
+
+---
+
+## What to Delete
+
+These static data structures should be **removed entirely** once LLM-based fallbacks are in place:
+
+| File | What | Lines |
+|------|------|-------|
+| `hotel_client.py` | `CURATED_HOTELS` dict | ~180 lines |
+| `hotel_client.py` | `KNOWN_DESTINATIONS` dict | ~35 lines |
+| `google_places_client.py` | `CURATED_PLACES` dict | ~400 lines |
+| `flight_client.py` | 4 hardcoded route cases in `_generate_realistic_fallback()` | ~200 lines |
+| `orchestrator.py` | Hardcoded Iceland/Japan map pin generation | ~20 lines |
+| `orchestrator.py` | Static `cost_saving_tips_v2` list | ~20 lines |
+
+**Total**: ~855 lines of static data replaced by ~50 lines of LLM prompt templates.
 
 ---
 
 ## What Works Well (Keep These)
 
-- LLM-generated **activities are excellent** — rich narratives, accurate Paris/Lyon/Nice attractions, good day pacing.
+- LLM-generated **activities are excellent** — rich narratives, accurate attractions, good day pacing.
 - **Strategic insight** and **why_this_plan** are thoughtful and destination-specific.
 - **Neighborhoods** suggestions are accurate and useful.
-- **Best time to visit** advice is relevant.
-- **Multi-region splitting** (4-3-3 days across Paris-Lyon-Nice) works perfectly.
-- **Budget analysis** prose is smart (correctly identifies $10K as luxury tier).
-- **5-agent pipeline UI** with progress stepper looks professional.
-- **Sample blueprints** provide good starting points.
+- **Multi-region splitting** (4-3-3 days across cities) works perfectly.
+- **5-agent pipeline** architecture is sound — just needs dynamic data sources.
+- **Budget analysis** prose is smart.
+- **Origin city + date picker UI** already implemented and tested (desktop + mobile).
+
+---
+
+## API Keys Needed
+
+| API | Key Location | Status | Action |
+|-----|-------------|--------|--------|
+| Groq | `GROQ_API_KEY` in `.env` | ✅ Active | Keep |
+| Google Places | `GOOGLE_PLACES_API_KEY` in `.env` | ⚠️ Verify quota | Test with a curl call |
+| Kiwi Tequila | Not yet configured | ❌ Needed | Register at tequila.kiwi.com |
+| OpenTripMap | Not yet configured | ❌ Optional | Register at opentripmap.io |
+| Booking.com Affiliate | Not yet configured | ❌ Optional | Apply at booking.com/affiliate |
+| LocationIQ | Not yet configured | ❌ Optional | Register at locationiq.com |
