@@ -6,11 +6,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://YOUR_RENDER_URL.onrender.com/api/$1"
+      "destination": "https://skyscanner-ai.onrender.com/api/$1"
     },
     {
       "source": "/health",
-      "destination": "https://YOUR_RENDER_URL.onrender.com/health"
+      "destination": "https://skyscanner-ai.onrender.com/health"
     },
     {
       "source": "/(.*)",

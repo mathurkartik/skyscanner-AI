@@ -119,6 +119,37 @@ CITY_TO_IATA: Dict[str, str] = {
     "thailand": "BKK",
     "malaysia": "KUL",
     "indonesia": "DPS",
+    # Cambodia & Southeast Asia
+    "cambodia": "PNH",
+    "phnom penh": "PNH",
+    "siem reap": "SAI",
+    "vietnam": "HAN",
+    "da nang": "DAD",
+    "manila": "MNL",
+    "philippines": "MNL",
+    # Russia & Eastern Europe
+    "russia": "SVO",
+    "moscow": "SVO",
+    "sheremetyevo": "SVO",
+    "domodedovo": "DME",
+    "vnukovo": "VKO",
+    "saint petersburg": "LED",
+    "st petersburg": "LED",
+    "pulkovo": "LED",
+    "murmansk": "MMK",
+    "sochi": "AER",
+    "kazan": "KZN",
+    # Arctic & Northern Lights Hubs
+    "tromso": "TOS",
+    "tromsø": "TOS",
+    "rovaniemi": "RVN",
+    "lapland": "RVN",
+    "kiruna": "KRN",
+    "alta": "ALF",
+    "bodo": "BOO",
+    "bodø": "BOO",
+    "ivalo": "IVL",
+    "svalbard": "LYR",
     # Australia & New Zealand
     "melbourne": "MEL",
     "sydney": "SYD",
@@ -215,29 +246,30 @@ class FlightClient:
                 logger.info("Cache hit for flight search %s (age %.1fs)", cache_key, age)
                 return cached_entry["data"]
 
-        # Check if RapidAPI Key is configured
-        rapidapi_key = self.settings.rapidapi_key or ""
-        if rapidapi_key and rapidapi_key.strip():
-            try:
-                offers = await self._query_rapidapi(
-                    orig_iata=orig_iata,
-                    dest_iata=dest_iata,
-                    departure_date=departure_date,
-                    return_date=return_date,
-                    cabin_class=cabin_class,
-                    adults=adults,
-                    currency=currency,
-                )
-                if offers:
-                    self._cache[cache_key] = {"timestamp": time.time(), "data": offers}
-                    return offers
-            except Exception as err:
-                logger.warning(
-                    "RapidAPI Skyscanner search failed for %s->%s (%s). Using realistic fallback.",
-                    orig_iata,
-                    dest_iata,
-                    err,
-                )
+        # Only query RapidAPI if explicitly enabled (default is False to avoid third-party latency/keys)
+        if getattr(self.settings, "enable_rapidapi", False):
+            rapidapi_key = self.settings.rapidapi_key or ""
+            if rapidapi_key and rapidapi_key.strip():
+                try:
+                    offers = await self._query_rapidapi(
+                        orig_iata=orig_iata,
+                        dest_iata=dest_iata,
+                        departure_date=departure_date,
+                        return_date=return_date,
+                        cabin_class=cabin_class,
+                        adults=adults,
+                        currency=currency,
+                    )
+                    if offers:
+                        self._cache[cache_key] = {"timestamp": time.time(), "data": offers}
+                        return offers
+                except Exception as err:
+                    logger.warning(
+                        "RapidAPI Skyscanner search failed for %s->%s (%s). Using realistic fallback.",
+                        orig_iata,
+                        dest_iata,
+                        err,
+                    )
 
         # Fallback to authentic Hub-and-Spoke routing engine
         offers = self._generate_realistic_fallback(

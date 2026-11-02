@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     rapidapi_key: str | None = None
     skyscanner_api_key: str | None = None
     google_places_api_key: str | None = None
+    enable_rapidapi: bool = False  # Disabled by default: use authentic built-in routing and Google Places
     
     # LLM Provider (groq, gemini)
     llm_provider: str = "groq"

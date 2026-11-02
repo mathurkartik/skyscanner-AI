@@ -6,7 +6,7 @@
 export interface RealFlightOffer {
   id: string;
   airline: string;
-  airline_code: string;
+  airline_code?: string;
   airline_logo?: string | null;
   flight_number?: string | null;
   origin: string;
@@ -15,7 +15,7 @@ export interface RealFlightOffer {
   currency: string;
   duration_minutes: number;
   stops: number;
-  layover_airports: string[];
+  layover_airports?: string[];
   departure: string;
   arrival: string;
   is_greener?: boolean;
@@ -27,7 +27,7 @@ export interface RealHotelOffer {
   name: string;
   city: string;
   price_per_night: number;
-  total_price: number;
+  total_price?: number;
   currency: string;
   star_rating?: number | null;
   guest_rating?: number | null;
@@ -36,7 +36,7 @@ export interface RealHotelOffer {
   neighborhood?: string | null;
   image_url?: string | null;
   deeplink?: string | null;
-  amenities: string[];
+  amenities?: string[];
 }
 
 export interface CarEstimate {
@@ -59,7 +59,7 @@ export interface PlaceInfo {
   place_id?: string | null;
   rating?: number | null;
   review_count?: number | null;
-  types: string[];
+  types?: string[];
   opening_hours?: string[] | null;
   open_now?: boolean | null;
   address?: string | null;
@@ -118,8 +118,8 @@ export interface BudgetBreakdown {
   categories: BudgetCategory[];
   grand_total: number;
   currency: string;
-  within_budget: boolean;
-  remaining_buffer: number;
+  within_budget?: boolean;
+  remaining_buffer?: number;
   violations?: BudgetViolation[];
   suggested_swaps?: SuggestedSwap[];
   flags?: string[];
@@ -130,8 +130,8 @@ export interface DayItineraryItem {
   time: string;
   activity_id?: string | null;
   activity_name: string;
-  city: string;
-  type: string;
+  city?: string;
+  type?: string;
   cost_estimate: number;
   travel_time_from_prev?: string | null;
   notes?: string | null;
@@ -190,10 +190,10 @@ export interface FinalItinerary {
   experience_highlights?: ExperienceHighlight[];
   best_time_to_visit?: string | null;
   budget_rollup: BudgetBreakdown;
-  review_status: 'pass' | 'warnings' | 'fail';
-  review_warnings: string[];
-  disclaimer: string;
-  generated_at: string;
+  review_status: 'pass' | 'warnings' | 'fail' | 'approved';
+  review_warnings?: string[];
+  disclaimer?: string;
+  generated_at?: string;
 }
 
 export interface PlanRequest {

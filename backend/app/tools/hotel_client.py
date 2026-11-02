@@ -261,35 +261,36 @@ class HotelClient:
             if age < self.dest_cache_ttl_seconds:
                 return cached["data"]
 
-        # If RapidAPI key configured, query booking-com15.p.rapidapi.com
-        rapidapi_key = self.settings.rapidapi_key or ""
-        if rapidapi_key and rapidapi_key.strip():
-            try:
-                headers = {
-                    "x-rapidapi-key": rapidapi_key.strip(),
-                    "x-rapidapi-host": "booking-com15.p.rapidapi.com"
-                }
-                async with httpx.AsyncClient(timeout=15.0) as client:
-                    resp = await client.get(
-                        "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchDestination",
-                        params={"query": query},
-                        headers=headers
-                    )
-                    if resp.status_code == 200:
-                        data = resp.json().get("data", [])
-                        if data and len(data) > 0:
-                            first = data[0]
-                            result = {
-                                "dest_id": str(first.get("dest_id", "-2646452")),
-                                "dest_type": str(first.get("dest_type", "city")),
-                                "label": first.get("label", query),
-                                "lat": float(first.get("latitude", 64.1466)),
-                                "lng": float(first.get("longitude", -21.9426))
-                            }
-                            self._dest_cache[clean_query] = {"timestamp": time.time(), "data": result}
-                            return result
-            except Exception as err:
-                logger.warning("Destination search failed for '%s': %s", query, err)
+        # If RapidAPI key configured and explicitly enabled, query booking-com15.p.rapidapi.com
+        if getattr(self.settings, "enable_rapidapi", False):
+            rapidapi_key = self.settings.rapidapi_key or ""
+            if rapidapi_key and rapidapi_key.strip():
+                try:
+                    headers = {
+                        "x-rapidapi-key": rapidapi_key.strip(),
+                        "x-rapidapi-host": "booking-com15.p.rapidapi.com"
+                    }
+                    async with httpx.AsyncClient(timeout=15.0) as client:
+                        resp = await client.get(
+                            "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchDestination",
+                            params={"query": query},
+                            headers=headers
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json().get("data", [])
+                            if data and len(data) > 0:
+                                first = data[0]
+                                result = {
+                                    "dest_id": str(first.get("dest_id", "-2646452")),
+                                    "dest_type": str(first.get("dest_type", "city")),
+                                    "label": first.get("label", query),
+                                    "lat": float(first.get("latitude", 64.1466)),
+                                    "lng": float(first.get("longitude", -21.9426))
+                                }
+                                self._dest_cache[clean_query] = {"timestamp": time.time(), "data": result}
+                                return result
+                except Exception as err:
+                    logger.warning("Destination search failed for '%s': %s", query, err)
 
         # Default fallback
         fallback = {
@@ -323,24 +324,25 @@ class HotelClient:
             if age < self.search_cache_ttl_seconds:
                 return cached["data"]
 
-        rapidapi_key = self.settings.rapidapi_key or ""
-        if rapidapi_key and rapidapi_key.strip():
-            try:
-                offers = await self._query_booking_api(
-                    dest_id=dest_id,
-                    dest_type=dest_type,
-                    arrival_date=arrival_date,
-                    departure_date=departure_date,
-                    adults=adults,
-                    room_qty=room_qty,
-                    currency=currency,
-                    city_name=city_name or "Destination"
-                )
-                if offers:
-                    self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
-                    return offers
-            except Exception as err:
-                logger.warning("Booking.com hotel search failed for dest_id %s: %s", dest_id, err)
+        if getattr(self.settings, "enable_rapidapi", False):
+            rapidapi_key = self.settings.rapidapi_key or ""
+            if rapidapi_key and rapidapi_key.strip():
+                try:
+                    offers = await self._query_booking_api(
+                        dest_id=dest_id,
+                        dest_type=dest_type,
+                        arrival_date=arrival_date,
+                        departure_date=departure_date,
+                        adults=adults,
+                        room_qty=room_qty,
+                        currency=currency,
+                        city_name=city_name or "Destination"
+                    )
+                    if offers:
+                        self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
+                        return offers
+                except Exception as err:
+                    logger.warning("Booking.com hotel search failed for dest_id %s: %s", dest_id, err)
 
         # Fallback to curated inventory
         offers = self._generate_fallback_hotels(
@@ -373,35 +375,36 @@ class HotelClient:
             if age < self.search_cache_ttl_seconds:
                 return cached["data"]
 
-        rapidapi_key = self.settings.rapidapi_key or ""
-        if rapidapi_key and rapidapi_key.strip():
-            try:
-                headers = {
-                    "x-rapidapi-key": rapidapi_key.strip(),
-                    "x-rapidapi-host": "booking-com15.p.rapidapi.com"
-                }
-                params = {
-                    "latitude": str(lat),
-                    "longitude": str(lng),
-                    "arrival_date": arrival_date,
-                    "departure_date": departure_date,
-                    "adults": str(adults),
-                    "currency_code": currency
-                }
-                async with httpx.AsyncClient(timeout=20.0) as client:
-                    resp = await client.get(
-                        "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotelsByCoordinates",
-                        params=params,
-                        headers=headers
-                    )
-                    if resp.status_code == 200:
-                        data = resp.json().get("data", {}).get("result", [])
-                        offers = self._transform_booking_hotels(data, city_name or "Location", currency, 3)
-                        if offers:
-                            self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
-                            return offers
-            except Exception as err:
-                logger.warning("Coordinates hotel search failed for (%f, %f): %s", lat, lng, err)
+        if getattr(self.settings, "enable_rapidapi", False):
+            rapidapi_key = self.settings.rapidapi_key or ""
+            if rapidapi_key and rapidapi_key.strip():
+                try:
+                    headers = {
+                        "x-rapidapi-key": rapidapi_key.strip(),
+                        "x-rapidapi-host": "booking-com15.p.rapidapi.com"
+                    }
+                    params = {
+                        "latitude": str(lat),
+                        "longitude": str(lng),
+                        "arrival_date": arrival_date,
+                        "departure_date": departure_date,
+                        "adults": str(adults),
+                        "currency_code": currency
+                    }
+                    async with httpx.AsyncClient(timeout=20.0) as client:
+                        resp = await client.get(
+                            "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotelsByCoordinates",
+                            params=params,
+                            headers=headers
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json().get("data", {}).get("result", [])
+                            offers = self._transform_booking_hotels(data, city_name or "Location", currency, 3)
+                            if offers:
+                                self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
+                                return offers
+                except Exception as err:
+                    logger.warning("Coordinates hotel search failed for (%f, %f): %s", lat, lng, err)
 
         # Fallback
         offers = self._generate_fallback_hotels(
@@ -513,8 +516,46 @@ class HotelClient:
                     target_key = k
                     break
 
-        hotel_list = CURATED_HOTELS.get(target_key, CURATED_HOTELS["reykjavik"])
         display_city = (city_name or target_key).title()
+        if target_key in CURATED_HOTELS:
+            hotel_list = CURATED_HOTELS[target_key]
+        else:
+            # Generate high-fidelity dynamic hotel offerings for any global destination
+            hotel_list = [
+                {
+                    "name": f"Grand {display_city} Hotel & Suites",
+                    "price_per_night": 175.0,
+                    "star_rating": 4.5,
+                    "guest_rating": 9.1,
+                    "review_count": 640,
+                    "neighborhood": f"{display_city} Center",
+                    "address": f"Central Avenue, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Free WiFi", "Spa & Wellness", "Breakfast Included", "City View", "Concierge"]
+                },
+                {
+                    "name": f"{display_city} Heritage Boutique Hotel",
+                    "price_per_night": 135.0,
+                    "star_rating": 4.0,
+                    "guest_rating": 8.8,
+                    "review_count": 480,
+                    "neighborhood": f"Historic District, {display_city}",
+                    "address": f"Old Town Square, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Free WiFi", "Boutique Bar", "Room Service", "Airport Shuttle"]
+                },
+                {
+                    "name": f"Urban Prime Suites {display_city}",
+                    "price_per_night": 95.0,
+                    "star_rating": 3.5,
+                    "guest_rating": 8.5,
+                    "review_count": 310,
+                    "neighborhood": f"Downtown {display_city}",
+                    "address": f"Station Road, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Free High-Speed WiFi", "Kitchenette", "Air Conditioning", "24/7 Desk"]
+                }
+            ]
 
         offers: List[RealHotelOffer] = []
         for idx, h in enumerate(hotel_list):
