@@ -39,38 +39,24 @@ describe('TravelPlannerService', () => {
   });
 
   it('should call backend API and update state on generatePlan', async () => {
-    const mockResponse: PlanResponse = {
-      plan_id: 'test-plan-123',
-      status: 'completed',
-      itinerary: {
+    const mockResponse: any = {
+      trace_id: 'test-plan-123',
+      final_itinerary: {
+        id: 'test-plan-123',
         destination: 'Reykjavik, Iceland',
-        start_date: '2026-06-01',
-        end_date: '2026-06-05',
-        days: [],
-        budget_breakdown: {
-          currency: 'INR',
-          categories: [],
-          grand_total: 150000
-        },
-        meta: {
-          flight_quote: null,
-          hotels: [],
-          car_estimate: null,
-          cost_saving_tips: []
-        }
+        constraints: { destination_region: 'Reykjavik, Iceland' }
       }
     };
 
     mockHttpClient.post.mockReturnValue(of(mockResponse));
 
     service.generatePlan('5 days in Iceland').subscribe((res) => {
-      expect(res.plan_id).toBe('test-plan-123');
-      expect(res.itinerary.destination).toBe('Reykjavik, Iceland');
+      expect(res.trace_id).toBe('test-plan-123');
     });
 
     expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
     expect(service.isLoading()).toBe(false);
     expect(service.activePlanId()).toBe('test-plan-123');
-    expect(service.currentItinerary()?.destination).toBe('Reykjavik, Iceland');
+    expect(service.currentItinerary()?.id).toBe('test-plan-123');
   });
 });

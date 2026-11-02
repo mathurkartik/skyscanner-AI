@@ -563,6 +563,37 @@ class GooglePlacesClient:
         api_key: str,
         limit: int,
     ) -> List[PlaceInfo]:
+        # 1. Try Google Places API (New) first (preferred by modern Google Cloud keys)
+        url_new = "https://places.googleapis.com/v1/places:searchNearby"
+        headers_new = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.location,places.googleMapsUri,places.types"
+        }
+        body_new: Dict[str, Any] = {
+            "maxResultCount": limit,
+            "locationRestriction": {
+                "circle": {
+                    "center": {"latitude": lat, "longitude": lng},
+                    "radius": float(radius_m)
+                }
+            }
+        }
+        if place_type:
+            body_new["includedTypes"] = [place_type]
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                resp = await client.post(url_new, json=body_new, headers=headers_new)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    new_places = data.get("places", [])
+                    if new_places:
+                        return [self._transform_google_v1_place_item(p) for p in new_places[:limit]]
+            except Exception as e:
+                logger.debug(f"Places API (New) nearby search failed: {e}")
+
+        # 2. Fallback to Legacy Nearby Search API
         url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
         params: Dict[str, Any] = {
             "location": f"{lat},{lng}",
@@ -608,6 +639,37 @@ class GooglePlacesClient:
         api_key: str,
         limit: int,
     ) -> List[PlaceInfo]:
+        # 1. Try Google Places API (New) first (preferred by modern Google Cloud keys)
+        url_new = "https://places.googleapis.com/v1/places:searchText"
+        headers_new = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.location,places.googleMapsUri,places.types"
+        }
+        body_new: Dict[str, Any] = {
+            "textQuery": query,
+            "pageSize": limit
+        }
+        if location_bias and "lat" in location_bias and "lng" in location_bias:
+            body_new["locationBias"] = {
+                "circle": {
+                    "center": {"latitude": location_bias["lat"], "longitude": location_bias["lng"]},
+                    "radius": 50000.0
+                }
+            }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                resp = await client.post(url_new, json=body_new, headers=headers_new)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    new_places = data.get("places", [])
+                    if new_places:
+                        return [self._transform_google_v1_place_item(p) for p in new_places[:limit]]
+            except Exception as e:
+                logger.debug(f"Places API (New) text search failed: {e}")
+
+        # 2. Fallback to Legacy Text Search API
         url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
         params: Dict[str, Any] = {
             "query": query,
@@ -627,6 +689,29 @@ class GooglePlacesClient:
         for item in results[:limit]:
             places.append(self._transform_google_place_item(item, api_key))
         return places
+
+    def _transform_google_v1_place_item(self, item: Dict[str, Any]) -> PlaceInfo:
+        """Map Google Places API (New) JSON item to PlaceInfo schema."""
+        display_name = item.get("displayName", {})
+        name = display_name.get("text") if isinstance(display_name, dict) else str(item.get("name", "Attraction"))
+        loc = item.get("location", {})
+        lat = loc.get("latitude")
+        lng = loc.get("longitude")
+        types = item.get("types", [])
+        place_id = item.get("id")
+        maps_url = item.get("googleMapsUri") or (f"https://www.google.com/maps/search/?api=1&query={name.replace(' ', '+')}" if name else None)
+
+        return PlaceInfo(
+            name=name,
+            place_id=place_id,
+            rating=item.get("rating"),
+            review_count=item.get("userRatingCount"),
+            types=types if isinstance(types, list) else [],
+            address=item.get("formattedAddress"),
+            lat=lat,
+            lng=lng,
+            google_maps_url=maps_url
+        )
 
     def _transform_google_place_item(self, item: Dict[str, Any], api_key: str) -> PlaceInfo:
         """Map raw Google Places JSON item to PlaceInfo schema."""

@@ -1,5 +1,5 @@
 """
-FlightClient - RapidAPI Skyscanner client for real flight data.
+FlightClient - RapidAPI flights-sky client for real flight data.
 Phase 1: Real flight queries with caching and realistic hub-and-spoke fallback.
 """
 
@@ -264,27 +264,30 @@ class FlightClient:
         currency: str,
     ) -> List[RealFlightOffer]:
         """
-        Execute live HTTP request to RapidAPI Skyscanner search endpoint.
+        Execute live HTTP request to RapidAPI flights-sky search endpoint.
         """
         params = {
             "adults": str(adults),
-            "origin": orig_iata,
-            "destination": dest_iata,
-            "departureDate": departure_date,
+            "placeIdFrom": orig_iata,
+            "placeIdTo": dest_iata,
+            "departDate": departure_date,
             "cabinClass": cabin_class,
             "currency": currency,
         }
+
+        endpoint = "/web/flights/search-one-way"
         if return_date:
             params["returnDate"] = return_date
+            endpoint = "/web/flights/search-roundtrip"
 
         headers = {
             "x-rapidapi-key": self.settings.rapidapi_key.strip(),
-            "x-rapidapi-host": "skyscanner44.p.rapidapi.com",
+            "x-rapidapi-host": "flights-sky.p.rapidapi.com",
         }
 
         async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.get(
-                "https://skyscanner44.p.rapidapi.com/search",
+                f"https://flights-sky.p.rapidapi.com{endpoint}",
                 params=params,
                 headers=headers,
             )
@@ -303,9 +306,11 @@ class FlightClient:
         cabin_class: str,
     ) -> List[RealFlightOffer]:
         """
-        Map Skyscanner RapidAPI response into list of RealFlightOffer models.
+        Map flights-sky RapidAPI response into list of RealFlightOffer models.
         """
-        itineraries = data.get("itineraries", {}).get("results", [])
+        # flights-sky wraps response under "data" key
+        inner = data.get("data", data)
+        itineraries = inner.get("itineraries", {}).get("results", [])
         if not itineraries or not isinstance(itineraries, list):
             return []
 

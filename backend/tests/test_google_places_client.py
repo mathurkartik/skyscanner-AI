@@ -4,16 +4,22 @@ Verifies nearby search, text search, place details, caching, and realistic fallb
 """
 
 import pytest
+from app.config import Settings
 from app.tools.google_places_client import GooglePlacesClient, CURATED_PLACES
 from app.models.schemas import PlaceInfo
 
 
-@pytest.mark.asyncio
-async def test_search_nearby_reykjavik():
-    """Verify exit criteria: returns top-rated attractions near Reykjavik (64.1466°N, 21.9426°W) with ratings and hours."""
-    client = GooglePlacesClient()
+@pytest.fixture
+def fallback_client():
+    """Client with no API key, guaranteeing curated inventory tests run offline & deterministically."""
+    settings = Settings(google_places_api_key=None)
+    return GooglePlacesClient(settings=settings)
 
-    places = await client.search_nearby(
+
+@pytest.mark.asyncio
+async def test_search_nearby_reykjavik(fallback_client):
+    """Verify exit criteria: returns top-rated attractions near Reykjavik (64.1466°N, 21.9426°W) with ratings and hours."""
+    places = await fallback_client.search_nearby(
         lat=64.1466,
         lng=-21.9426,
         radius_m=15000,
@@ -36,11 +42,9 @@ async def test_search_nearby_reykjavik():
 
 
 @pytest.mark.asyncio
-async def test_search_nearby_vik():
+async def test_search_nearby_vik(fallback_client):
     """Verify exit criteria: returns top attractions near Vik (63.4186°N, 19.0060°W)."""
-    client = GooglePlacesClient()
-
-    places = await client.search_nearby(
+    places = await fallback_client.search_nearby(
         lat=63.4186,
         lng=-19.0060,
         radius_m=20000,
@@ -59,11 +63,9 @@ async def test_search_nearby_vik():
 
 
 @pytest.mark.asyncio
-async def test_search_nearby_akureyri():
+async def test_search_nearby_akureyri(fallback_client):
     """Verify exit criteria: returns top attractions near Akureyri (65.6835°N, 18.0878°W)."""
-    client = GooglePlacesClient()
-
-    places = await client.search_nearby(
+    places = await fallback_client.search_nearby(
         lat=65.6835,
         lng=-18.0878,
         radius_m=25000,
@@ -76,31 +78,26 @@ async def test_search_nearby_akureyri():
 
 
 @pytest.mark.asyncio
-async def test_search_text_queries():
+async def test_search_text_queries(fallback_client):
     """Verify text search resolves landmarks and natural features."""
-    client = GooglePlacesClient()
-
     # Search by keyword
-    waterfalls = await client.search_text("waterfall Iceland")
+    waterfalls = await fallback_client.search_text("waterfall Iceland")
     assert len(waterfalls) > 0
     wf_names = [p.name for p in waterfalls]
     assert any("Waterfall" in n or "foss" in n.lower() for n in wf_names)
 
     # Search by city name
-    tokyo_places = await client.search_text("Tokyo highlights")
+    tokyo_places = await fallback_client.search_text("Tokyo highlights")
     assert len(tokyo_places) >= 3
     t_names = [p.name for p in tokyo_places]
     assert any("Sensō-ji" in n or "Meiji" in n or "Shibuya" in n for n in t_names)
 
 
 @pytest.mark.asyncio
-async def test_get_place_details():
+async def test_get_place_details(fallback_client):
     """Verify get_place_details resolves place_id."""
-    client = GooglePlacesClient()
-
-    # Retrieve Hallgrímskirkja by its place_id
     sample_id = CURATED_PLACES["reykjavik"][0]["place_id"]
-    place = await client.get_place_details(sample_id)
+    place = await fallback_client.get_place_details(sample_id)
 
     assert place is not None
     assert place.place_id == sample_id
@@ -111,12 +108,10 @@ async def test_get_place_details():
 
 
 @pytest.mark.asyncio
-async def test_places_caching():
+async def test_places_caching(fallback_client):
     """Verify 24-hour cache avoids redundant computations."""
-    client = GooglePlacesClient()
-
-    res1 = await client.search_nearby(64.1466, -21.9426, 10000)
-    res2 = await client.search_nearby(64.1466, -21.9426, 10000)
+    res1 = await fallback_client.search_nearby(64.1466, -21.9426, 10000)
+    res2 = await fallback_client.search_nearby(64.1466, -21.9426, 10000)
 
     assert len(res1) == len(res2)
     assert res1[0].name == res2[0].name
@@ -164,4 +159,3 @@ def test_transform_google_place_item():
     assert "Monday: 9:00 AM – 10:00 PM" in place_info.opening_hours
     assert "photo_reference=photo_ref_abc_123" in place_info.photo_url
     assert "key=dummy_key" in place_info.photo_url
-
