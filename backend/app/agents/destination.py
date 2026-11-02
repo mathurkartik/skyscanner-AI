@@ -95,13 +95,14 @@ class DestinationAgent:
 
 Respond ONLY with valid JSON: {{"activities": [...]}}
 
-Each activity: {{"name": "Real place name", "description": "One evocative sentence", "type": "temple|food|museum|nature|shopping|entertainment|other", "cost_band": "budget|moderate|expensive", "address": "Area/district"}}
+Each activity: {{"name": "Real place name", "description": "One evocative sentence", "type": "temple|food|museum|nature|shopping|entertainment|other", "cost_band": "budget|moderate|expensive", "estimated_cost_usd": number, "address": "Area/district"}}
 
 Requirements:
 - {non_food_count} non-food (museums, landmarks, churches, parks, viewpoints, neighborhoods)
 - {food_count} food (restaurants, bistros, bakeries, cafes — each DIFFERENT)
 - ONLY real specific names, no generic labels
-- All names unique. Mix iconic spots and hidden gems"""
+- All names unique. Mix iconic spots and hidden gems
+- For estimated_cost_usd, provide realistic 2026 pricing in USD (e.g., Louvre = 22, Seine cruise = 18, street food = 8, free park/viewpoint = 0)"""
 
         user_prompt = f"""Generate {activity_count} unique activities for {days_in_city} days in {city}:
 Likes: {', '.join(constraints.preferences) if constraints.preferences else 'sightseeing, food, culture'}
@@ -176,6 +177,12 @@ Budget: {constraints.budget_total} {constraints.currency}"""
             name_part = name.lower().replace(' ', '-').replace("'", '').replace('"', '').replace('(', '').replace(')', '').replace('&', 'and').replace(',', '')[:30]
             activity_id = f"{city.lower().replace(' ', '-')}-{name_part}-{i}"
 
+            cost_val = item.get("estimated_cost_usd", item.get("estimated_cost"))
+            try:
+                estimated_cost = float(cost_val) if cost_val is not None else None
+            except (ValueError, TypeError):
+                estimated_cost = None
+
             activity = Activity(
                 id=activity_id,
                 name=name,
@@ -183,6 +190,7 @@ Budget: {constraints.budget_total} {constraints.currency}"""
                 type=type_mapping.get(item.get("type"), ActivityType.OTHER),
                 estimated_duration_hours=max(0.5, float(item.get("estimated_duration_hours", 2.0))),
                 cost_band=cost_mapping.get(item.get("cost_band"), CostBand.MODERATE),
+                estimated_cost=estimated_cost,
                 crowd_level=crowd_mapping.get(item.get("crowd_level"), CrowdLevel.MEDIUM),
                 must_do=bool(item.get("must_do", False)),
                 rationale=rationale,

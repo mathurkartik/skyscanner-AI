@@ -3,6 +3,8 @@ FlightClient - RapidAPI flights-sky client for real flight data.
 Phase 1: Real flight queries with caching and realistic hub-and-spoke fallback.
 """
 
+import asyncio
+import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -282,7 +284,25 @@ class FlightClient:
                 logger.info("Cache hit for flight search %s (age %.1fs)", cache_key, age)
                 return cached_entry["data"]
 
-        # Only query RapidAPI if explicitly enabled (default is False to avoid third-party latency/keys)
+        # 1. Primary Free Live API: Kiwi Tequila
+        if getattr(self.settings, "kiwi_api_key", None):
+            try:
+                kiwi_offers = await self._query_kiwi_api(
+                    orig_iata=orig_iata,
+                    dest_iata=dest_iata,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    cabin_class=cabin_class,
+                    adults=adults,
+                    currency=currency,
+                )
+                if kiwi_offers:
+                    self._cache[cache_key] = {"timestamp": time.time(), "data": kiwi_offers}
+                    return kiwi_offers
+            except Exception as e:
+                logger.warning("Kiwi API search failed for %s->%s: %s", orig_iata, dest_iata, e)
+
+        # 2. Secondary API: RapidAPI Skyscanner (if explicitly enabled)
         if getattr(self.settings, "enable_rapidapi", False):
             rapidapi_key = self.settings.rapidapi_key or ""
             if rapidapi_key and rapidapi_key.strip():
@@ -301,13 +321,27 @@ class FlightClient:
                         return offers
                 except Exception as err:
                     logger.warning(
-                        "RapidAPI Skyscanner search failed for %s->%s (%s). Using realistic fallback.",
+                        "RapidAPI Skyscanner search failed for %s->%s (%s).",
                         orig_iata,
                         dest_iata,
                         err,
                     )
 
-        # Fallback to authentic Hub-and-Spoke routing engine
+        # 3. Dynamic LLM-Estimated Flight Routes (Dynamic-first architecture)
+        llm_offers = await self._generate_llm_flights(
+            orig_iata=orig_iata,
+            dest_iata=dest_iata,
+            departure_date=departure_date,
+            return_date=return_date,
+            cabin_class=cabin_class,
+            adults=adults,
+            currency=currency,
+        )
+        if llm_offers:
+            self._cache[cache_key] = {"timestamp": time.time(), "data": llm_offers}
+            return llm_offers
+
+        # 4. Deterministic Realistic Hub-and-Spoke Fallback (Offline / unit tests)
         offers = self._generate_realistic_fallback(
             orig_iata=orig_iata,
             dest_iata=dest_iata,
@@ -320,6 +354,170 @@ class FlightClient:
 
         self._cache[cache_key] = {"timestamp": time.time(), "data": offers}
         return offers
+
+    async def _query_kiwi_api(
+        self,
+        orig_iata: str,
+        dest_iata: str,
+        departure_date: str,
+        return_date: Optional[str],
+        cabin_class: str = "economy",
+        adults: int = 1,
+        currency: str = "USD"
+    ) -> List[RealFlightOffer]:
+        """Query Kiwi Tequila v2 flight search API."""
+        api_key = getattr(self.settings, "kiwi_api_key", None)
+        if not api_key:
+            return []
+
+        def format_date(d_str: str) -> str:
+            parts = d_str.split("-")
+            return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else d_str
+
+        url = "https://api.tequila.kiwi.com/v2/search"
+        headers = {"apikey": api_key}
+        params = {
+            "fly_from": orig_iata,
+            "fly_to": dest_iata,
+            "date_from": format_date(departure_date),
+            "date_to": format_date(departure_date),
+            "adults": adults,
+            "curr": currency,
+            "limit": 5,
+            "flight_type": "round" if return_date else "oneway"
+        }
+        if return_date:
+            params["return_from"] = format_date(return_date)
+            params["return_to"] = format_date(return_date)
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            if resp.status_code != 200:
+                logger.warning("Kiwi API error %s: %s", resp.status_code, resp.text[:200])
+                return []
+            data = resp.json()
+            offers = []
+            for item in data.get("data", [])[:3]:
+                airlines = item.get("airlines", ["Airline"])
+                airline = airlines[0] if airlines else "Airline"
+                price = float(item.get("price", 0.0))
+                dur_secs = item.get("duration", {}).get("total", 0)
+                dur_mins = int(dur_secs / 60) if dur_secs else 360
+                route = item.get("route", [])
+                stops = max(0, len(route) - 1)
+                layovers = [r.get("cityTo", "") for r in route[:-1]]
+
+                offers.append(RealFlightOffer(
+                    id=item.get("id", f"kiwi-{orig_iata}-{dest_iata}"),
+                    airline=airline,
+                    airline_code=airline[:2].upper(),
+                    airline_logo=f"https://images.kiwi.com/airlines/64/{airline[:2].upper()}.png",
+                    flight_number=f"{airline[:2].upper()} {route[0].get('flight_no', '100') if route else '100'}",
+                    origin=orig_iata,
+                    destination=dest_iata,
+                    price=price,
+                    currency=currency,
+                    duration_minutes=dur_mins,
+                    stops=stops,
+                    layover_airports=layovers,
+                    departure=route[0].get("local_departure", "10:00")[-8:-3] if route else "10:00",
+                    arrival=route[-1].get("local_arrival", "18:00")[-8:-3] if route else "18:00",
+                    deeplink=item.get("deep_link", f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}"),
+                    cabin_class=cabin_class
+                ))
+            return offers
+
+    async def _generate_llm_flights(
+        self,
+        orig_iata: str,
+        dest_iata: str,
+        departure_date: str,
+        return_date: Optional[str] = None,
+        cabin_class: str = "economy",
+        adults: int = 1,
+        currency: str = "USD"
+    ) -> List[RealFlightOffer]:
+        """Generate realistic flight offers using Groq/LLM for any route worldwide."""
+        try:
+            from ..llm import get_llm_client
+            llm = get_llm_client()
+            if not llm:
+                return []
+
+            prompt = f"""Generate 3 realistic commercial flight options from {orig_iata} to {dest_iata} departing {departure_date} returning {return_date or 'N/A'} for {adults} adult in {cabin_class}.
+Use ACTUAL airlines that fly this route or connect via major hubs.
+Return ONLY a valid JSON array of 3 objects with this exact format:
+[
+  {{
+    "airline": "Air France",
+    "airline_code": "AF",
+    "flight_number": "AF 342",
+    "price": 680.0,
+    "duration_minutes": 520,
+    "stops": 1,
+    "layover_airports": ["CDG"],
+    "departure": "08:30",
+    "arrival": "17:10",
+    "return_departure": "11:20",
+    "return_arrival": "20:40",
+    "return_duration_minutes": 560,
+    "return_stops": 1
+  }}
+]"""
+            response = await asyncio.wait_for(
+                llm.chat_with_retry(
+                    messages=[
+                        {"role": "system", "content": "You are a Skyscanner flight inventory data engine. Return ONLY a valid JSON array."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=800
+                ),
+                timeout=25.0
+            )
+            text = response.strip()
+            bracket = text.find("[")
+            if bracket >= 0:
+                text = text[bracket:]
+                end_b = text.rfind("]")
+                if end_b > 0:
+                    text = text[:end_b + 1]
+            data = json.loads(text)
+
+            offers = []
+            for idx, item in enumerate(data):
+                airline = item.get("airline", "Global Airline")
+                code = item.get("airline_code", airline[:2].upper())
+                dep_code = departure_date.replace("-", "")[2:] if departure_date else "261201"
+                ret_code = return_date.replace("-", "")[2:] if return_date else "261211"
+                deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{dep_code}/{ret_code}"
+
+                offers.append(RealFlightOffer(
+                    id=f"llm-{orig_iata}-{dest_iata}-{idx + 1}",
+                    airline=airline,
+                    airline_code=code,
+                    airline_logo=f"https://images.kiwi.com/airlines/64/{code}.png",
+                    flight_number=item.get("flight_number", f"{code} {100 + idx * 50}"),
+                    origin=orig_iata,
+                    destination=dest_iata,
+                    price=float(item.get("price", 650.0)),
+                    currency=currency,
+                    duration_minutes=int(item.get("duration_minutes", 420)),
+                    stops=int(item.get("stops", 1)),
+                    layover_airports=item.get("layover_airports", []),
+                    departure=item.get("departure", "09:00"),
+                    arrival=item.get("arrival", "16:00"),
+                    deeplink=deeplink,
+                    cabin_class=cabin_class,
+                    return_departure=item.get("return_departure", "11:00"),
+                    return_arrival=item.get("return_arrival", "18:00"),
+                    return_duration_minutes=int(item.get("return_duration_minutes", 420)),
+                    return_stops=int(item.get("return_stops", item.get("stops", 1)))
+                ))
+            if len(offers) >= 2:
+                return offers
+        except Exception as e:
+            logger.warning("LLM flight generation failed: %s. Using regional engine.", e)
+        return []
 
     async def _query_rapidapi(
         self,

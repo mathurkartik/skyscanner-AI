@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment."""
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     rapidapi_key: str | None = None
     skyscanner_api_key: str | None = None
     google_places_api_key: str | None = None
+    kiwi_api_key: str | None = None
+    opentripmap_api_key: str | None = None
     enable_rapidapi: bool = False  # Disabled by default: use authentic built-in routing and Google Places
     
     # LLM Provider (groq, gemini)

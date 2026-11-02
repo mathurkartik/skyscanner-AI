@@ -83,6 +83,52 @@ export class ItineraryDisplayComponent {
     return 74200;
   }
 
+  public getRouteWaypoints(): Array<{ name: string; type: string; day: number; x: number; y: number }> {
+    if (!this.itinerary) return [];
+    const stops: Array<{ name: string; type: string; day: number }> = [];
+    const seen = new Set<string>();
+
+    if (this.itinerary.days && this.itinerary.days.length > 0) {
+      for (const day of this.itinerary.days) {
+        const city = day.city || `Day ${day.day_number}`;
+        if (!seen.has(city.toLowerCase())) {
+          seen.add(city.toLowerCase());
+          stops.push({ name: city, type: 'city', day: day.day_number });
+        }
+      }
+    }
+
+    if (stops.length < 2 && this.itinerary.map_pins) {
+      for (const pin of this.itinerary.map_pins) {
+        const pinLabel = pin.label || 'Waypoint';
+        if (!seen.has(pinLabel.toLowerCase()) && (pin.pin_type === 'overnight' || pin.pin_type === 'airport')) {
+          seen.add(pinLabel.toLowerCase());
+          stops.push({ name: pinLabel, type: pin.pin_type, day: pin.day_number ?? 1 });
+        }
+      }
+    }
+
+    const total = stops.length;
+    if (total === 0) return [];
+
+    return stops.map((stop, idx) => {
+      const x = total === 1 ? 250 : Math.round(60 + (idx / (total - 1)) * 380);
+      const y = total === 1 ? 100 : Math.round(100 + (idx % 2 === 0 ? -28 : 28) * Math.sin((idx / Math.max(1, total - 1)) * Math.PI));
+      return { ...stop, x, y };
+    });
+  }
+
+  public getRoutePathD(): string {
+    const waypoints = this.getRouteWaypoints();
+    if (waypoints.length < 2) return '';
+    return waypoints.reduce((acc, pt, idx) => {
+      if (idx === 0) return `M ${pt.x},${pt.y}`;
+      const prev = waypoints[idx - 1];
+      const cx = Math.round((prev.x + pt.x) / 2);
+      return `${acc} C ${cx},${prev.y} ${cx},${pt.y} ${pt.x},${pt.y}`;
+    }, '');
+  }
+
   public getDailyDriveAverage(): string {
     if (!this.itinerary?.days || this.itinerary.days.length === 0) return '2.4';
     let count = 0;

@@ -3,6 +3,8 @@ HotelClient - Booking.com RapidAPI client for real accommodation data.
 Phase 2: Destination resolution, live hotel search, coordinate search, caching, and realistic fallback.
 """
 
+import asyncio
+import json
 import logging
 import re
 import time
@@ -814,6 +816,32 @@ class HotelClient:
                 except Exception as err:
                     logger.warning("Booking.com hotel search failed for dest_id %s: %s", dest_id, err)
 
+        # Curated instant cache for blueprint destinations
+        if city_name:
+            cn_lower = city_name.strip().lower()
+            if cn_lower in CURATED_HOTELS:
+                offers = self._generate_fallback_hotels(
+                    dest_id=dest_id,
+                    city_name=city_name,
+                    arrival_date=arrival_date,
+                    departure_date=departure_date,
+                    currency=currency
+                )
+                self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
+                return offers
+
+        # Dynamic LLM-generated hotels for any other city worldwide
+        if city_name and city_name.strip():
+            llm_hotels = await self._generate_llm_hotels(
+                city_name=city_name.strip(),
+                arrival_date=arrival_date,
+                departure_date=departure_date,
+                currency=currency
+            )
+            if llm_hotels:
+                self._search_cache[cache_key] = {"timestamp": time.time(), "data": llm_hotels}
+                return llm_hotels
+
         # Fallback to curated inventory
         offers = self._generate_fallback_hotels(
             dest_id=dest_id,
@@ -824,6 +852,82 @@ class HotelClient:
         )
         self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
         return offers
+
+    async def _generate_llm_hotels(
+        self,
+        city_name: str,
+        budget_tier: str = "moderate",
+        arrival_date: str = "2026-12-01",
+        departure_date: str = "2026-12-04",
+        currency: str = "USD"
+    ) -> List[RealHotelOffer]:
+        """Generate 3 real existing hotels in city_name using Groq/LLM."""
+        if not city_name or len(city_name.strip()) < 2:
+            return []
+        try:
+            from ..llm import get_llm_client
+            llm = get_llm_client()
+            if not llm:
+                return []
+
+            clean_city = city_name.strip().title()
+            prompt = f"""Generate 3 REAL, currently operating hotels in {clean_city} for a {budget_tier} traveler.
+Return ONLY a valid JSON array of 3 objects with this exact format:
+[
+  {{
+    "name": "Actual Real Hotel Name",
+    "price_per_night": 140.0,
+    "star_rating": 4.0,
+    "guest_rating": 8.8,
+    "review_count": 1250,
+    "neighborhood": "Real Neighborhood or District",
+    "address": "Real street address or district, {clean_city}",
+    "amenities": ["Free WiFi", "Breakfast Included", "Air Conditioning"]
+  }}
+]"""
+            response = await asyncio.wait_for(
+                llm.chat_with_retry(
+                    messages=[
+                        {"role": "system", "content": "You are a hotel booking inventory data engine. Return ONLY a valid JSON array of real hotels."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=600
+                ),
+                timeout=25.0
+            )
+            text = response.strip()
+            bracket = text.find("[")
+            if bracket >= 0:
+                text = text[bracket:]
+                end_b = text.rfind("]")
+                if end_b > 0:
+                    text = text[:end_b + 1]
+            data = json.loads(text)
+            offers = []
+            for idx, h in enumerate(data):
+                nightly = float(h.get("price_per_night", 120.0))
+                total = round(nightly * 3, 2)
+                offers.append(RealHotelOffer(
+                    id=f"llm-ht-{clean_city.lower().replace(' ', '-')}-{idx + 1}",
+                    name=h.get("name", f"Hotel in {clean_city}"),
+                    city=clean_city,
+                    price_per_night=nightly,
+                    total_price=total,
+                    currency=currency,
+                    star_rating=float(h.get("star_rating", 4.0)),
+                    guest_rating=float(h.get("guest_rating", 8.5)),
+                    review_count=int(h.get("review_count", 500)),
+                    neighborhood=h.get("neighborhood", f"{clean_city} Center"),
+                    address=h.get("address", f"{clean_city}"),
+                    image_url="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+                    deeplink=f"https://www.booking.com/searchresults.html?ss={clean_city.lower().replace(' ', '+')}",
+                    amenities=h.get("amenities", ["Free WiFi", "Air Conditioning", "Breakfast"])
+                ))
+            if len(offers) >= 2:
+                return offers
+        except Exception as e:
+            logger.warning("LLM hotel generation failed for %s: %s", city_name, e)
+        return []
 
     async def search_hotels_by_coords(
         self,

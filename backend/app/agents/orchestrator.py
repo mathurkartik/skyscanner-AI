@@ -475,11 +475,13 @@ class OrchestratorAgent:
         if review_report.overall_status == "fail":
             print(f"Warning: Max repair cycles ({max_repair_cycles}) reached. Returning best-effort plan.")
         
-        # Step 6: Generate insights (Strategic + Budget Reality Check)
-        insights = await self._generate_insights(constraints, draft)
-
-        # Step 6b: Enrich days with mood, highlight, and narrative
-        await self._enrich_day_narratives(constraints, draft)
+        # Step 6: Generate insights and day narratives concurrently
+        insights_res, _ = await asyncio.gather(
+            self._generate_insights(constraints, draft),
+            self._enrich_day_narratives(constraints, draft),
+            return_exceptions=True
+        )
+        insights = insights_res if isinstance(insights_res, PlanInsights) else None
 
         # Step 7: Create FinalItinerary from Draft with Review status, insights, and disclaimer
         final_itinerary = self._draft_to_final(
@@ -963,6 +965,10 @@ class OrchestratorAgent:
     
     def _estimate_activity_cost(self, activity: Any, destination: str = "", budget_tier: str = "moderate") -> float:
         """Estimate cost for an activity based on category, cost band, and destination."""
+        explicit_cost = getattr(activity, "estimated_cost", None)
+        if explicit_cost is not None and explicit_cost >= 0:
+            return round(float(explicit_cost), 2)
+
         act_raw = getattr(activity, "type", "")
         act_type = str(getattr(act_raw, "value", act_raw)).lower().replace("activitytype.", "").strip()
         cost_band = str(getattr(activity, "cost_band", "moderate")).lower()
@@ -1329,7 +1335,7 @@ Days breakdown: {', '.join(f'Day {d.day_number}: {d.city}' for d in draft.days)}
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=2000
+                max_tokens=1000
             )
             content = self._extract_json(content)
             data = _json.loads(content)
@@ -1378,7 +1384,7 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=3000
+                max_tokens=800
             )
             content = self._extract_json(content)
             data = _json.loads(content)

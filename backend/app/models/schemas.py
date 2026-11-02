@@ -166,6 +166,7 @@ class Activity(BaseModel):
     estimated_duration_hours: float = Field(..., gt=0, le=24, description="Duration in hours, max 24")
     crowd_level: CrowdLevel = CrowdLevel.UNKNOWN
     cost_band: CostBand
+    estimated_cost: Optional[float] = Field(default=None, ge=0, description="Estimated entry or participation cost in USD")
     must_do: bool = Field(default=False, description="High priority item")
     rationale: str = Field(..., min_length=1, max_length=500, description="Why this matches preferences")
     description: Optional[str] = Field(default=None, max_length=300, description="Evocative one-liner about the experience")

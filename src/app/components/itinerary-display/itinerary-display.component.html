@@ -797,36 +797,43 @@
             <p class="text-xs text-gray-300">Geocoded GPS Waypoints • Interactive Navigation</p>
           </div>
 
-          <!-- Stylized Route Curve -->
+          <!-- Dynamic Stylized Route Circuit -->
           <svg viewBox="0 0 500 200" class="w-full max-w-lg h-36">
-            <path
-              d="M 60,140 C 90,80 180,40 250,50 C 330,60 420,70 440,120 C 460,170 320,180 250,170 C 180,160 80,170 60,140 Z"
-              fill="none"
-              stroke="#0062e3"
-              stroke-width="3"
-              stroke-dasharray="6,4"
-              class="opacity-80" />
-            <!-- Markers -->
-            <circle cx="60" cy="140" r="7" fill="#7af7e7" stroke="#ffffff" stroke-width="2" />
-            <text x="60" y="125" fill="#ffffff" font-size="9" font-weight="bold" text-anchor="middle">Reykjavik</text>
-
-            <circle cx="120" cy="80" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
-            <text x="120" y="68" fill="#ffffff" font-size="8" text-anchor="middle">Golden Circle</text>
-
-            <circle cx="170" cy="165" r="6" fill="#00776d" stroke="#ffffff" stroke-width="2" />
-            <text x="170" y="185" fill="#7af7e7" font-size="8" font-weight="bold" text-anchor="middle">Vík</text>
-
-            <circle cx="270" cy="168" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
-            <text x="270" y="188" fill="#ffffff" font-size="8" text-anchor="middle">Höfn</text>
-
-            <circle cx="430" cy="110" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
-            <text x="430" y="100" fill="#ffffff" font-size="8" text-anchor="middle">Eastfjords</text>
-
-            <circle cx="340" cy="55" r="6" fill="#0062e3" stroke="#ffffff" stroke-width="2" />
-            <text x="340" y="45" fill="#ffffff" font-size="8" text-anchor="middle">Mývatn</text>
-
-            <circle cx="250" cy="50" r="6" fill="#00776d" stroke="#ffffff" stroke-width="2" />
-            <text x="250" y="38" fill="#7af7e7" font-size="8" font-weight="bold" text-anchor="middle">Akureyri</text>
+            @if (getRouteWaypoints().length >= 2) {
+              <!-- Route Path -->
+              <path
+                [attr.d]="getRoutePathD()"
+                fill="none"
+                stroke="#0062e3"
+                stroke-width="3"
+                stroke-dasharray="6,4"
+                class="opacity-80" />
+              <!-- Dynamic Waypoint Markers -->
+              @for (wp of getRouteWaypoints(); track wp.name; let idx = $index) {
+                <circle
+                  [attr.cx]="wp.x"
+                  [attr.cy]="wp.y"
+                  [attr.r]="idx === 0 || idx === getRouteWaypoints().length - 1 ? 7 : 5"
+                  [attr.fill]="idx === 0 ? '#7af7e7' : (idx === getRouteWaypoints().length - 1 ? '#ff7979' : '#0062e3')"
+                  stroke="#ffffff"
+                  stroke-width="2" />
+                <text
+                  [attr.x]="wp.x"
+                  [attr.y]="wp.y + (idx % 2 === 0 ? -12 : 18)"
+                  fill="#ffffff"
+                  font-size="9"
+                  font-weight="bold"
+                  text-anchor="middle">
+                  {{ wp.name }}
+                </text>
+              }
+            } @else {
+              <!-- Single destination or fallback point -->
+              <circle cx="250" cy="100" r="8" fill="#7af7e7" stroke="#ffffff" stroke-width="2" />
+              <text x="250" y="80" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle">
+                {{ itinerary.constraints.destination_region || 'Destination' }}
+              </text>
+            }
           </svg>
         </div>
 

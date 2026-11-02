@@ -41,7 +41,7 @@ export class TravelPlannerService {
     };
 
     return this.http.post<PlanResponse>(`${this.baseUrl}/api/plan`, payload).pipe(
-      timeout(120000),
+      timeout(150000),
       tap({
         next: (response) => {
           this.isLoading.set(false);
@@ -77,7 +77,7 @@ export class TravelPlannerService {
 
   private handleError(error: any): void {
     if (error.name === 'TimeoutError') {
-      this.errorMessage.set('The AI travel planning agents took longer than 120 seconds. Please try again.');
+      this.errorMessage.set('The AI travel planning agents took longer than expected (free-tier servers may take up to 60s to wake up on cold start). Please try again or load an instant blueprint.');
     } else if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
         this.errorMessage.set('Cannot connect to the AI planner backend at ' + this.baseUrl + '. Make sure the backend server is running on port 8000.');

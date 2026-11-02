@@ -310,6 +310,12 @@ TRIP TYPE DETECTION:
             start = min(brace, bracket)
         return text[start:]
 
+    @property
+    def semaphore(self) -> asyncio.Semaphore:
+        if not hasattr(self, "_sem") or self._sem is None:
+            self._sem = asyncio.Semaphore(2)
+        return self._sem
+
     async def chat_with_retry(
         self,
         messages: list,
@@ -324,38 +330,40 @@ TRIP TYPE DETECTION:
         settings = get_settings()
         max_tokens = min(max_tokens, settings.groq_max_tokens_per_request)
         fallback = settings.groq_fallback_model
-        for attempt in range(max_retries):
-            # Groq rate limits are per model, so use the fallback while the primary's daily quota is exhausted
-            model = fallback if (fallback and time.time() < self._primary_blocked_until) else self.model
-            try:
-                kwargs = {
-                    "model": model,
-                    "messages": messages,
-                    "temperature": temperature or self.temperature,
-                    "max_tokens": max_tokens,
-                }
-                # gpt-oss spends hidden reasoning tokens that count against the 8k TPM free-tier limit
-                if "gpt-oss" in model:
-                    kwargs["reasoning_effort"] = "low"
-                response = await asyncio.to_thread(self._client.chat.completions.create, **kwargs)
-                if response.usage:
-                    self._record_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
-                return response.choices[0].message.content
-            except Exception as e:
-                msg = str(e)
-                if "429" in msg or "rate_limit" in msg:
-                    match = re.search(r"try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", msg)
-                    wait = (int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3)) + 1) if match else 5 * (attempt + 1)
-                    if "tokens per day" in msg and model == self.model and fallback and fallback != model:
-                        self._primary_blocked_until = time.time() + wait
-                        print(f"Daily quota hit on {model}; using {fallback} for {wait:.0f}s")
+
+        async with self.semaphore:
+            for attempt in range(max_retries):
+                # Groq rate limits are per model, so use the fallback while the primary's daily quota is exhausted
+                model = fallback if (fallback and time.time() < self._primary_blocked_until) else self.model
+                try:
+                    kwargs = {
+                        "model": model,
+                        "messages": messages,
+                        "temperature": temperature or self.temperature,
+                        "max_tokens": max_tokens,
+                    }
+                    # gpt-oss spends hidden reasoning tokens that count against the 8k TPM free-tier limit
+                    if "gpt-oss" in model:
+                        kwargs["reasoning_effort"] = "low"
+                    response = await asyncio.to_thread(self._client.chat.completions.create, **kwargs)
+                    if response.usage:
+                        self._record_usage(response.usage.prompt_tokens, response.usage.completion_tokens)
+                    return response.choices[0].message.content
+                except Exception as e:
+                    msg = str(e)
+                    if "429" in msg or "rate_limit" in msg:
+                        match = re.search(r"try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", msg)
+                        wait = (int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3)) + 1) if match else 5 * (attempt + 1)
+                        if "tokens per day" in msg and model == self.model and fallback and fallback != model:
+                            self._primary_blocked_until = time.time() + wait
+                            print(f"Daily quota hit on {model}; using {fallback} for {wait:.0f}s")
+                            continue
+                        wait = min(wait, 30)
+                        print(f"Rate limited, waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})")
+                        await asyncio.sleep(wait)
                         continue
-                    wait = min(wait, 30)
-                    print(f"Rate limited, waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})")
-                    await asyncio.sleep(wait)
-                    continue
-                raise
-        raise RuntimeError("Max retries exceeded for rate limit")
+                    raise
+            raise RuntimeError("Max retries exceeded for rate limit")
 
     def get_token_summary(self) -> Dict[str, Any]:
         """Get current token usage summary."""
