@@ -18,220 +18,95 @@ from ..models.schemas import RealFlightOffer
 
 logger = logging.getLogger(__name__)
 
-# Comprehensive city name to IATA code directory
-CITY_TO_IATA: Dict[str, str] = {
-    # India
-    "nagpur": "NAG",
-    "mumbai": "BOM",
-    "delhi": "DEL",
-    "new delhi": "DEL",
-    "bengaluru": "BLR",
-    "bangalore": "BLR",
-    "hyderabad": "HYD",
-    "chennai": "MAA",
-    "kolkata": "CCU",
-    "pune": "PNQ",
-    "ahmedabad": "AMD",
-    "kochi": "COK",
-    "cochin": "COK",
-    "goa": "GOI",
-    "jaipur": "JAI",
-    "chandigarh": "IXC",
-    "lucknow": "LKO",
-    "varanasi": "VNS",
-    "amritsar": "ATQ",
-    "thiruvananthapuram": "TRV",
-    "trivandrum": "TRV",
-    # Iceland
-    "reykjavik": "KEF",
-    "keflavik": "KEF",
-    "akureyri": "AEY",
-    "iceland": "KEF",
-    "ring road": "KEF",
-    "golden circle": "KEF",
-    # Japan
-    "tokyo": "HND",
-    "kyoto": "KIX",
-    "osaka": "KIX",
-    "sapporo": "CTS",
-    "fukuoka": "FUK",
-    "japan": "HND",
-    # Europe & France
-    "france": "CDG",
-    "paris": "CDG",
-    "charles de gaulle": "CDG",
-    "orly": "ORY",
-    "lyon": "LYS",
-    "nice": "NCE",
-    "marseille": "MRS",
-    "bordeaux": "BOD",
-    "toulouse": "TLS",
-    "strasbourg": "SXB",
-    "london": "LHR",
-    "gatwick": "LGW",
-    "edinburgh": "EDI",
-    "glasgow": "GLA",
-    "scotland": "EDI",
-    "manchester": "MAN",
-    "dublin": "DUB",
-    "ireland": "DUB",
-    "frankfurt": "FRA",
-    "munich": "MUC",
-    "berlin": "BER",
-    "hamburg": "HAM",
-    "amsterdam": "AMS",
-    "netherlands": "AMS",
-    "zurich": "ZRH",
-    "geneva": "GVA",
-    "basel": "BSL",
-    "lucerne": "ZRH",
-    "interlaken": "ZRH",
-    "zermatt": "GVA",
-    "rome": "FCO",
-    "milan": "MXP",
-    "florence": "FLR",
-    "venice": "VCE",
-    "naples": "NAP",
-    "italy": "FCO",
-    "barcelona": "BCN",
-    "madrid": "MAD",
-    "seville": "SVQ",
-    "spain": "BCN",
-    "vienna": "VIE",
-    "austria": "VIE",
-    "prague": "PRG",
-    "czech": "PRG",
-    "budapest": "BUD",
-    "athens": "ATH",
-    "greece": "ATH",
-    "lisbon": "LIS",
-    "porto": "OPO",
-    "portugal": "LIS",
-    "brussels": "BRU",
-    "belgium": "BRU",
-    "copenhagen": "CPH",
-    "denmark": "CPH",
-    "oslo": "OSL",
-    "bergen": "BGO",
-    "stavanger": "SVG",
-    "norway": "OSL",
-    "stockholm": "ARN",
-    "sweden": "ARN",
-    "helsinki": "HEL",
-    "finland": "HEL",
-    "switzerland": "ZRH",
-    # North America
-    "new york": "JFK",
-    "nyc": "JFK",
-    "los angeles": "LAX",
-    "san francisco": "SFO",
-    "chicago": "ORD",
-    "seattle": "SEA",
-    "boston": "BOS",
-    "miami": "MIA",
-    "las vegas": "LAS",
-    "washington": "IAD",
-    "toronto": "YYZ",
-    "vancouver": "YVR",
-    "montreal": "YUL",
-    "usa": "JFK",
-    "united states": "JFK",
-    "canada": "YYZ",
-    # Middle East & Gulf
-    "dubai": "DXB",
-    "abu dhabi": "AUH",
-    "doha": "DOH",
-    "sharjah": "SHJ",
-    # Asia
-    "singapore": "SIN",
-    "bangkok": "BKK",
-    "phuket": "HKT",
-    "kuala lumpur": "KUL",
-    "bali": "DPS",
-    "denpasar": "DPS",
-    "jakarta": "CGK",
-    "hong kong": "HKG",
-    "seoul": "ICN",
-    "taipei": "TPE",
-    "ho chi minh city": "SGN",
-    "hanoi": "HAN",
-    "thailand": "BKK",
-    "malaysia": "KUL",
-    "indonesia": "DPS",
-    # Cambodia & Southeast Asia
-    "cambodia": "PNH",
-    "phnom penh": "PNH",
-    "siem reap": "SAI",
-    "vietnam": "HAN",
-    "da nang": "DAD",
-    "manila": "MNL",
-    "philippines": "MNL",
-    # Russia & Eastern Europe
-    "russia": "SVO",
-    "moscow": "SVO",
-    "sheremetyevo": "SVO",
-    "domodedovo": "DME",
-    "vnukovo": "VKO",
-    "saint petersburg": "LED",
-    "st petersburg": "LED",
-    "pulkovo": "LED",
-    "murmansk": "MMK",
-    "sochi": "AER",
-    "kazan": "KZN",
-    # Arctic & Northern Lights Hubs
-    "tromso": "TOS",
-    "tromsø": "TOS",
-    "rovaniemi": "RVN",
-    "lapland": "RVN",
-    "kiruna": "KRN",
-    "alta": "ALF",
-    "bodo": "BOO",
-    "bodø": "BOO",
-    "ivalo": "IVL",
-    "svalbard": "LYR",
-    # Australia & New Zealand
-    "melbourne": "MEL",
-    "sydney": "SYD",
-    "brisbane": "BNE",
-    "perth": "PER",
-    "adelaide": "ADL",
-    "auckland": "AKL",
-    "christchurch": "CHC",
-    "queenstown": "ZQN",
-    "australia": "MEL",
-    "new zealand": "AKL",
-}
+# In-memory runtime cache for dynamically resolved IATA codes (zero hardcoded dictionaries)
+_RESOLVED_IATA_CACHE: Dict[str, str] = {}
 
 
-def resolve_iata(city_or_code: str, default: str = "DEL") -> str:
+async def resolve_iata(city_or_code: str, default: str = "DEL") -> str:
     """
-    Resolve city name or code to a 3-letter IATA airport code.
-    Example: 'Reykjavik' -> 'KEF', 'Nagpur' -> 'NAG', 'HND' -> 'HND'.
+    Dynamically resolve a city name or region to its nearest 3-letter IATA airport code via LLM.
+    Results are cached in memory for zero-latency repeat lookups.
     """
     if not city_or_code:
         return default
 
     clean = city_or_code.strip()
 
-    # If already a valid 3-letter uppercase IATA code
+    # 1. If already a valid 3-letter uppercase IATA code, return immediately
     if len(clean) == 3 and clean.isalpha() and clean.isupper():
         return clean
 
-    # Check in dictionary
     normalized = clean.lower()
-    if normalized in CITY_TO_IATA:
-        return CITY_TO_IATA[normalized]
 
-    # Partial / substring search
-    for name, iata in CITY_TO_IATA.items():
-        if name in normalized or normalized in name:
-            return iata
+    # 2. Check dynamic runtime cache
+    if normalized in _RESOLVED_IATA_CACHE:
+        return _RESOLVED_IATA_CACHE[normalized]
 
-    # If it's a 3-letter alphabetic string of any case, uppercase it
+    # 3. If it's a 3-letter alpha string (e.g. "kef"), uppercase it
+    if len(clean) == 3 and clean.isalpha():
+        code = clean.upper()
+        _RESOLVED_IATA_CACHE[normalized] = code
+        return code
+
+    # 4. Resolve dynamically via LLM
+    try:
+        from ..llm import get_llm_client
+        llm = get_llm_client()
+        if llm:
+            prompt = (
+                f"What is the primary commercial 3-letter IATA airport code for {clean}? "
+                "Respond with ONLY the 3-letter uppercase IATA code and nothing else. "
+                "Examples: Paris -> CDG, Tokyo -> HND, Reykjavik -> KEF, Nagpur -> NAG, London -> LHR."
+            )
+            resp = await asyncio.wait_for(
+                llm.chat_with_retry(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a flight airport IATA code resolver. Return ONLY the 3-letter uppercase IATA code."
+                        },
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=200
+                ),
+                timeout=8.0
+            )
+            if resp:
+                text = resp.strip().upper()
+                match = re.search(r'\b[A-Z]{3}\b', text)
+                if match:
+                    code = match.group(0)
+                    _RESOLVED_IATA_CACHE[normalized] = code
+                    return code
+    except Exception as e:
+        logger.warning("Dynamic LLM IATA resolution failed for '%s': %s", clean, e)
+
+    return default
+
+
+def resolve_iata_sync(city_or_code: str, default: str = "DEL") -> str:
+    """
+    Synchronous accessor for IATA resolution, using cache or existing 3-letter format.
+    Falls back to default if async resolution is required while event loop is active.
+    """
+    if not city_or_code:
+        return default
+
+    clean = city_or_code.strip()
     if len(clean) == 3 and clean.isalpha():
         return clean.upper()
 
-    return default
+    normalized = clean.lower()
+    if normalized in _RESOLVED_IATA_CACHE:
+        return _RESOLVED_IATA_CACHE[normalized]
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            return default
+        return loop.run_until_complete(resolve_iata(city_or_code, default))
+    except Exception:
+        return default
 
 
 class FlightClient:
@@ -270,8 +145,8 @@ class FlightClient:
         """
         Search flights via RapidAPI Skyscanner, or fallback to realistic routing.
         """
-        orig_iata = resolve_iata(origin, default="NAG")
-        dest_iata = resolve_iata(destination, default="KEF")
+        orig_iata = await resolve_iata(origin, default="NAG")
+        dest_iata = await resolve_iata(destination, default="KEF")
 
         cache_key = self._get_cache_key(
             orig_iata, dest_iata, departure_date, return_date, cabin_class, adults, currency

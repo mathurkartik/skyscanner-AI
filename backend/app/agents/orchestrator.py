@@ -584,16 +584,16 @@ class OrchestratorAgent:
 
         origin_iata = "DEL"
         if constraints.origin_city:
-            origin_iata = resolve_iata(constraints.origin_city)
+            origin_iata = await resolve_iata(constraints.origin_city)
         else:
             for pref in constraints.preferences:
                 if "from " in pref.lower():
                     from_c = pref.lower().split("from ")[-1].strip()
-                    origin_iata = resolve_iata(from_c)
+                    origin_iata = await resolve_iata(from_c)
                     break
 
         dest_target = trip_structure.route[0] if (trip_structure and trip_structure.route) else (constraints.cities[0] if constraints.cities else constraints.destination_region)
-        dest_iata = resolve_iata(dest_target)
+        dest_iata = await resolve_iata(dest_target)
 
         # Multi-modal check: skip flight query if user route is explicitly land-based (train/bus/drive)
         needs_flight = True
@@ -1236,8 +1236,8 @@ class OrchestratorAgent:
         if draft.flight_options:
             dest_code = draft.flight_options[0].destination
         if not dest_code:
-            from ..tools.flight_client import resolve_iata
-            dest_code = resolve_iata(dest_name)
+            from ..tools.flight_client import resolve_iata_sync
+            dest_code = resolve_iata_sync(dest_name)
 
         if dest_code and dest_code.upper() in AIRPORT_COORDINATES:
             alat, alng, aname = AIRPORT_COORDINATES[dest_code.upper()]

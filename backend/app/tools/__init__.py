@@ -5,7 +5,7 @@ Agents call tools through ToolRouter with logging, timeouts, caching.
 """
 
 from .router import ToolRouter
-from .flight_client import FlightClient, get_flight_client, resolve_iata
+from .flight_client import FlightClient, get_flight_client, resolve_iata, resolve_iata_sync
 from .hotel_client import HotelClient, get_hotel_client, KNOWN_DESTINATIONS
 from .google_places_client import (
     GooglePlacesClient,
@@ -18,6 +18,7 @@ __all__ = [
     "FlightClient",
     "get_flight_client",
     "resolve_iata",
+    "resolve_iata_sync",
     "HotelClient",
     "get_hotel_client",
     "KNOWN_DESTINATIONS",

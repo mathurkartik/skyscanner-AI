@@ -7,29 +7,37 @@ import pytest
 import time
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from app.tools.flight_client import FlightClient, resolve_iata
+from app.tools.flight_client import FlightClient, resolve_iata, resolve_iata_sync
 from app.models.schemas import RealFlightOffer
 
 
-def test_resolve_iata_mapping():
-    """Verify city name to IATA airport code resolution."""
-    assert resolve_iata("Nagpur") == "NAG"
-    assert resolve_iata("nagpur") == "NAG"
-    assert resolve_iata("Reykjavik") == "KEF"
-    assert resolve_iata("Iceland") == "KEF"
-    assert resolve_iata("Tokyo") == "HND"
-    assert resolve_iata("Melbourne") == "MEL"
-    assert resolve_iata("Zurich") == "ZRH"
-    assert resolve_iata("London") == "LHR"
-    assert resolve_iata("Paris") == "CDG"
-    assert resolve_iata("Delhi") == "DEL"
-    assert resolve_iata("Mumbai") == "BOM"
-    
-    # Existing 3-letter IATA codes
-    assert resolve_iata("KEF") == "KEF"
-    assert resolve_iata("NAG") == "NAG"
-    assert resolve_iata("MEL") == "MEL"
-    assert resolve_iata("HND") == "HND"
+@pytest.mark.asyncio
+async def test_resolve_iata_mapping():
+    """Verify city name to IATA airport code resolution dynamically via LLM and cache."""
+    # Direct 3-letter IATA codes
+    assert await resolve_iata("KEF") == "KEF"
+    assert await resolve_iata("NAG") == "NAG"
+    assert await resolve_iata("MEL") == "MEL"
+    assert await resolve_iata("HND") == "HND"
+    assert await resolve_iata("kef") == "KEF"
+
+    # Dynamic LLM resolution for city names
+    assert await resolve_iata("Nagpur") == "NAG"
+    assert await resolve_iata("Reykjavik") == "KEF"
+    assert await resolve_iata("Iceland") == "KEF"
+    assert await resolve_iata("Delhi") == "DEL"
+    assert await resolve_iata("Mumbai") == "BOM"
+    assert await resolve_iata("Tokyo") in ["HND", "NRT"]
+    assert await resolve_iata("Melbourne") == "MEL"
+    assert await resolve_iata("Zurich") == "ZRH"
+    assert await resolve_iata("London") in ["LHR", "LGW"]
+    assert await resolve_iata("Paris") in ["CDG", "ORY"]
+
+    # Verify sync accessor
+    assert resolve_iata_sync("KEF") == "KEF"
+    assert resolve_iata_sync("NAG") == "NAG"
+    # Cached items work synchronously
+    assert resolve_iata_sync("Nagpur") == "NAG"
 
 
 @pytest.mark.asyncio

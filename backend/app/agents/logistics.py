@@ -85,16 +85,16 @@ class LogisticsAgent:
         # Resolve Origin Airport
         origin_iata = "DEL"  # Sensible default global hub
         if constraints.origin_city:
-            origin_iata = resolve_iata(constraints.origin_city)
+            origin_iata = await resolve_iata(constraints.origin_city)
         else:
             for pref in constraints.preferences:
                 if "from " in pref.lower():
                     from_city = pref.lower().split("from ")[-1].strip()
-                    origin_iata = resolve_iata(from_city)
+                    origin_iata = await resolve_iata(from_city)
                     break
 
         dest_target = cities[0] if cities else (constraints.destination_region or "Iceland")
-        dest_iata = resolve_iata(dest_target)
+        dest_iata = await resolve_iata(dest_target)
 
         flight_offers: List[RealFlightOffer] = []
         try:
