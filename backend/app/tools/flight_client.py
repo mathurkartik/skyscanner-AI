@@ -6,6 +6,7 @@ Phase 1: Real flight queries with caching and realistic hub-and-spoke fallback.
 import asyncio
 import json
 import logging
+import re
 import time
 from typing import Any, Dict, List, Optional
 from uuid import uuid4

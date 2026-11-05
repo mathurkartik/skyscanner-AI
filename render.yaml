@@ -34,4 +34,8 @@ services:
         sync: false
       - key: GOOGLE_PLACES_API_KEY
         sync: false
+      - key: DUFFEL_API_KEY
+        sync: false
+      - key: KIWI_API_KEY
+        sync: false
 

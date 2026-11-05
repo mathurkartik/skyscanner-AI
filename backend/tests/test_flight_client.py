@@ -151,3 +151,81 @@ async def test_transform_rapidapi_response():
     assert offer.return_departure == "10:15"
     assert offer.return_arrival == "06:30"
 
+
+@pytest.mark.asyncio
+async def test_duffel_api_offer_parsing():
+    """Verify parsing of Duffel API v2 response into RealFlightOffer models."""
+    client = FlightClient()
+
+    mock_duffel_resp = {
+        "data": {
+            "offers": [
+                {
+                    "id": "off_001",
+                    "total_amount": "245.50",
+                    "total_currency": "USD",
+                    "owner": {
+                        "name": "British Airways",
+                        "iata_code": "BA",
+                        "logo_symbol_url": "https://assets.duffel.com/ba.svg"
+                    },
+                    "slices": [
+                        {
+                            "duration": "PT7H45M",
+                            "segments": [
+                                {
+                                    "operating_carrier_flight_number": "178",
+                                    "departing_at": "2026-12-01T08:30:00",
+                                    "arriving_at": "2026-12-01T16:15:00",
+                                    "origin": {"iata_code": "LHR"}
+                                }
+                            ]
+                        },
+                        {
+                            "duration": "PT7H15M",
+                            "segments": [
+                                {
+                                    "departing_at": "2026-12-10T19:00:00",
+                                    "arriving_at": "2026-12-11T07:15:00",
+                                    "origin": {"iata_code": "JFK"}
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = mock_duffel_resp
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+        offers = await client._query_duffel_api(
+            orig_iata="LHR",
+            dest_iata="JFK",
+            departure_date="2026-12-01",
+            return_date="2026-12-10",
+            cabin_class="economy",
+            adults=1,
+            currency="USD"
+        )
+
+        assert len(offers) == 1
+        offer = offers[0]
+        assert offer.airline == "British Airways"
+        assert offer.airline_code == "BA"
+        assert offer.flight_number == "178"
+        assert offer.price == 245.50
+        assert offer.duration_minutes == 465  # 7 * 60 + 45
+        assert offer.stops == 0
+        assert offer.departure == "08:30"
+        assert offer.arrival == "16:15"
+        assert offer.return_departure == "19:00"
+        assert offer.return_arrival == "07:15"
+        assert offer.return_duration_minutes == 435  # 7 * 60 + 15
+        assert offer.return_stops == 0
+
+
