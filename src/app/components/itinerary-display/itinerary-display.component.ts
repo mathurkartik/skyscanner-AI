@@ -218,7 +218,7 @@ export class ItineraryDisplayComponent {
     return 'https://images.unsplash.com/photo-1504893524553-b855bce32c67?w=800&auto=format&fit=crop&q=80';
   }
 
-  // --- Phase 11: Real Booking Integration URLs ---
+  // --- Phase 11 & Universal Deep-Linking Multi-Provider URLs ---
 
   public getHotelBookingUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
     if (hotel?.deeplink && hotel.deeplink.startsWith('http')) {
@@ -227,6 +227,50 @@ export class ItineraryDisplayComponent {
     const city = day?.city || this.activeDay.city || 'Reykjavik';
     const hotelName = hotel?.name || 'Hotel in ' + city;
     return `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(hotelName + ', ' + city)}`;
+  }
+
+  public getAgodaUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
+    const city = day?.city || this.activeDay.city || 'Reykjavik';
+    const hotelName = hotel?.name || 'Hotel ' + city;
+    return `https://www.agoda.com/search?city=${encodeURIComponent(city)}&keyword=${encodeURIComponent(hotelName)}`;
+  }
+
+  public getAgodaHotelUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
+    return this.getAgodaUrl(hotel, day);
+  }
+
+  public getMakeMyTripHotelUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
+    const city = day?.city || this.activeDay.city || 'Reykjavik';
+    const hotelName = hotel?.name || city;
+    return `https://www.makemytrip.com/hotels/hotel-listing/?city=${encodeURIComponent(city)}&searchText=${encodeURIComponent(hotelName)}`;
+  }
+
+  public getGoogleHotelsUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
+    const city = day?.city || this.activeDay.city || 'Reykjavik';
+    const hotelName = hotel?.name ? `${hotel.name}, ${city}` : `Hotels in ${city}`;
+    return `https://www.google.com/travel/hotels?q=${encodeURIComponent(hotelName)}`;
+  }
+
+  public getFlightSkyscannerUrl(flight: RealFlightOffer): string {
+    if (flight.deeplink && flight.deeplink.startsWith('http')) {
+      return flight.deeplink;
+    }
+    const orig = (flight.origin || 'DEL').toLowerCase();
+    const dest = (flight.destination || 'KEF').toLowerCase();
+    return `https://www.skyscanner.com/transport/flights/${orig}/${dest}/`;
+  }
+
+  public getFlightMakeMyTripUrl(flight: RealFlightOffer): string {
+    const orig = (flight.origin || 'DEL').toUpperCase();
+    const dest = (flight.destination || 'KEF').toUpperCase();
+    const depDate = flight.departure ? flight.departure.split('T')[0] : '';
+    return `https://www.makemytrip.com/flight/search?itinerary=${orig}-${dest}-${depDate}&tripType=O&paxType=A-1_C-0_I-0&cabinClass=E`;
+  }
+
+  public getFlightGoogleUrl(flight: RealFlightOffer): string {
+    const orig = flight.origin || 'DEL';
+    const dest = flight.destination || 'KEF';
+    return `https://www.google.com/travel/flights?q=Flights%20to%20${dest}%20from%20${orig}`;
   }
 
   public getCarBookingUrl(car?: CarEstimate | null): string {

@@ -10,6 +10,7 @@ from app.models.schemas import (
     CarEstimate,
     MapPin,
     CostSavingTip,
+    TransportSegment,
     PlaceInfo,
     RealFlightOffer,
     RealHotelOffer,
@@ -22,6 +23,32 @@ from app.models.schemas import (
     ReviewStatus,
     ActivityType,
 )
+
+
+def test_transport_segment_model():
+    """Verify TransportSegment creation, validation, and multi-modal mode support."""
+    segment = TransportSegment(
+        from_city="Zurich",
+        to_city="Lucerne",
+        recommended_mode="train",
+        reason="45-minute scenic journey along Lake Zurich via SBB Swiss Federal Railways",
+        estimated_duration_hours=0.75,
+        estimated_cost_usd=28.0,
+        operator_name="SBB CFF FFS",
+        line_or_flight_number="IR 75",
+        booking_url="https://www.thetrainline.com/book/results?origin=Zurich&destination=Lucerne"
+    )
+
+    assert segment.id.startswith("ts-")
+    assert segment.recommended_mode == "train"
+    assert segment.estimated_duration_hours == 0.75
+    assert segment.operator_name == "SBB CFF FFS"
+
+    # Test serialization roundtrip
+    data = segment.model_dump()
+    assert data["from_city"] == "Zurich"
+    assert data["to_city"] == "Lucerne"
+    assert data["recommended_mode"] == "train"
 
 
 def test_car_estimate_model():
@@ -207,6 +234,17 @@ def test_final_itinerary_extended_serialization():
         budget_rollup=budget,
         review_status=ReviewStatus.PASS,
         flight_options=[flight],
+        transport_segments=[
+            TransportSegment(
+                from_city="Delhi",
+                to_city="Reykjavik",
+                recommended_mode="flight",
+                reason="Long haul international journey",
+                estimated_duration_hours=14.5,
+                estimated_cost_usd=830.0,
+                operator_name="Lufthansa / Icelandair"
+            )
+        ],
         car_estimates=[car],
         map_pins=[pin],
         cost_saving_tips_v2=[tip]

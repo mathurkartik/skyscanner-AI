@@ -298,7 +298,25 @@ class FlightClient:
             if fast_offers:
                 return fast_offers
 
-        # 1. Primary Free Live API: Kiwi Tequila
+        # 1. Primary Live Airline API: Duffel API (Official GDS / NDC Direct)
+        if getattr(self.settings, "duffel_api_key", None):
+            try:
+                duffel_offers = await self._query_duffel_api(
+                    orig_iata=orig_iata,
+                    dest_iata=dest_iata,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    cabin_class=cabin_class,
+                    adults=adults,
+                    currency=currency,
+                )
+                if duffel_offers:
+                    self._cache[cache_key] = {"timestamp": time.time(), "data": duffel_offers}
+                    return duffel_offers
+            except Exception as e:
+                logger.warning("Duffel API search failed for %s->%s: %s", orig_iata, dest_iata, e)
+
+        # 2. Secondary API: Kiwi Tequila
         if getattr(self.settings, "kiwi_api_key", None):
             try:
                 kiwi_offers = await self._query_kiwi_api(
@@ -368,6 +386,148 @@ class FlightClient:
 
         self._cache[cache_key] = {"timestamp": time.time(), "data": offers}
         return offers
+
+    async def _query_duffel_api(
+        self,
+        orig_iata: str,
+        dest_iata: str,
+        departure_date: str,
+        return_date: Optional[str] = None,
+        cabin_class: str = "economy",
+        adults: int = 1,
+        currency: str = "USD"
+    ) -> List[RealFlightOffer]:
+        """Query official Duffel API v2 for live GDS/NDC flight offers."""
+        api_key = getattr(self.settings, "duffel_api_key", None)
+        if not api_key:
+            return []
+
+        url = "https://api.duffel.com/air/offer_requests"
+        headers = {
+            "Authorization": f"Bearer {api_key.strip()}",
+            "Duffel-Version": "v2",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        duffel_cabin = "economy"
+        if cabin_class in ["business", "first", "premium_economy"]:
+            duffel_cabin = cabin_class
+
+        slices = [
+            {
+                "origin": orig_iata,
+                "destination": dest_iata,
+                "departure_date": departure_date,
+            }
+        ]
+        if return_date:
+            slices.append({
+                "origin": dest_iata,
+                "destination": orig_iata,
+                "departure_date": return_date,
+            })
+
+        payload = {
+            "data": {
+                "slices": slices,
+                "passengers": [{"type": "adult"} for _ in range(max(1, adults))],
+                "cabin_class": duffel_cabin,
+            }
+        }
+
+        def _parse_iso_dur(dur_str: str) -> int:
+            if not dur_str:
+                return 180
+            h = 0
+            m = 0
+            mh = re.search(r'(\d+)H', dur_str)
+            if mh:
+                h = int(mh.group(1))
+            mm = re.search(r'(\d+)M', dur_str)
+            if mm:
+                m = int(mm.group(1))
+            tot = (h * 60) + m
+            return tot if tot > 0 else 180
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=payload, headers=headers, params={"return_offers": "true"})
+            if resp.status_code not in (200, 201):
+                logger.warning("Duffel API returned status %s: %s", resp.status_code, resp.text[:200])
+                return []
+
+            data = resp.json().get("data", {})
+            raw_offers = data.get("offers", [])
+            if not raw_offers:
+                return []
+
+            results: List[RealFlightOffer] = []
+            for item in raw_offers[:5]:
+                try:
+                    owner = item.get("owner", {})
+                    slices_data = item.get("slices", [])
+                    out_slice = slices_data[0] if slices_data else {}
+                    ret_slice = slices_data[1] if len(slices_data) > 1 else None
+
+                    out_segments = out_slice.get("segments", [])
+                    out_dur = _parse_iso_dur(out_slice.get("duration", "PT180M"))
+                    dep_time = out_segments[0].get("departing_at", "08:00") if out_segments else "08:00"
+                    arr_time = out_segments[-1].get("arriving_at", "18:00") if out_segments else "18:00"
+                    if "T" in dep_time:
+                        dep_time = dep_time.split("T")[1][:5]
+                    if "T" in arr_time:
+                        arr_time = arr_time.split("T")[1][:5]
+
+                    out_stops = max(0, len(out_segments) - 1)
+                    layovers = [s.get("origin", {}).get("iata_code", "") for s in out_segments[1:]]
+
+                    ret_dep = None
+                    ret_arr = None
+                    ret_dur = None
+                    ret_stops = None
+                    if ret_slice:
+                        ret_segments = ret_slice.get("segments", [])
+                        ret_dur = _parse_iso_dur(ret_slice.get("duration", "PT180M"))
+                        if ret_segments:
+                            ret_dep = ret_segments[0].get("departing_at", "09:00")
+                            ret_arr = ret_segments[-1].get("arriving_at", "19:00")
+                            if "T" in ret_dep:
+                                ret_dep = ret_dep.split("T")[1][:5]
+                            if "T" in ret_arr:
+                                ret_arr = ret_arr.split("T")[1][:5]
+                            ret_stops = max(0, len(ret_segments) - 1)
+
+                    price_val = float(item.get("total_amount", 0.0))
+                    offer_currency = item.get("total_currency", currency)
+                    deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{departure_date.replace('-', '')}/"
+
+                    offer = RealFlightOffer(
+                        airline=owner.get("name", "Major Airline"),
+                        airline_code=owner.get("iata_code", "FL"),
+                        airline_logo=owner.get("logo_symbol_url"),
+                        flight_number=out_segments[0].get("operating_carrier_flight_number") if out_segments else None,
+                        origin=orig_iata,
+                        destination=dest_iata,
+                        price=price_val,
+                        currency=offer_currency,
+                        duration_minutes=out_dur,
+                        stops=out_stops,
+                        layover_airports=layovers,
+                        departure=dep_time,
+                        arrival=arr_time,
+                        deeplink=deeplink,
+                        cabin_class=cabin_class,
+                        return_departure=ret_dep,
+                        return_arrival=ret_arr,
+                        return_duration_minutes=ret_dur,
+                        return_stops=ret_stops,
+                    )
+                    results.append(offer)
+                except Exception as ex:
+                    logger.warning("Error transforming Duffel offer: %s", ex)
+                    continue
+
+            return results
 
     async def _query_kiwi_api(
         self,

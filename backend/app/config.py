@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Skyscanner & Travel APIs
     rapidapi_key: str | None = None
     skyscanner_api_key: str | None = None
+    duffel_api_key: str | None = None
     google_places_api_key: str | None = None
     kiwi_api_key: str | None = None
     opentripmap_api_key: str | None = None

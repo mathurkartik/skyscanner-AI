@@ -241,15 +241,41 @@
                 </div>
               </div>
 
-              <div class="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between text-gray-600">
-                <span class="text-xs flex items-center gap-1">
-                  <span class="material-symbols-outlined text-[16px] text-[#00776d]">check_circle</span>
-                  Checked baggage synced
-                </span>
+              <div class="mt-3 pt-2 border-t border-gray-200/60 flex items-center justify-between flex-wrap gap-2 text-gray-600">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[11px] font-bold text-gray-500">Compare:</span>
+                  <a
+                    [href]="getFlightSkyscannerUrl(flight)"
+                    target="_blank"
+                    rel="noopener"
+                    title="Search on Skyscanner"
+                    class="px-2.5 py-1 rounded-lg bg-[#0062e3] hover:bg-[#0050b8] text-white text-[11px] font-bold transition-all flex items-center gap-1">
+                    <span>Skyscanner</span>
+                    <span class="material-symbols-outlined text-[11px]">open_in_new</span>
+                  </a>
+                  <a
+                    [href]="getFlightMakeMyTripUrl(flight)"
+                    target="_blank"
+                    rel="noopener"
+                    title="Search on MakeMyTrip"
+                    class="px-2.5 py-1 rounded-lg bg-[#ea2330] hover:bg-[#c41521] text-white text-[11px] font-bold transition-all flex items-center gap-1">
+                    <span>MakeMyTrip</span>
+                    <span class="material-symbols-outlined text-[11px]">open_in_new</span>
+                  </a>
+                  <a
+                    [href]="getFlightGoogleUrl(flight)"
+                    target="_blank"
+                    rel="noopener"
+                    title="Search on Google Flights"
+                    class="px-2 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800 text-[11px] font-semibold transition-all flex items-center gap-1">
+                    <span>Google Flights</span>
+                    <span class="material-symbols-outlined text-[11px]">open_in_new</span>
+                  </a>
+                </div>
                 <button
                   (click)="onSearchFlightsClick(flight)"
                   title="Search flight on Skyscanner or open partner booking"
-                  class="px-3.5 py-1.5 rounded-xl bg-[#0062e3] text-white text-xs font-bold hover:bg-[#0050b8] transition-all cursor-pointer flex items-center gap-1 shadow-xs">
+                  class="px-3.5 py-1.5 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-black transition-all cursor-pointer flex items-center gap-1 shadow-xs">
                   <span>View Deal</span>
                   <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </button>
@@ -675,43 +701,125 @@
           </div>
         </div>
 
-        <!-- Tonight's Stay (Booking.com Live Inventory Card) -->
-        @let hotel = (activeDay.hotel_options && activeDay.hotel_options.length > 0) ? activeDay.hotel_options[0] : null;
-        <div class="rounded-2xl bg-[#eceef3] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-gray-200">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-[#004bb2] text-white flex items-center justify-center text-lg font-black shadow-sm shrink-0">
-              {{ hotel?.guest_rating || 9.0 }}
-            </div>
-            <div>
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <h5 class="text-xs sm:text-sm font-bold text-gray-900">
-                  Tonight's Stay: {{ hotel?.name || ('Hotel Kría (' + activeDay.city.split('&')[0].trim() + ')') }}
-                </h5>
-                <span class="px-2 py-0.2 rounded-full bg-[#00776d] text-white text-[10px] font-bold">
-                  {{ (hotel?.guest_rating || 9.0) >= 9 ? 'Superb' : 'Fabulous' }}
-                </span>
+        <!-- Tonight's Stay Options (Multi-Hotel Tiers + Compare on Multiple Platforms) -->
+        <div class="rounded-2xl bg-[#f2f4f9] p-4 border border-gray-200/90 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded-lg bg-[#004bb2] text-white flex items-center justify-center">
+                <span class="material-symbols-outlined text-[15px]">hotel</span>
               </div>
-              <p class="text-xs text-gray-600 mt-0.5">
-                {{ hotel?.neighborhood || activeDay.city }} · Glass-walled dining · Free breakfast
-              </p>
-              <span class="text-xs sm:text-sm font-bold text-gray-900">
-                ${{ hotel?.price_per_night || 220 }}/night
-                <span class="text-xs text-gray-500 font-normal">
-                  (₹{{ ((hotel?.price_per_night || 220) * 83) | number:'1.0-0' }})
-                </span>
-              </span>
+              <h5 class="text-xs sm:text-sm font-extrabold text-gray-900">
+                Where to Stay in {{ activeDay.city.split('&')[0].trim() }}
+              </h5>
             </div>
+            <span class="text-[11px] font-bold text-gray-500">
+              {{ (activeDay.hotel_options && activeDay.hotel_options.length) ? (activeDay.hotel_options.slice(0, 3).length + ' Options') : '1 Option' }}
+            </span>
           </div>
 
-          <a
-            [href]="getHotelBookingUrl(hotel, activeDay)"
-            (click)="hotel && onBookStayClick(hotel, activeDay, $event)"
-            target="_blank"
-            rel="noopener"
-            class="px-5 py-2.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold shadow-sm transition-all whitespace-nowrap self-stretch sm:self-auto text-center cursor-pointer flex items-center justify-center gap-1">
-            <span>Book Stay</span>
-            <span class="material-symbols-outlined text-[14px]">open_in_new</span>
-          </a>
+          <div class="space-y-3">
+            @if (activeDay.hotel_options && activeDay.hotel_options.length > 0) {
+              @for (h of activeDay.hotel_options.slice(0, 3); track h.id; let hIdx = $index) {
+                <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 hover:border-gray-300 transition-colors space-y-2.5">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-2.5">
+                      <div class="w-9 h-9 rounded-lg bg-[#003580] text-white flex flex-col items-center justify-center text-xs font-black shrink-0">
+                        <span>{{ h.guest_rating || (9.2 - hIdx * 0.4) | number:'1.1-1' }}</span>
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="text-xs sm:text-sm font-bold text-gray-900">{{ h.name }}</span>
+                          @if (hIdx === 0) {
+                            <span class="px-1.5 py-0.2 rounded-full bg-[#0062e3] text-white text-[9px] font-bold">Recommended</span>
+                          } @else if (hIdx === 1) {
+                            <span class="px-1.5 py-0.2 rounded-full bg-emerald-700 text-white text-[9px] font-bold">Great Value</span>
+                          } @else {
+                            <span class="px-1.5 py-0.2 rounded-full bg-purple-700 text-white text-[9px] font-bold">Boutique</span>
+                          }
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-0.5">
+                          {{ h.neighborhood || activeDay.city }} · Free Wi-Fi · {{ h.amenities && h.amenities.length ? h.amenities.slice(0, 2).join(' · ') : 'Central Location' }}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <div class="text-sm font-black text-gray-900">
+                        ${{ h.price_per_night }}/nt
+                      </div>
+                      <span class="text-[10px] text-gray-400 font-medium">
+                        ≈ ₹{{ (h.price_per_night * 83) | number:'1.0-0' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Multi-Provider Comparison Bar -->
+                  <div class="pt-2 border-t border-gray-100 flex items-center justify-between flex-wrap gap-1.5">
+                    <span class="text-[10px] font-bold text-gray-500 flex items-center gap-0.5">
+                      <span class="material-symbols-outlined text-[13px] text-gray-400">shopping_bag</span>
+                      Book on:
+                    </span>
+                    <div class="flex items-center gap-1 flex-wrap">
+                      <a
+                        [href]="getHotelBookingUrl(h, activeDay)"
+                        (click)="onBookStayClick(h, activeDay, $event)"
+                        target="_blank"
+                        rel="noopener"
+                        title="Book on Booking.com"
+                        class="px-2 py-0.5 rounded-md bg-[#003580] hover:bg-[#00224f] text-white text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer">
+                        <span>Booking.com</span>
+                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                      </a>
+                      <a
+                        [href]="getAgodaUrl(h, activeDay)"
+                        target="_blank"
+                        rel="noopener"
+                        title="Compare on Agoda"
+                        class="px-2 py-0.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer">
+                        <span>Agoda</span>
+                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                      </a>
+                      <a
+                        [href]="getMakeMyTripHotelUrl(h, activeDay)"
+                        target="_blank"
+                        rel="noopener"
+                        title="Compare on MakeMyTrip"
+                        class="px-2 py-0.5 rounded-md bg-[#ea2330] hover:bg-[#c41521] text-white text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer">
+                        <span>MakeMyTrip</span>
+                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                      </a>
+                      <a
+                        [href]="getGoogleHotelsUrl(h, activeDay)"
+                        target="_blank"
+                        rel="noopener"
+                        title="View on Google Hotels"
+                        class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-semibold transition-all flex items-center gap-0.5 cursor-pointer">
+                        <span>Google</span>
+                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              }
+            } @else {
+              <!-- Fallback Default Option -->
+              <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 space-y-2">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <h5 class="text-xs sm:text-sm font-bold text-gray-900">Hotel Kría ({{ activeDay.city.split('&')[0].trim() }})</h5>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Central location · Panoramic dining · Free breakfast</p>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-sm font-black text-gray-900">$220/nt</span>
+                  </div>
+                </div>
+                <div class="pt-2 border-t border-gray-100 flex items-center justify-end gap-1 flex-wrap">
+                  <a [href]="getHotelBookingUrl(null, activeDay)" target="_blank" rel="noopener" class="px-2 py-0.5 rounded-md bg-[#003580] text-white text-[10px] font-bold">Booking.com</a>
+                  <a [href]="getAgodaUrl(null, activeDay)" target="_blank" rel="noopener" class="px-2 py-0.5 rounded-md bg-emerald-700 text-white text-[10px] font-bold">Agoda</a>
+                  <a [href]="getMakeMyTripHotelUrl(null, activeDay)" target="_blank" rel="noopener" class="px-2 py-0.5 rounded-md bg-[#ea2330] text-white text-[10px] font-bold">MakeMyTrip</a>
+                </div>
+              </div>
+            }
+          </div>
         </div>
 
       </div>
