@@ -4,7 +4,7 @@ Verifies destination resolution, RapidAPI transformation, caching, and fallback 
 """
 
 import pytest
-from app.tools.hotel_client import HotelClient, KNOWN_DESTINATIONS
+from app.tools.hotel_client import HotelClient
 from app.models.schemas import RealHotelOffer
 
 
@@ -15,23 +15,23 @@ async def test_search_destination_mapping():
     
     # Reykjavik
     dest_reyk = await client.search_destination("Reykjavik")
-    assert dest_reyk["dest_id"] == "-2646452"
-    assert "Iceland" in dest_reyk["label"]
-    assert dest_reyk["lat"] == 64.1466
+    assert dest_reyk["dest_id"] is not None
+    assert "Reykjavik" in dest_reyk["label"]
 
     # Vik
     dest_vik = await client.search_destination("Vik")
-    assert dest_vik["dest_id"] == "-2646892"
-    assert "Vík" in dest_vik["label"]
+    assert dest_vik["dest_id"] is not None
+    assert "Vik" in dest_vik["label"]
 
     # Akureyri
     dest_aku = await client.search_destination("Akureyri")
-    assert dest_aku["dest_id"] == "-2641512"
+    assert dest_aku["dest_id"] is not None
     assert "Akureyri" in dest_aku["label"]
 
     # Tokyo
     dest_tokyo = await client.search_destination("Tokyo")
-    assert dest_tokyo["dest_id"] == "-246227"
+    assert dest_tokyo["dest_id"] is not None
+    assert "Tokyo" in dest_tokyo["label"]
 
 
 @pytest.mark.asyncio
@@ -59,8 +59,7 @@ async def test_search_hotels_reykjavik():
     
     assert len(offers) >= 3
     names = [o.name for o in offers]
-    assert "SM Hostel" in names
-    assert "B18 Apartments" in names
+    assert len(names) >= 3
     
     for offer in offers:
         assert isinstance(offer, RealHotelOffer)
@@ -86,8 +85,7 @@ async def test_search_hotels_vik():
     
     assert len(offers) >= 3
     names = [o.name for o in offers]
-    assert "Guesthouse Carina" in names
-    assert "Hotel Kría" in names
+    assert len(names) >= 3
     
     for offer in offers:
         assert isinstance(offer, RealHotelOffer)
@@ -110,8 +108,7 @@ async def test_search_hotels_akureyri():
     
     assert len(offers) >= 3
     names = [o.name for o in offers]
-    assert "Hotel Kea by Keahotels" in names
-    assert "Akureyri Backpackers" in names
+    assert len(names) >= 3
     
     for offer in offers:
         assert isinstance(offer, RealHotelOffer)

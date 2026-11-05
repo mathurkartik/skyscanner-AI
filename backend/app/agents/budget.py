@@ -85,10 +85,11 @@ class BudgetAgent:
                 # If cheaper alternatives exist, create swap
                 if len(hotels) > 1:
                     cheapest_hotel = min(hotels, key=lambda h: h.price_per_night)
-                    if cheapest_hotel.name != selected_hotel.name:
-                        savings = round((selected_hotel.price_per_night - cheapest_hotel.price_per_night) * fx_usd_to_curr, 2)
+                    comparison_hotel = selected_hotel if cheapest_hotel.name != selected_hotel.name else max(hotels, key=lambda h: h.price_per_night)
+                    if cheapest_hotel.name != comparison_hotel.name and comparison_hotel.price_per_night > cheapest_hotel.price_per_night:
+                        savings = round((comparison_hotel.price_per_night - cheapest_hotel.price_per_night) * fx_usd_to_curr, 2)
                         hotel_swaps.append(SuggestedSwap(
-                            original_item=f"Stay at {selected_hotel.name} ({city})",
+                            original_item=f"Stay at {comparison_hotel.name} ({city})",
                             suggested_alternative=f"Switch to {cheapest_hotel.name} ({city})",
                             savings_estimate=savings,
                             rationale=f"Save {savings} {constraints.currency}/night with high guest rating ({cheapest_hotel.guest_rating}★)"
@@ -233,7 +234,8 @@ Rules:
                 notes=cat.get("notes", "")
             ))
 
-        grand_total = float(data.get("grand_total", sum(c.estimated_total for c in categories)))
+        calculated_total = round(sum(c.estimated_total for c in categories), 2)
+        grand_total = calculated_total
         within_budget = grand_total <= constraints.budget_total
 
         violations = []
@@ -271,8 +273,9 @@ Rules:
         daily_budget = constraints.budget_total / max(1, constraints.duration_days)
         stay_pct, food_pct, transport_pct, activity_pct = 0.35, 0.25, 0.20, 0.20
 
-        for city in constraints.cities:
-            days = max(1, constraints.duration_days // len(constraints.cities))
+        cities = constraints.cities if constraints.cities else [constraints.destination_region or "Destination"]
+        for city in cities:
+            days = max(1, constraints.duration_days // len(cities))
             city_budget = daily_budget * days
 
             stay_cost = round(city_budget * stay_pct, 2)

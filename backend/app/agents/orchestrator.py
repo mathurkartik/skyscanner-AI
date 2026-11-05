@@ -27,139 +27,22 @@ from ..tools import ToolRouter
 from ..utils.observability import ObservabilityLogger
 
 
-CITY_COORDINATES: Dict[str, Any] = {
-    "paris": (48.8566, 2.3522),
-    "lyon": (45.7640, 4.8357),
-    "nice": (43.7102, 7.2620),
-    "marseille": (43.2965, 5.3698),
-    "bordeaux": (44.8378, -0.5792),
-    "strasbourg": (48.5734, 7.7521),
-    "toulouse": (43.6047, 1.4442),
-    "london": (51.5074, -0.1278),
-    "edinburgh": (55.9533, -3.1883),
-    "manchester": (53.4808, -2.2426),
-    "rome": (41.9028, 12.4964),
-    "florence": (43.7696, 11.2558),
-    "venice": (45.4408, 12.3155),
-    "milan": (45.4642, 9.1900),
-    "naples": (40.8518, 14.2681),
-    "barcelona": (41.3879, 2.1699),
-    "madrid": (40.4168, -3.7038),
-    "seville": (37.3891, -5.9845),
-    "valencia": (39.4699, -0.3763),
-    "amsterdam": (52.3676, 4.9041),
-    "rotterdam": (51.9244, 4.4777),
-    "berlin": (52.5200, 13.4050),
-    "munich": (48.1351, 11.5820),
-    "vienna": (48.2082, 16.3738),
-    "prague": (50.0755, 14.4378),
-    "budapest": (47.4979, 19.0402),
-    "zurich": (47.3769, 8.5417),
-    "geneva": (46.2044, 6.1432),
-    "lucerne": (47.0502, 8.3093),
-    "interlaken": (46.6863, 7.8632),
-    "oslo": (59.9139, 10.7522),
-    "bergen": (60.3913, 5.3221),
-    "tromso": (69.6492, 18.9553),
-    "tromsø": (69.6492, 18.9553),
-    "stockholm": (59.3293, 18.0686),
-    "copenhagen": (55.6761, 12.5683),
-    "helsinki": (60.1699, 24.9384),
-    "reykjavik": (64.1466, -21.9426),
-    "vik": (63.4186, -19.0060),
-    "akureyri": (65.6835, -18.0878),
-    "hofn": (64.2539, -15.2082),
-    "egilsstadir": (65.2669, -14.3948),
-    "snaefellsnes": (64.8694, -23.1878),
-    "tokyo": (35.6762, 139.6503),
-    "kyoto": (35.0116, 135.7681),
-    "osaka": (34.6937, 135.5023),
-    "hiroshima": (34.3853, 132.4553),
-    "sapporo": (43.0618, 141.3545),
-    "nara": (34.6851, 135.8048),
-    "seoul": (37.5665, 126.9780),
-    "bangkok": (13.7563, 100.5018),
-    "chiang mai": (18.7883, 98.9853),
-    "phuket": (7.8804, 98.3923),
-    "siem reap": (13.3671, 103.8448),
-    "phnom penh": (11.5564, 104.9282),
-    "bali": (-8.4095, 115.1889),
-    "denpasar": (-8.6705, 115.2126),
-    "ubud": (-8.5069, 115.2625),
-    "singapore": (1.3521, 103.8198),
-    "hanoi": (21.0285, 105.8542),
-    "ho chi minh": (10.8231, 106.6297),
-    "delhi": (28.6139, 77.2090),
-    "mumbai": (19.0760, 72.8777),
-    "jaipur": (26.9124, 75.7873),
-    "agra": (27.1767, 78.0081),
-    "varanasi": (25.3176, 82.9739),
-    "rishikesh": (30.0869, 78.2676),
-    "dubai": (25.2048, 55.2708),
-    "cairo": (30.0444, 31.2357),
-    "cape town": (-33.9249, 18.4241),
-    "new york": (40.7128, -74.0060),
-    "los angeles": (34.0522, -118.2437),
-    "san francisco": (37.7749, -122.4194),
-    "sydney": (-33.8688, 151.2093),
-    "melbourne": (-37.8136, 144.9631),
-    "auckland": (-36.8485, 174.7633),
-    "queenstown": (-45.0312, 168.6626),
-    "moscow": (55.7558, 37.6173),
-    "saint petersburg": (59.9343, 30.3351),
-    "murmansk": (68.9585, 33.0827),
-}
-
-AIRPORT_COORDINATES: Dict[str, Tuple[float, float, str]] = {
-    "CDG": (49.0097, 2.5479, "Paris Charles de Gaulle Airport (CDG)"),
-    "ORY": (48.7262, 2.3652, "Paris Orly Airport (ORY)"),
-    "NCE": (43.6584, 7.2159, "Nice Côte d'Azur Airport (NCE)"),
-    "LYS": (45.7256, 5.0811, "Lyon-Saint Exupéry Airport (LYS)"),
-    "KEF": (63.9850, -22.6056, "Keflavík International Airport (KEF)"),
-    "HND": (35.5494, 139.7798, "Tokyo Haneda Airport (HND)"),
-    "NRT": (35.7720, 140.3929, "Tokyo Narita Airport (NRT)"),
-    "KIX": (34.4320, 135.2304, "Kansai International Airport (KIX)"),
-    "LHR": (51.4700, -0.4543, "London Heathrow Airport (LHR)"),
-    "FCO": (41.8003, 12.2389, "Rome Fiumicino Airport (FCO)"),
-    "BCN": (41.2974, 2.0833, "Barcelona-El Prat Airport (BCN)"),
-    "MAD": (40.4839, -3.5680, "Adolfo Suárez Madrid-Barajas Airport (MAD)"),
-    "AMS": (52.3105, 4.7683, "Amsterdam Airport Schiphol (AMS)"),
-    "ZRH": (47.4582, 8.5555, "Zurich Airport (ZRH)"),
-    "OSL": (60.1976, 11.1004, "Oslo Gardermoen Airport (OSL)"),
-    "BKK": (13.6900, 100.7501, "Suvarnabhumi Airport (BKK)"),
-    "SIN": (1.3644, 103.9915, "Singapore Changi Airport (SIN)"),
-    "DPS": (-8.7482, 115.1672, "Ngurah Rai International Airport (DPS)"),
-    "DEL": (28.5562, 77.1000, "Indira Gandhi International Airport (DEL)"),
-    "BOM": (19.0896, 72.8656, "Chhatrapati Shivaji Maharaj Airport (BOM)"),
-    "JFK": (40.6413, -73.7781, "John F. Kennedy International Airport (JFK)"),
-    "SVO": (55.9726, 37.4146, "Sheremetyevo International Airport (SVO)"),
-    "LED": (59.8003, 30.2625, "Pulkovo Airport (LED)"),
-    "MMK": (68.7817, 32.7508, "Murmansk Airport (MMK)"),
-    "PNH": (11.5466, 104.8441, "Phnom Penh International Airport (PNH)"),
-    "REP": (13.4117, 103.8128, "Siem Reap International Airport (REP)"),
-    "MEL": (-37.6690, 144.8410, "Melbourne Airport (MEL)"),
-    "SYD": (-33.9399, 151.1753, "Sydney Kingsford Smith Airport (SYD)"),
-    "DXB": (25.2532, 55.3657, "Dubai International Airport (DXB)"),
-}
+_COORDS_CACHE: Dict[str, Tuple[float, float]] = {}
 
 
 def _lookup_city_coords(name: str) -> Optional[Tuple[float, float]]:
     if not name:
         return None
     name_clean = name.lower().strip()
-    if name_clean in CITY_COORDINATES:
-        return CITY_COORDINATES[name_clean]
-    for k, v in CITY_COORDINATES.items():
-        if k in name_clean or name_clean in k:
-            return v
+    if name_clean in _COORDS_CACHE:
+        return _COORDS_CACHE[name_clean]
     return None
-
 
 def fix_utf8(text: Any) -> Any:
     """Repair mojibake or double-encoded UTF-8 characters."""
     if not isinstance(text, str):
         return text
-    mojibake_markers = ("Ã©", "Ã¨", "Ã ", "Ã¢", "Ã®", "Ã¯", "Ã´", "Ã¹", "Ã»", "Ã§", "Ã±", "Ã–", "Ã¼", "â€™", "â€œ", "â€", "Ã¡", "Ã³", "Ãº")
+    mojibake_markers = ("Ã", "â€™", "â€œ", "â€", "â€“", "â€”")
     if any(m in text for m in mojibake_markers):
         try:
             return text.encode("latin-1").decode("utf-8")
@@ -1239,13 +1122,15 @@ class OrchestratorAgent:
             from ..tools.flight_client import resolve_iata_sync
             dest_code = resolve_iata_sync(dest_name)
 
-        if dest_code and dest_code.upper() in AIRPORT_COORDINATES:
-            alat, alng, aname = AIRPORT_COORDINATES[dest_code.upper()]
+        # Airport Pin
+        first_day_places = draft.days[0].places if (draft.days and draft.days[0].places) else []
+        if first_day_places and first_day_places[0].lat and first_day_places[0].lng:
+            alat, alng = first_day_places[0].lat, first_day_places[0].lng
+            aname = f"{dest_name.title()} Gateway Airport ({dest_code or 'Arrival'})"
             map_pins.append(MapPin(label=aname, lat=alat, lng=alng, pin_type="airport"))
         else:
-            coords = _lookup_city_coords(dest_name)
-            if coords:
-                map_pins.append(MapPin(label=f"{dest_name.title()} Arrival Gateway", lat=coords[0], lng=coords[1], pin_type="airport"))
+            coords = _lookup_city_coords(dest_name) or (64.1466, -21.9426)
+            map_pins.append(MapPin(label=f"{dest_name.title()} Arrival Gateway", lat=coords[0], lng=coords[1], pin_type="airport"))
 
         # 2. Overnight Hotel Pins
         seen_hotel_cities = set()
