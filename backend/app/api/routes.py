@@ -208,32 +208,58 @@ async def _generate_enriched_stub_response(
     weeks_match = re.search(r'(\d+)\s*-?\s*week', request_lower)
     if weeks_match:
         duration = int(weeks_match.group(1)) * 7
+    elif re.search(r'\blong\s+weekend\b', request_lower):
+        duration = 3
+    elif re.search(r'\bweekend\b', request_lower):
+        duration = 2
+    elif re.search(r'\bfortnight\b', request_lower):
+        duration = 14
     else:
         days_match = re.search(r'(\d+)\s*-?\s*day', request_lower)
         if days_match:
             duration = int(days_match.group(1))
+        else:
+            din_match = re.search(r'(\d+)\s*din\b', request_lower)
+            if din_match:
+                duration = int(din_match.group(1))
     
     # ── Extract budget & currency ───────────────────────────────────────
     budget = None
     currency = "INR"
+    
+    # Check lakh / L pattern first
+    lakh_match = re.search(r'(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:lakhs?|lac|lacs?|\s*l)\b', request_lower)
+    if lakh_match:
+        budget = int(float(lakh_match.group(1)) * 100000)
+        currency = "INR"
+
     budget_patterns = [
         (r'\$\s*([\d,]+)', 'USD'),
         (r'€\s*([\d,]+)', 'EUR'),
         (r'£\s*([\d,]+)', 'GBP'),
         (r'¥\s*([\d,]+)', 'JPY'),
         (r'₹\s*([\d,]+)', 'INR'),
+        (r'฿\s*([\d,]+)', 'THB'),
+        (r'([\d,]+)\s*(?:yen|jpy)', 'JPY'),
+        (r'([\d,]+)\s*(?:baht|thb)', 'THB'),
+        (r'([\d,]+)\s*(?:sek|krona|kronor)', 'SEK'),
+        (r'([\d,]+)\s*(?:cad|c\$)', 'CAD'),
+        (r'([\d,]+)\s*(?:aud|a\$)', 'AUD'),
+        (r'([\d,]+)\s*(?:chf|francs?)', 'CHF'),
+        (r'([\d,]+)\s*(?:rupees?|inr|rs\.?)', 'INR'),
         (r'([\d,]+)\s*USD', 'USD'),
         (r'([\d,]+)\s*EUR', 'EUR'),
         (r'([\d,]+)\s*GBP', 'GBP'),
         (r'([\d,]+)\s*INR', 'INR'),
         (r'([\d,]+)\s*(?:budget)', 'INR'),
     ]
-    for pat, cur in budget_patterns:
-        bm = re.search(pat, request_text, re.IGNORECASE)
-        if bm:
-            budget = int(bm.group(1).replace(',', ''))
-            currency = cur
-            break
+    if not budget:
+        for pat, cur in budget_patterns:
+            bm = re.search(pat, request_text, re.IGNORECASE)
+            if bm:
+                budget = int(bm.group(1).replace(',', ''))
+                currency = cur
+                break
             
     # Check tier keywords if no exact budget
     tier = None

@@ -1325,8 +1325,23 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
                 d.highlight = str(info.get("highlight", ""))[:100] or None
                 d.day_narrative = str(info.get("narrative", ""))[:500] or None
                 d.local_transport_tip = str(info.get("transport_tip", ""))[:300] or None
+                if not d.day_narrative:
+                    activities = [item.activity_name for item in d.items if item.type.value != "transport"]
+                    d.day_narrative = f"Explore {d.city} — {', '.join(activities[:3])}." if activities else f"Day {d.day_number} in {d.city}."
+                if not d.local_transport_tip:
+                    d.local_transport_tip = f"Check local transit options in {d.city}."
         except Exception as e:
             print(f"Day narrative generation failed: {e}")
+            # Fallback: generate minimal narratives so the field isn't blank
+            for d in draft.days:
+                if not d.day_narrative:
+                    activities = [item.activity_name for item in d.items if item.type.value != "transport"]
+                    if activities:
+                        d.day_narrative = f"Explore {d.city} — {', '.join(activities[:3])}."
+                    else:
+                        d.day_narrative = f"Day {d.day_number} in {d.city}."
+                if not d.local_transport_tip:
+                    d.local_transport_tip = f"Check local transit options in {d.city}."
 
     async def repair(
         self,
