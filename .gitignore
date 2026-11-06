@@ -59,5 +59,8 @@ backend/*_test_output.json
 backend/edge_case_*.json
 backend/test_*.json
 
+# Documentation / Internal Docs
+Docs/
+
 # Claude
 .claude/
