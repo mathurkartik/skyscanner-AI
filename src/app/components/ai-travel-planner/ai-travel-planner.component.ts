@@ -153,6 +153,9 @@ export class AiTravelPlannerComponent implements OnInit {
   }
 
   public loadInstantDemoBlueprint(): void {
+    if (!this.promptText().trim()) {
+      this.promptText.set('7-day trip to Japan, $3000 budget, temples and food');
+    }
     this.generatePlan(true);
   }
 

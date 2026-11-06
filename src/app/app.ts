@@ -33,7 +33,7 @@ import { FlightService } from './services/flight.service';
 })
 export class App {
   public readonly flightService = inject(FlightService);
-  public readonly currentTab = signal<MainTab>('flights');
+  public readonly currentTab = signal<MainTab>('ai');
 
   public onTabChange(tab: MainTab) {
     this.currentTab.set(tab);

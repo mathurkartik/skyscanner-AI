@@ -23,10 +23,10 @@ describe('Skyscanner App Component', () => {
     injector = createEnvironmentInjector([SkyscannerApiService, FlightService, CurrencyService], null as any);
   });
 
-  it('should instantiate App component with default flights tab', () => {
+  it('should instantiate App component with default AI travel planner tab', () => {
     const app = injector.runInContext(() => new App());
     expect(app).toBeDefined();
-    expect(app.currentTab()).toBe('flights');
+    expect(app.currentTab()).toBe('ai');
   });
 
   it('should switch tabs between flights, hotels, cars, and explore', () => {

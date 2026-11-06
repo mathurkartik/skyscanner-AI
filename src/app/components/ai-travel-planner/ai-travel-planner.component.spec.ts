@@ -54,9 +54,9 @@ describe('AiTravelPlannerComponent (Phase 11 & Phase 12)', () => {
     plannerService = injector.get(TravelPlannerService);
   });
 
-  it('should instantiate with default prompt text and 5 agent stages', () => {
+  it('should instantiate with 5 agent stages and inactive fast demo mode', () => {
     expect(component).toBeDefined();
-    expect(component.promptText()).toContain('Iceland Ring Road');
+    expect(component.promptText()).toBe('');
     expect(component.stages.length).toBe(5);
     expect(component.fastDemoMode()).toBe(false);
   });

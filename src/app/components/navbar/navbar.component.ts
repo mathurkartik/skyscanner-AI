@@ -18,7 +18,7 @@ export class NavbarComponent {
   public readonly favoritesService = inject(FavoritesService);
   public readonly flightService = inject(FlightService);
 
-  public readonly activeTab = signal<MainTab>('flights');
+  public readonly activeTab = signal<MainTab>('ai');
   public readonly tabChanged = output<MainTab>();
 
   public readonly isLocaleModalOpen = signal<boolean>(false);
