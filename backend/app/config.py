@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # Gemini Configuration (Fallback / Primary)
     gemini_api_key: str | None = None
     gemini_api_key_2: str | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-2.5-flash-preview-05-20"
     llm_failover: bool = True
     
     # Token Budget Management (Groq = 100k tokens/day)

@@ -36,9 +36,7 @@ export class AiTravelPlannerComponent implements OnInit {
 
   @Output() public switchTab = new EventEmitter<MainTab>();
 
-  public promptText = signal<string>(
-    'Plan an 11-day Iceland Ring Road road trip starting from Nagpur, ₹3.5L budget, waterfalls & geothermal baths, love nature and scenic drives'
-  );
+  public promptText = signal<string>('');
 
   public originCity = signal<string>('');
   public travelDate = signal<string>('');
@@ -144,7 +142,7 @@ export class AiTravelPlannerComponent implements OnInit {
     const origin = this.originCity().trim();
     const date = this.travelDate().trim();
 
-    this.plannerService.generatePlan(text, useStub, origin, date, 'USD').subscribe({
+    this.plannerService.generatePlan(text, useStub, origin, date).subscribe({
       next: () => {
         this.stopProgressSimulation();
       },
@@ -212,16 +210,29 @@ export class AiTravelPlannerComponent implements OnInit {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
       this.elapsedSeconds.update(s => s + 1);
+      const sec = this.elapsedSeconds();
+      if (sec < 10) {
+        this.currentStageIndex.set(0);
+        this.progressMessage.set('Understanding your travel requirements and extracting trip constraints...');
+      } else if (sec < 25) {
+        this.currentStageIndex.set(1);
+        this.progressMessage.set('Discovering verified attractions & cultural highlights via Google Places...');
+      } else if (sec < 50) {
+        this.currentStageIndex.set(2);
+        this.progressMessage.set('Checking real flight inventory on Skyscanner & live hotel rates on Booking.com...');
+      } else if (sec < 75) {
+        this.currentStageIndex.set(3);
+        this.progressMessage.set('Computing multi-modal transit connections & optimizing budget categories...');
+      } else {
+        this.currentStageIndex.set(4);
+        this.progressMessage.set('Almost there — finalizing day-by-day itinerary with verified geocoded map pins...');
+      }
     }, 1000);
 
-    if (this.progressInterval) clearInterval(this.progressInterval);
-    this.progressInterval = setInterval(() => {
-      this.currentStageIndex.update(idx => {
-        const next = Math.min(idx + 1, this.stages.length - 1);
-        this.progressMessage.set(this.stages[next].detail);
-        return next;
-      });
-    }, 4000);
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
   }
 
   private stopProgressSimulation(): void {

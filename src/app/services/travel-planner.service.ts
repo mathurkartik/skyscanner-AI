@@ -37,7 +37,7 @@ export class TravelPlannerService {
       stub_mode: stubMode,
       ...(originCity ? { origin_city: originCity.trim() } : {}),
       ...(startDate ? { start_date: startDate.trim() } : {}),
-      ...(currency ? { currency: currency.trim() } : { currency: 'USD' })
+      ...(currency ? { currency: currency.trim() } : {})
     };
 
     return this.http.post<PlanResponse>(`${this.baseUrl}/api/plan`, payload).pipe(
@@ -77,14 +77,22 @@ export class TravelPlannerService {
 
   private handleError(error: any): void {
     if (error.name === 'TimeoutError') {
-      this.errorMessage.set('The AI travel planning agents took longer than expected (free-tier servers may take up to 60s to wake up on cold start). Please try again or load an instant blueprint.');
+      this.errorMessage.set('Our servers are warming up. This can take up to 60 seconds for the first request. Please try again or load an instant blueprint.');
     } else if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
         this.errorMessage.set('Cannot connect to the AI planner backend at ' + this.baseUrl + '. Make sure the backend server is running on port 8000.');
       } else if (error.error && error.error.detail) {
-        this.errorMessage.set(typeof error.error.detail === 'string' ? error.error.detail : JSON.stringify(error.error.detail));
+        if (typeof error.error.detail === 'string') {
+          this.errorMessage.set(error.error.detail);
+        } else if (error.error.detail.message) {
+          this.errorMessage.set(error.error.detail.message);
+        } else if (Array.isArray(error.error.detail) && error.error.detail[0]?.msg) {
+          this.errorMessage.set(error.error.detail[0].msg);
+        } else {
+          this.errorMessage.set('Request validation failed. Please check your travel constraints and try again.');
+        }
       } else {
-        this.errorMessage.set(`Backend error (${error.status}): ${error.message}`);
+        this.errorMessage.set(`Backend error (${error.status}): ${error.message || 'Please try again'}`);
       }
     } else {
       this.errorMessage.set('An unexpected error occurred while generating your itinerary.');

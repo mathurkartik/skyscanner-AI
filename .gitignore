@@ -54,5 +54,10 @@ backend/scratch/
 # Build
 build.log
 
+# Test outputs
+backend/*_test_output.json
+backend/edge_case_*.json
+backend/test_*.json
+
 # Claude
 .claude/

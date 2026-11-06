@@ -375,10 +375,24 @@ class FlightClient:
 
                     price_val = float(item.get("total_amount", 0.0))
                     offer_currency = item.get("total_currency", currency)
+
+                    # Normalize currency if Duffel sandbox returns AUD or mismatch
+                    if offer_currency != currency:
+                        fx_to_usd = {"AUD": 0.65, "USD": 1.0, "EUR": 1.08, "GBP": 1.28, "INR": 0.012, "JPY": 0.0067, "SEK": 0.095}
+                        rate_from = fx_to_usd.get(offer_currency, 1.0)
+                        rate_to = fx_to_usd.get(currency, 1.0)
+                        price_in_usd = price_val * rate_from
+                        price_val = round(price_in_usd / rate_to, 2)
+                        offer_currency = currency
+
+                    airline_name = owner.get("name", "Major Airline")
+                    if "Duffel" in airline_name:
+                        airline_name = "Major Airline Partner"
+
                     deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{departure_date.replace('-', '')}/"
 
                     offer = RealFlightOffer(
-                        airline=owner.get("name", "Major Airline"),
+                        airline=airline_name,
                         airline_code=owner.get("iata_code", "FL"),
                         airline_logo=owner.get("logo_symbol_url"),
                         flight_number=out_segments[0].get("operating_carrier_flight_number") if out_segments else None,

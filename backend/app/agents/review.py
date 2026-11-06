@@ -134,6 +134,7 @@ class ReviewAgent:
         """Check total cost within budget."""
         total = draft.total_estimated_cost
         budget = constraints.budget_total
+        currency_sym = {"USD": "$", "EUR": "€", "INR": "₹", "GBP": "£", "JPY": "¥"}.get(constraints.currency, f"{constraints.currency} ")
         
         return [ChecklistItem(
             check="within_budget",
@@ -141,7 +142,7 @@ class ReviewAgent:
             expected=f"<= {budget}",
             actual=total,
             severity=ReviewSeverity.BLOCKING if total > budget * 1.1 else ReviewSeverity.ADVISORY,
-            message=f"Budget: ${total} vs limit ${budget}"
+            message=f"Budget: {currency_sym}{total} vs limit {currency_sym}{budget}"
         )]
     
     def _check_structure(self, draft: DraftItinerary) -> List[ChecklistItem]:

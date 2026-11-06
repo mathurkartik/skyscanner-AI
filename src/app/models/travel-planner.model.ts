@@ -135,6 +135,7 @@ export interface DayItineraryItem {
   cost_estimate: number;
   travel_time_from_prev?: string | null;
   notes?: string | null;
+  place_details?: PlaceInfo | null;
 }
 
 export interface DayItinerary {
@@ -150,6 +151,7 @@ export interface DayItinerary {
   hotel_options?: RealHotelOffer[];
   places?: PlaceInfo[];
   driving_time_to_next?: string | null;
+  local_transport_tip?: string | null;
 }
 
 export interface TravelConstraints {

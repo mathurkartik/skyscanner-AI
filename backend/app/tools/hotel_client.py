@@ -170,14 +170,14 @@ class HotelClient:
                 return []
 
             clean_city = city_name.strip().title()
-            prompt = f"""Generate 3 REAL, currently operating hotels in {clean_city} for a {budget_tier} traveler.
+            prompt = f"""Generate 3 REAL, currently operating hotels in {clean_city} across 3 distinct tiers (1 budget, 1 mid-range, 1 premium) with different realistic nightly rates in USD.
 Return ONLY a valid JSON array of 3 objects with this exact format:
 [
   {{
     "name": "Actual Real Hotel Name",
-    "price_per_night": 140.0,
-    "star_rating": 4.0,
-    "guest_rating": 8.8,
+    "price_per_night": 95.0,
+    "star_rating": 3.5,
+    "guest_rating": 8.6,
     "review_count": 1250,
     "neighborhood": "Real Neighborhood or District",
     "address": "Real street address or district, {clean_city}",

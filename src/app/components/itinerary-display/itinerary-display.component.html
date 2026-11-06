@@ -36,6 +36,22 @@
             }
           }
         </div>
+
+        <!-- Share & Export Buttons -->
+        <div class="flex items-center gap-2 pt-2">
+          <button
+            (click)="copyShareLink()"
+            class="px-3 py-1 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">share</span>
+            <span>Share Plan</span>
+          </button>
+          <button
+            (click)="printItinerary()"
+            class="px-3 py-1 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">print</span>
+            <span>Print / PDF</span>
+          </button>
+        </div>
       </div>
 
       <!-- Right Side: Budget KPI Card -->
@@ -173,10 +189,10 @@
                 </div>
                 <div class="text-right shrink-0">
                   <div class="text-base font-black text-gray-900">
-                    ${{ segment.estimated_cost_usd | number:'1.0-0' }}
+                    {{ getCurrencySymbol() }}{{ segment.estimated_cost_usd | number:'1.0-0' }}
                   </div>
                   <span class="text-[11px] text-gray-400 font-medium">
-                    ≈ ₹{{ (segment.estimated_cost_usd * 83) | number:'1.0-0' }}
+                    Estimated Transit
                   </span>
                 </div>
               </div>
@@ -235,9 +251,9 @@
                 </div>
                 <div class="text-right shrink-0">
                   <div class="text-lg font-black text-gray-900">
-                    ₹{{ (flight.price * (itinerary.constraints.currency === 'INR' ? 1 : 83)) | number:'1.0-0' }}
+                    {{ getCurrencySymbol() }}{{ flight.price | number:'1.0-0' }}
                   </div>
-                  <span class="text-[11px] text-gray-400 font-medium">~${{ flight.price | number:'1.0-0' }}</span>
+                  <span class="text-[11px] text-gray-400 font-medium">{{ flight.currency || itinerary.constraints.currency }}</span>
                 </div>
               </div>
 
@@ -319,8 +335,8 @@
                   </div>
                   <p class="text-xs text-gray-500">{{ car.seats }} Seats · {{ car.category }}</p>
                   <span class="text-xs sm:text-sm font-bold text-gray-900">
-                    ${{ car.price_per_day }}/day
-                    <span class="text-xs text-gray-500 font-normal">(${{ car.total_price }} total / ₹{{ car.total_price * 83 | number:'1.0-0' }})</span>
+                    {{ getCurrencySymbol() }}{{ car.price_per_day | number:'1.0-0' }}/day
+                    <span class="text-xs text-gray-500 font-normal">({{ getCurrencySymbol() }}{{ car.total_price | number:'1.0-0' }} total)</span>
                   </span>
                 </div>
                 <a
@@ -339,11 +355,11 @@
             <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 hover:bg-[#eceef3] transition-colors border border-gray-200/80">
               <div class="space-y-0.5">
                 <div class="flex items-center gap-1.5">
-                  <span class="text-sm font-bold text-gray-900">Hyundai i10</span>
-                  <span class="text-xs text-gray-500">Economy, Manual</span>
+                  <span class="text-sm font-bold text-gray-900">Compact / Economy Vehicle</span>
+                  <span class="text-xs text-gray-500">Economy, 4-Door</span>
                 </div>
                 <p class="text-xs text-gray-400">Paved highways & city transit · 2 bags max</p>
-                <span class="text-xs font-bold text-[#0062e3]">$32/day ($352 total)</span>
+                <span class="text-xs font-bold text-[#0062e3]">Verified rental partners on Skyscanner</span>
               </div>
               <a
                 [href]="getCarBookingUrl(null)"
@@ -357,12 +373,12 @@
             <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 relative overflow-hidden group hover:bg-[#eceef3] transition-colors border border-gray-200/80 border-l-4 border-l-[#0062e3]">
               <div class="space-y-0.5">
                 <div class="flex items-center gap-1.5">
-                  <span class="text-sm font-bold text-gray-900">Suzuki Vitara 4x4</span>
+                  <span class="text-sm font-bold text-gray-900">Mid-Size SUV / All-Road</span>
                   <span class="px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[10px] font-bold">Recommended</span>
                 </div>
-                <p class="text-xs text-gray-500">Auto · All-Road & Highway rated · Heated Seats</p>
+                <p class="text-xs text-gray-500">Auto · All-Road & Highway rated · Extra luggage space</p>
                 <span class="text-xs sm:text-sm font-bold text-gray-900">
-                  $45/day <span class="text-xs text-gray-500 font-normal">($495 total / ₹41,100)</span>
+                  Optimal for scenic road trips
                 </span>
               </div>
               <a
@@ -377,11 +393,11 @@
             <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center justify-between gap-3 hover:bg-[#eceef3] transition-colors border border-gray-200/80">
               <div class="space-y-0.5">
                 <div class="flex items-center gap-1.5">
-                  <span class="text-sm font-bold text-gray-900">Dacia Duster 4WD</span>
-                  <span class="text-xs text-gray-500">Highland Ready</span>
+                  <span class="text-sm font-bold text-gray-900">Premium / 4WD Vehicle</span>
+                  <span class="text-xs text-gray-500">All-Weather Capability</span>
                 </div>
-                <p class="text-xs text-gray-400">F-Road legal · High ground clearance</p>
-                <span class="text-xs font-bold text-[#0062e3]">$68/day ($748 total)</span>
+                <p class="text-xs text-gray-400">Higher clearance & comprehensive coverage options</p>
+                <span class="text-xs font-bold text-[#0062e3]">Compare live rates & free cancellation</span>
               </div>
               <a
                 [href]="getCarBookingUrl(null)"
@@ -416,30 +432,16 @@
                 </div>
               </div>
             }
-          } @else {
-            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
-              <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">local_gas_station</span>
-              <div>
-                <p class="text-xs sm:text-sm font-bold text-gray-900">N1 Prepaid Fuel Card</p>
-                <p class="text-xs text-gray-600 mt-0.5">Avoid high foreign card security holds ($250 per swipe) by getting an N1 chip key at KEF. Saves ₹3,500 in exchange fee variances.</p>
+          } @else if (itinerary.cost_optimization_tips && itinerary.cost_optimization_tips.length > 0) {
+            @for (tip of itinerary.cost_optimization_tips; track $index) {
+              <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
+                <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">savings</span>
+                <div>
+                  <p class="text-xs sm:text-sm font-bold text-gray-900">Optimization Tip</p>
+                  <p class="text-xs text-gray-600 mt-0.5 leading-relaxed">{{ tip }}</p>
+                </div>
               </div>
-            </div>
-
-            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
-              <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">shopping_cart</span>
-              <div>
-                <p class="text-xs sm:text-sm font-bold text-gray-900">Self-Catering via Bónus Supermarkets</p>
-                <p class="text-xs text-gray-600 mt-0.5">Shop at the pink pig Bónus stores for Skyr, smoked lamb & bakery wraps for lunches. Saves $300-$500 compared to roadside diners.</p>
-              </div>
-            </div>
-
-            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] flex items-start gap-3 border border-gray-200/60">
-              <span class="material-symbols-outlined text-gray-600 text-[20px] mt-0.5">hot_tub</span>
-              <div>
-                <p class="text-xs sm:text-sm font-bold text-gray-900">Free Natural Hot Springs</p>
-                <p class="text-xs text-gray-600 mt-0.5">Substitute Blue Lagoon ($120/p) with Reykjadalur Thermal River & Djúpavogskörin tub — completely free natural soaking spots.</p>
-              </div>
-            </div>
+            }
           }
         </div>
       </div>
@@ -451,12 +453,12 @@
           <span class="text-[11px] font-bold text-[#00776d]">All-Inclusive Estimation</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Stays -->
           @let stayCat = getCategorySpend('stay');
           <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
-            <span class="text-[10px] font-bold uppercase text-gray-500">Stays (10 Nights)</span>
-            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ stayCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[10px] font-bold uppercase text-gray-500">Stays ({{ itinerary.constraints.duration_days || 1 }} Nights)</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ stayCat.amount | number:'1.0-0' }}</div>
             <span class="text-[11px] text-gray-400 font-medium">{{ stayCat.percent }}% of total</span>
           </div>
 
@@ -464,41 +466,44 @@
           @let transCat = getCategorySpend('transport');
           <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
             <span class="text-[10px] font-bold uppercase text-gray-500">Transport & Car</span>
-            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ transCat.amount | number:'1.0-0' }}</div>
+            <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ transCat.amount | number:'1.0-0' }}</div>
             <span class="text-[11px] text-gray-400 font-medium">{{ transCat.percent }}% of total</span>
           </div>
 
           <!-- Food & Fuel -->
           @let foodCat = getCategorySpend('food');
           <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
-            <span class="text-[10px] font-bold uppercase text-gray-500">Food & Fuel</span>
-            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ foodCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[10px] font-bold uppercase text-gray-500">Food & Dining</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ foodCat.amount | number:'1.0-0' }}</div>
             <span class="text-[11px] text-gray-400 font-medium">{{ foodCat.percent }}% of total</span>
           </div>
 
           <!-- Activities & Parks -->
           @let actCat = getCategorySpend('activities');
           <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
-            <span class="text-[10px] font-bold uppercase text-gray-500">Activities & Parks</span>
-            <div class="text-base font-black text-gray-900 mt-0.5">₹{{ actCat.amount | number:'1.0-0' }}</div>
+            <span class="text-[10px] font-bold uppercase text-gray-500">Activities & Attractions</span>
+            <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ actCat.amount | number:'1.0-0' }}</div>
             <span class="text-[11px] text-gray-400 font-medium">{{ actCat.percent }}% of total</span>
           </div>
         </div>
 
         <!-- Suggested Swap Card -->
-        <div class="p-3.5 rounded-2xl bg-[#cbdafd]/40 flex items-center justify-between gap-3 border border-[#cbdafd]">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-[#0062e3] text-[20px]">swap_horizontal_circle</span>
-            <p class="text-xs text-[#0b1b35]">
-              <span class="font-bold">Smart Swap:</span> Hotel Kría → Guesthouse Carina in Vík saves ₹5,500/night.
-            </p>
+        @if (smartSwaps.length > 0) {
+          @let swap = smartSwaps[0];
+          <div class="p-3.5 rounded-2xl bg-[#cbdafd]/40 flex items-center justify-between gap-3 border border-[#cbdafd]">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#0062e3] text-[20px]">swap_horizontal_circle</span>
+              <p class="text-xs text-[#0b1b35]">
+                <span class="font-bold">Smart Swap:</span> {{ swap.original_item }} → {{ swap.suggested_alternative }} saves {{ getCurrencySymbol() }}{{ swap.savings_estimate | number:'1.0-0' }}/night.
+              </p>
+            </div>
+            <button
+              (click)="applySmartSwap()"
+              class="shrink-0 px-3 py-1 rounded-lg bg-white text-[#0062e3] text-xs font-bold shadow-xs hover:bg-gray-50 transition-colors cursor-pointer">
+              {{ appliedSwap() ? 'Applied ✓' : 'Apply' }}
+            </button>
           </div>
-          <button
-            (click)="applySmartSwap()"
-            class="shrink-0 px-3 py-1 rounded-lg bg-white text-[#0062e3] text-xs font-bold shadow-xs hover:bg-gray-50 transition-colors cursor-pointer">
-            {{ appliedSwap() ? 'Applied ✓' : 'Apply' }}
-          </button>
-        </div>
+        }
       </div>
 
     </div>
@@ -564,15 +569,17 @@
             </h3>
           </div>
 
-          <div class="flex items-center gap-2.5 bg-[#f2f4f9] px-4 py-2 rounded-2xl shrink-0 border border-gray-100">
-            <span class="material-symbols-outlined text-[#0062e3] text-[20px]">directions_car</span>
-            <div>
-              <div class="text-xs sm:text-sm font-bold text-gray-900">
-                {{ activeDay.driving_time_to_next || '2.5 hrs to next stop' }}
+          @if (itinerary.constraints.is_road_trip) {
+            <div class="flex items-center gap-2.5 bg-[#f2f4f9] px-4 py-2 rounded-2xl shrink-0 border border-gray-100">
+              <span class="material-symbols-outlined text-[#0062e3] text-[20px]">directions_car</span>
+              <div>
+                <div class="text-xs sm:text-sm font-bold text-gray-900">
+                  {{ activeDay.driving_time_to_next || 'Drive to next destination' }}
+                </div>
+                <div class="text-[10px] text-gray-400 font-medium">{{ activeDay.city.split('&')[0].trim() }} Region</div>
               </div>
-              <div class="text-[10px] text-gray-400 font-medium">Route 1 Ring Highway</div>
             </div>
-          </div>
+          }
         </div>
 
         <!-- Narrative Quote -->
@@ -582,35 +589,45 @@
           </blockquote>
         }
 
-        <!-- Driving Route Card (Amber Alert for Road Conditions) -->
-        <div class="rounded-2xl bg-[#fffbeb] text-[#92400e] p-4 space-y-2 border border-[#fde68a]">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 text-xs sm:text-sm font-bold">
-              <span class="material-symbols-outlined text-[18px] text-[#d97706]">alt_route</span>
-              <span>Driving Route: {{ activeDay.city.split('&')[0].trim() }} → Next Region</span>
-            </div>
-            <span class="text-[10px] font-bold bg-[#fef3c7] px-2 py-0.5 rounded-full text-[#b45309]">
-              Route 1 Paved
-            </span>
+        <!-- Local Transport Guidance (Bug #23) -->
+        @if (activeDay.local_transport_tip) {
+          <div class="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#eff6ff] text-[#1e40af] text-xs font-medium border border-[#bfdbfe]">
+            <span class="material-symbols-outlined text-[18px] text-[#2563eb]">directions_transit</span>
+            <span><strong class="font-bold">Local Transit Tip:</strong> {{ activeDay.local_transport_tip }}</span>
           </div>
+        }
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#78350f]">
-            <div class="flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">local_gas_station</span>
-              <span>Fuel Stop: N1 Gas Station (Every 60-80 km)</span>
+        <!-- Driving Route Card (Road Trips Only) -->
+        @if (itinerary.constraints.is_road_trip) {
+          <div class="rounded-2xl bg-[#fffbeb] text-[#92400e] p-4 space-y-2 border border-[#fde68a]">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-xs sm:text-sm font-bold">
+                <span class="material-symbols-outlined text-[18px] text-[#d97706]">alt_route</span>
+                <span>Scenic Drive: {{ activeDay.city.split('&')[0].trim() }} → Next Destination</span>
+              </div>
+              <span class="text-[10px] font-bold bg-[#fef3c7] px-2 py-0.5 rounded-full text-[#b45309]">
+                Scenic Drive
+              </span>
             </div>
-            <div class="flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">warning</span>
-              <span>Bridge Alert: Single-lane bridges along glacial sands</span>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#78350f]">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">local_gas_station</span>
+                <span>Plan fuel/charging stops before remote segments</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">info</span>
+                <span>Check local weather & daylight hours</span>
+              </div>
             </div>
           </div>
-        </div>
+        }
 
         <!-- Master Timetable -->
         <div class="space-y-3">
           <div class="flex items-center justify-between">
             <h4 class="text-sm font-extrabold text-gray-900">Master Timetable</h4>
-            <span class="text-xs text-gray-500 font-medium">Verified sunlight hours: 07:30 - 18:45</span>
+            <span class="text-xs text-gray-500 font-medium">Day Timeline</span>
           </div>
 
           <div class="divide-y divide-gray-100 text-gray-900">
@@ -744,10 +761,10 @@
                     </div>
                     <div class="text-right shrink-0">
                       <div class="text-sm font-black text-gray-900">
-                        ${{ h.price_per_night }}/nt
+                        {{ getCurrencySymbol() }}{{ h.price_per_night | number:'1.0-0' }}/nt
                       </div>
                       <span class="text-[10px] text-gray-400 font-medium">
-                        ≈ ₹{{ (h.price_per_night * 83) | number:'1.0-0' }}
+                        Verified Nightly Rate
                       </span>
                     </div>
                   </div>
@@ -805,11 +822,8 @@
               <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 space-y-2">
                 <div class="flex items-start justify-between">
                   <div>
-                    <h5 class="text-xs sm:text-sm font-bold text-gray-900">Hotel Kría ({{ activeDay.city.split('&')[0].trim() }})</h5>
-                    <p class="text-[11px] text-gray-500 mt-0.5">Central location · Panoramic dining · Free breakfast</p>
-                  </div>
-                  <div class="text-right">
-                    <span class="text-sm font-black text-gray-900">$220/nt</span>
+                    <h5 class="text-xs sm:text-sm font-bold text-gray-900">Recommended Stays in {{ activeDay.city.split('&')[0].trim() }}</h5>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Explore authentic verified accommodations on Booking, Agoda & MakeMyTrip</p>
                   </div>
                 </div>
                 <div class="pt-2 border-t border-gray-100 flex items-center justify-end gap-1 flex-wrap">
@@ -824,7 +838,8 @@
 
       </div>
 
-      <!-- C. Compare Other Blueprints Drawer -->
+      <!-- C. Compare Other Blueprints Drawer (Hidden by default to avoid static mismatch) -->
+      @if (false) {
       <div class="rounded-3xl bg-white p-5 shadow-sm space-y-3 border border-gray-200">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -872,12 +887,13 @@
           </button>
         </div>
       </div>
+      }
 
       <!-- D. Compact Remaining Days Summary Table Modal/Drawer -->
       @if (showRemainingDaysTable()) {
         <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200 animate-in fade-in duration-200">
           <div class="flex items-center justify-between">
-            <h4 class="text-sm font-extrabold text-gray-900">Full 11-Day Journey Overview</h4>
+            <h4 class="text-sm font-extrabold text-gray-900">Full {{ itinerary.constraints.duration_days }}-Day Journey Overview</h4>
             <button
               (click)="toggleRemainingDays()"
               class="text-xs text-gray-400 hover:text-gray-600 font-bold">
@@ -1014,7 +1030,7 @@
                   </span>
                   <div>
                     <span class="font-bold text-gray-900 block">{{ pin.label }}</span>
-                    <span class="text-[10px] text-gray-400 font-mono">{{ pin.lat.toFixed(3) }}°N, {{ pin.lng.toFixed(3) }}°W</span>
+                    <span class="text-[10px] text-gray-400 font-mono">{{ formatLat(pin.lat) }}, {{ formatLng(pin.lng) }}</span>
                   </div>
                 </div>
                 <span class="text-[10px] font-bold text-[#0062e3]">Jump to Day →</span>

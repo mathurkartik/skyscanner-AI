@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """
 Groq LLM Client with token tracking and structured output support.
 Optimized for 100k tokens/day limit.
@@ -137,12 +139,13 @@ class GroqClient:
         cache_key_prompt = f"constraints:{natural_language_request}"
         cached = self._check_cache(cache_key_prompt, self.model)
         if cached and isinstance(cached, TravelConstraints):
-            print(f"Cache hit for: {natural_language_request[:50]}...")
+            logger.info("Cache hit for: %s...", natural_language_request[:50].encode("ascii", "replace").decode("ascii"))
             return cached
-        print(f"Extracting constraints for: {natural_language_request}")
+        logger.info("Extracting constraints for: %s", natural_language_request.encode("ascii", "replace").decode("ascii"))
         
         # Build structured extraction prompt
         system_prompt = """You are a travel planning assistant. Extract structured travel constraints from the user's request.
+The user may write in English, Hindi, Hinglish (e.g. 'Mujhe 7 din ka Kerala trip plan karo'), or other languages. Extract all fields accurately regardless of language.
 
 Respond with valid JSON matching this schema:
 {
@@ -153,7 +156,9 @@ Respond with valid JSON matching this schema:
   "duration_days": number or null,
   "budget_total": number or null,
   "budget_tier": "budget, moderate, luxury, or null",
-  "currency": "3-letter code like USD, EUR, INR (default to USD unless explicitly INR or EUR)",
+  "currency": "3-letter code: USD, EUR, INR, GBP, JPY, THB, AUD, NZD, SEK, CAD, CHF",
+  "group_size": number (default 1),
+  "accessibility_needs": ["wheelchair", "mobility", "visual", "hearing"] or null,
   "preferences": ["what they want to experience"],
   "avoidances": ["what they want to avoid"],
   "hard_requirements": ["must-haves inferred from request"],
@@ -177,24 +182,28 @@ CRITICAL EXTRACTION RULES (STRICT - DO NOT INVENT MISSING DATA):
 - Origin: Extract departure origin if user states where they are traveling from (e.g., "trip from Cambodia", "flying from JFK", "departing London"). If not stated, set origin_city to null.
 - Destination: Extract the primary destination/country/city. If user does NOT state where they want to go, set destination_region to null and cities to [].
 - Start Date: Extract departure date in YYYY-MM-DD if mentioned (or first day of month if a month is mentioned, e.g. "December 2026" -> "2026-12-01"). If not mentioned, set to null.
-- Duration: Extract duration in days (e.g. 1 week = 7 days). If user does NOT mention duration or days, set duration_days to null.
-- Currency: Default to "USD" unless user explicitly writes INR/₹, EUR/€, GBP/£, JPY/¥, etc.
+- Duration: Extract duration in days: "weekend" = 2 days, "long weekend" = 3 days, "week" = 7 days, "fortnight" = 14 days, "N din" = N days. If user does NOT mention duration or days, set duration_days to null.
+- Group Size: Extract number of travelers/friends/family (e.g. "6 friends" -> 6, "couple" or "for two" -> 2, "solo" -> 1). Default to 1 if not specified.
+- Accessibility: Detect wheelchair, mobility, visual, or hearing accessibility requirements.
+- Currency: 3-letter code: USD, EUR, INR, GBP, JPY, THB, AUD, NZD, SEK, CAD, CHF. Infer from symbols: ₹ or Rs or Lakh or L -> INR, € -> EUR, £ -> GBP, ¥ or yen -> JPY, ฿ or baht -> THB, kr or krona -> SEK, A$ -> AUD. Default to USD if no currency or symbol is mentioned.
 - Multi-Modal Transport Mode Selection:
   * For long-distance (>800km without bullet rail) or overseas travel -> recommended_mode: "flight"
   * For domestic or intercity routes with reliable rail (e.g., Paris-Lyon, Tokyo-Kyoto, Zurich-Lucerne, Gandhinagar-Sholapur, Delhi-Agra, Rome-Florence) -> recommended_mode: "train"
   * For scenic driving routes, road trips, or outback areas -> recommended_mode: "drive"
   * For island hops or coastal water crossings -> recommended_mode: "ferry"
 - Budget:
-  * If a numeric budget is stated ($2000, 50000 INR, 10000$, etc.), extract the number into budget_total and the 3-letter currency into currency.
+  * If a numeric budget is stated ($2000, 50000 INR, 10000$, 10L, 3.5 Lakh, etc.), extract the number into budget_total and the 3-letter currency into currency (e.g. 10L -> 1000000 INR).
   * If user specifies a budget style without an exact number (e.g., "cheap", "backpacking", "budget trip" -> "budget"; "moderate", "mid-range", "reasonable" -> "moderate"; "luxury", "5-star", "lavish" -> "luxury"), set budget_tier to "budget", "moderate", or "luxury".
   * If neither amount nor tier is mentioned, set budget_total to null and budget_tier to null.
   * DO NOT guess or invent default budget or duration values if omitted.
 
 TRIP TYPE DETECTION:
-- ROAD TRIP countries (Iceland, Norway, New Zealand, Scotland, Ireland, Portugal coast, South Africa Garden Route, Australia outback):
+- ROAD TRIP detection:
+  If user mentions "road trip", "drive", "scenic drives", "self-drive", "car rental", "route", OR if destination is a classic road trip region (Iceland, Norway, Sweden, New Zealand, Scotland, Ireland, Croatia, Rajasthan, Portugal coast, South Africa Garden Route, Australia outback):
   Set is_road_trip=true. Generate 4-8 ROUTE STOPS (regions/towns along the route), NOT just the capital.
   Example Iceland: cities=["Reykjavik","Vik","Hofn","Egilsstadir","Akureyri","Snaefellsnes"]
   Example Norway: cities=["Oslo","Bergen","Geiranger","Alesund","Tromso"]
+  Example Sweden: cities=["Stockholm","Tällberg","Gothenburg","Smögen","Malmö"]
   Example New Zealand: cities=["Auckland","Rotorua","Wellington","Queenstown","Milford Sound"]
 
 - CITY TRIP destinations (Paris, Tokyo, NYC, Dubai, Singapore):
@@ -228,7 +237,24 @@ TRIP TYPE DETECTION:
                     candidate = m.group(1).strip()
                     if candidate and candidate.lower() not in ["here", "home", "airport"]:
                         data["origin_city"] = candidate
-                        
+
+            # Safe numeric conversion for duration, group_size and budget
+            if data.get("duration_days") is not None:
+                try:
+                    data["duration_days"] = int(data["duration_days"])
+                except (ValueError, TypeError):
+                    data["duration_days"] = None
+            if data.get("group_size") is not None:
+                try:
+                    data["group_size"] = max(1, int(data["group_size"]))
+                except (ValueError, TypeError):
+                    data["group_size"] = 1
+            if data.get("budget_total") is not None:
+                try:
+                    data["budget_total"] = float(data["budget_total"])
+                except (ValueError, TypeError):
+                    data["budget_total"] = None
+
             constraints = TravelConstraints.model_validate(data)
             
             # Cache result

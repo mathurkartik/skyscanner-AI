@@ -283,6 +283,16 @@ async def _generate_enriched_stub_response(
     is_iceland = any(k in request_lower for k in ["iceland", "reykjavik", "ring road"])
     is_japan = any(k in request_lower for k in ["japan", "tokyo", "kyoto", "osaka"])
     is_swiss = any(k in request_lower for k in ["swiss", "switzerland", "alps", "zurich", "interlaken"])
+    is_road_trip = is_iceland or any(k in request_lower for k in ["road trip", "drive", "scenic drive", "car rental", "self-drive", "route"])
+
+    pref_keywords = [
+        "nature", "scenic drives", "scenic drive", "road trip", "hiking", "beaches", "beach",
+        "culture", "history", "museums", "food", "culinary", "nightlife", "mountains", "relaxation",
+        "adventure", "wildlife", "shopping", "architecture", "temples", "photography"
+    ]
+    extracted_preferences = [kw.title() for kw in pref_keywords if kw in request_lower]
+    if not extracted_preferences:
+        extracted_preferences = ["Scenic landscapes", "Iconic landmarks", "Local cuisine", "Photography"]
 
     if is_iceland:
         destination_title = "Iceland Ring Road Expedition"
@@ -488,9 +498,12 @@ async def _generate_enriched_stub_response(
             ("Alpine Farewell & Zurich Departure", "Direct Airport Train Transfer", ActivityType.TRANSPORT, "Direct scenic train from Zermatt to Zurich Airport for your flight home."),
         ]
     else:
+        from ..tools.city_coords import get_city_coords
         destination_title = f"{primary_city} Discovery Journey"
         trip_cities = cities if cities else [primary_city]
         dest_code = primary_city[:3].upper()
+        coords = get_city_coords(primary_city) or (48.8566, 2.3522)
+        base_lat, base_lng = coords
         flight_offer = RealFlightOffer(
             airline="Skyscanner Partner Airline",
             airline_code="SK",
@@ -520,16 +533,26 @@ async def _generate_enriched_stub_response(
             deeplink=f"https://www.booking.com/searchresults.html?ss={primary_city}",
             amenities=["Free High-Speed WiFi", "City View", "On-site Restaurant", "Central Location"]
         )
-        car_estimate = None
+        car_estimate = CarEstimate(
+            supplier="Skyscanner Car Hire",
+            vehicle_name=f"Standard Rental Car ({primary_city})",
+            category="Standard / Compact",
+            price_per_day=round((budget * 0.12) / duration, 2),
+            total_price=round(budget * 0.12, 2),
+            currency=currency,
+            seats=5,
+            transmission="Automatic",
+            deeplink="https://www.skyscanner.net/carhire"
+        ) if is_road_trip else None
         verified_places = [
-            PlaceInfo(name=f"{primary_city} Historic Old Town", city=primary_city, rating=4.8, review_count=9400, lat=48.8566, lng=2.3522, google_maps_url=f"https://www.google.com/maps/search/?api=1&query={primary_city}+old+town"),
-            PlaceInfo(name=f"{primary_city} National Museum & Art Gallery", city=primary_city, rating=4.7, review_count=6100, lat=48.8606, lng=2.3376, google_maps_url=f"https://www.google.com/maps/search/?api=1&query={primary_city}+museum"),
-            PlaceInfo(name=f"{primary_city} Central Park & Botanical Gardens", city=primary_city, rating=4.8, review_count=8200, lat=48.8462, lng=2.3546, google_maps_url=f"https://www.google.com/maps/search/?api=1&query={primary_city}+park"),
+            PlaceInfo(name=f"{primary_city} Historic Old Town", city=primary_city, rating=4.8, review_count=9400, lat=base_lat, lng=base_lng, google_maps_url=f"https://www.google.com/maps/search/?api=1&query={primary_city}+old+town"),
+            PlaceInfo(name=f"{primary_city} National Museum & Art Gallery", city=primary_city, rating=4.7, review_count=6100, lat=round(base_lat + 0.005, 4), lng=round(base_lng + 0.005, 4), google_maps_url=f"https://www.google.com/maps/search/?api=1&query={primary_city}+museum"),
+            PlaceInfo(name=f"{primary_city} Central Park & Botanical Gardens", city=primary_city, rating=4.8, review_count=8200, lat=round(base_lat - 0.005, 4), lng=round(base_lng + 0.002, 4), google_maps_url=f"https://www.google.com/maps/search/?api=1&query={primary_city}+park"),
         ]
         map_pins = [
-            MapPin(label=f"{primary_city} Airport", lat=48.8566, lng=2.3522, pin_type="airport", day_number=1),
-            MapPin(label=f"Central {primary_city}", lat=48.8606, lng=2.3376, pin_type="overnight", day_number=1),
-            MapPin(label=f"{primary_city} Cultural Quarter", lat=48.8462, lng=2.3546, pin_type="attraction", day_number=2),
+            MapPin(label=f"{primary_city} Airport", lat=base_lat, lng=base_lng, pin_type="airport", day_number=1),
+            MapPin(label=f"Central {primary_city}", lat=round(base_lat + 0.005, 4), lng=round(base_lng + 0.005, 4), pin_type="overnight", day_number=1),
+            MapPin(label=f"{primary_city} Cultural Quarter", lat=round(base_lat - 0.005, 4), lng=round(base_lng + 0.002, 4), pin_type="attraction", day_number=2),
         ]
         cost_saving_tips = [
             CostSavingTip(title=f"{primary_city} City Transit Pass", description=f"Purchase a multi-day unlimited public transit card for significant savings on local metro and buses.", estimated_savings="25% savings"),
@@ -592,7 +615,8 @@ async def _generate_enriched_stub_response(
                 lodging_area=f"{city_name} Central District",
                 hotel_options=[hotel_offer] if hotel_offer and d <= 3 else [],
                 places=matched_places,
-                driving_time_to_next="2h 15m" if d < duration else None
+                driving_time_to_next="2h 15m" if d < duration else None,
+                local_transport_tip=f"Convenient local transport and connections within {city_name}."
             )
         )
 
@@ -624,11 +648,11 @@ async def _generate_enriched_stub_response(
         duration_days=duration,
         budget_total=budget,
         currency=currency,
-        preferences=["Scenic landscapes", "Iconic landmarks", "Local cuisine", "Photography"],
+        preferences=extracted_preferences,
         avoidances=["Tourist traps", "Rushed pacing"],
         hard_requirements=[f"Complete {duration}-day curated itinerary in {destination_title}"],
         soft_preferences=["Breathtaking views", "Comfortable lodgings with good breakfast"],
-        is_road_trip=is_iceland,
+        is_road_trip=is_road_trip,
     )
 
     neighborhoods = {c: [f"Central {c}"] for c in trip_cities}
@@ -642,6 +666,7 @@ async def _generate_enriched_stub_response(
         cost_optimization_tips=[t.title + ": " + t.description for t in cost_saving_tips],
         budget_rollup=budget_rollup,
         review_status=ReviewStatus.PASS,
+        review_warnings=["Fast Blueprint Mode active — live AI synthesis is warming up. Real booking inventory and routes are calibrated."],
         disclaimer="Fast Blueprint: Powered by Skyscanner Travel Intelligence with verified live booking links.",
         flight_options=[flight_offer] if flight_offer else [],
         car_estimates=[car_estimate] if car_estimate else [],

@@ -93,6 +93,8 @@ class TravelConstraints(BaseModel):
     hard_requirements: List[str] = Field(default_factory=list, description="Must-haves inferred from request")
     soft_preferences: List[str] = Field(default_factory=list, description="Nice-to-haves inferred from request")
     is_road_trip: bool = Field(default=False, description="Whether the user wants a road trip (e.g., Iceland Ring Road)")
+    group_size: int = Field(default=1, ge=1, le=50, description="Number of travelers")
+    accessibility_needs: Optional[List[str]] = Field(default=None, description="Accessibility requirements (wheelchair, mobility, etc.)")
     transport_segments: List[TransportSegment] = Field(default_factory=list, description="Multi-modal travel segments recommended by LLM")
     
     # Trace ID for observability
@@ -110,14 +112,20 @@ class TravelConstraints(BaseModel):
     @field_validator("cities")
     @classmethod
     def validate_cities_unique(cls, v: List[str]) -> List[str]:
-        """Ensure no duplicate cities."""
+        """Allow ring routes (first == last) and deduplicate middle stops."""
+        if not v:
+            return v
+        core = v[:-1] if len(v) > 1 and v[0].lower().strip() == v[-1].lower().strip() else v
         seen = set()
-        for city in v:
-            city_lower = city.lower().strip()
-            if city_lower in seen:
-                raise ValueError(f"Duplicate city: {city}")
-            seen.add(city_lower)
-        return v
+        deduped = []
+        for city in core:
+            c_low = city.lower().strip()
+            if c_low not in seen:
+                seen.add(c_low)
+                deduped.append(city.strip())
+        if len(v) > 1 and v[0].lower().strip() == v[-1].lower().strip():
+            deduped.append(v[0].strip())
+        return deduped
     
     @field_validator("currency")
     @classmethod
@@ -550,6 +558,7 @@ class DayItineraryItem(BaseModel):
     cost_estimate: float = Field(..., ge=0, description="Cost must be non-negative")
     travel_time_from_prev: Optional[str] = Field(default=None, max_length=50)
     notes: Optional[str] = Field(default=None, max_length=500)
+    place_details: Optional[PlaceInfo] = Field(default=None, description="Detailed Google Place info including rating, hours, address")
     
     @field_validator("slot_index")
     @classmethod
@@ -574,6 +583,7 @@ class DayItinerary(BaseModel):
     hotel_options: List[RealHotelOffer] = Field(default_factory=list, description="Real hotel options for this day/night")
     places: List[PlaceInfo] = Field(default_factory=list, description="Google Places POIs for this day")
     driving_time_to_next: Optional[str] = Field(default=None, max_length=100, description="Estimated drive time to next destination")
+    local_transport_tip: Optional[str] = Field(default=None, max_length=300, description="Local transit tip for getting around (metro, pass, ride-hailing)")
     
     @field_validator("items")
     @classmethod

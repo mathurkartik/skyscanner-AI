@@ -24,10 +24,11 @@ from .budget import BudgetAgent
 from .review import ReviewAgent
 from .trip_structuring import TripStructuringAgent
 from ..tools import ToolRouter
+from ..tools.city_coords import CITY_COORDS
 from ..utils.observability import ObservabilityLogger
 
 
-_COORDS_CACHE: Dict[str, Tuple[float, float]] = {}
+_COORDS_CACHE: Dict[str, Tuple[float, float]] = dict(CITY_COORDS)
 
 
 def _lookup_city_coords(name: str) -> Optional[Tuple[float, float]]:
@@ -36,6 +37,10 @@ def _lookup_city_coords(name: str) -> Optional[Tuple[float, float]]:
     name_clean = name.lower().strip()
     if name_clean in _COORDS_CACHE:
         return _COORDS_CACHE[name_clean]
+    # Check if city name is contained in any cache entry (e.g. "Paris, France" -> "paris")
+    for k, v in _COORDS_CACHE.items():
+        if k in name_clean or name_clean in k:
+            return v
     return None
 
 def fix_utf8(text: Any) -> Any:
@@ -109,14 +114,14 @@ class OrchestratorAgent:
         self.llm_client = llm_client
         self._settings = get_settings()
         
-        # Lazy-load Groq client if not provided and Groq is configured
-        if self.llm_client is None and self._settings.llm_provider == "groq":
+        # Lazy-load LLM client if not provided
+        if self.llm_client is None:
             try:
-                from ..llm import get_groq_client
-                self.llm_client = get_groq_client()
+                from ..llm import get_llm_client
+                self.llm_client = get_llm_client()
             except Exception as e:
                 # Log warning but don't fail - stub mode available
-                print(f"Warning: Could not initialize Groq client: {e}")
+                print(f"Warning: Could not initialize LLM client: {e}")
         
         # Phase 5: Initialize worker agents with shared ToolRouter
         tool_router = ToolRouter()
@@ -1129,7 +1134,9 @@ class OrchestratorAgent:
             aname = f"{dest_name.title()} Gateway Airport ({dest_code or 'Arrival'})"
             map_pins.append(MapPin(label=aname, lat=alat, lng=alng, pin_type="airport"))
         else:
-            coords = _lookup_city_coords(dest_name) or (64.1466, -21.9426)
+            coords = _lookup_city_coords(dest_name)
+            if not coords:
+                coords = (64.1466, -21.9426) if "iceland" in dest_name.lower() or "reykjavik" in dest_name.lower() else (48.8566, 2.3522)
             map_pins.append(MapPin(label=f"{dest_name.title()} Arrival Gateway", lat=coords[0], lng=coords[1], pin_type="airport"))
 
         # 2. Overnight Hotel Pins
@@ -1138,7 +1145,13 @@ class OrchestratorAgent:
             if day.city not in seen_hotel_cities:
                 seen_hotel_cities.add(day.city)
                 h = day.hotel_options[0] if day.hotel_options else None
-                coords = _lookup_city_coords(day.city) or (64.1466, -21.9426)
+                # Prioritize places coordinates from this day
+                day_coords = None
+                if day.places and day.places[0].lat and day.places[0].lng:
+                    day_coords = (day.places[0].lat, day.places[0].lng)
+                coords = day_coords or _lookup_city_coords(day.city)
+                if not coords:
+                    coords = (64.1466, -21.9426) if "iceland" in dest_name.lower() or "reykjavik" in day.city.lower() else (48.8566, 2.3522)
                 hotel_label = f"Stay: {h.name} ({day.city})" if h else f"Stay in {day.city}"
                 hotel_desc = f"${h.price_per_night}/night • {h.guest_rating}★" if (h and h.guest_rating) else (f"${h.price_per_night}/night" if h else f"Overnight base in {day.city}")
                 map_pins.append(MapPin(
@@ -1214,7 +1227,7 @@ class OrchestratorAgent:
 
 Analyze the itinerary deeply and generate a JSON response with ALL these fields:
 
-1. "strategic_insight": 2-3 sentences on WHY this routing/pacing is smart. Reference the user's preferences. Example: "By basing in Old Delhi, you're steps from the best street food lanes AND Mughal architecture — no wasted transit."
+1. "strategic_insight": 2-3 sentences on WHY this routing/pacing is smart and essential visa/entry requirements if traveling internationally (e.g., Schengen visa appointments, 6-month passport validity, or International Driving Permit for road trips).
 
 2. "budget_analysis": A frank 'Reality Check'. Is the budget tight, comfortable, or generous for this destination? What tier does it land in (backpacker/mid-range/luxury)? What's the daily spending power?
 
@@ -1233,11 +1246,13 @@ Analyze the itinerary deeply and generate a JSON response with ALL these fields:
 Respond with valid JSON only. Keep each field concise — quality over quantity."""
 
         prompt = f"""Trip: {constraints.duration_days} days in {cities_str}
+Origin: {constraints.origin_city or 'International departure'}
 Budget: {constraints.budget_total} {constraints.currency}
 Preferences: {prefs_str}
 Avoidances: {avoids_str}
 Estimated cost: {draft.total_estimated_cost} {draft.currency}
 Cities visited: {cities_str}
+Road trip: {'Yes' if constraints.is_road_trip else 'No'}
 Days breakdown: {', '.join(f'Day {d.day_number}: {d.city}' for d in draft.days)}"""
 
         try:
@@ -1276,13 +1291,14 @@ Days breakdown: {', '.join(f'Day {d.day_number}: {d.city}' for d in draft.days)}
             activities = [item.activity_name for item in d.items if item.type.value != "transport"]
             days_desc.append(f"Day {d.day_number} in {d.city}: {', '.join(activities[:4])}")
 
-        system_prompt = """You are a travel storyteller. For each day, generate:
+        system_prompt = """You are a travel storyteller and logistics expert. For each day, generate:
 - "mood": One evocative word (e.g. Wonder, Discovery, Adventure, Ease, Transition, Anticipation, Freedom, Awe)
 - "highlight": The standout moment in under 8 words (e.g. "Sunrise Over The Golden Temple")
 - "narrative": 1-2 sentences about today's experience — what makes this day special, what the traveler will feel
+- "transport_tip": 1 short practical tip on getting around today (e.g. "Take metro line 1", "Rental car for coastal stretch", "Walkable district", "Book Grab/Uber")
 
-Respond with JSON: {"days": [{"day": 1, "mood": "...", "highlight": "...", "narrative": "..."}, ...]}
-Be specific to the actual activities listed. No generic filler."""
+Respond with JSON: {"days": [{"day": 1, "mood": "...", "highlight": "...", "narrative": "...", "transport_tip": "..."}, ...]}
+Be specific to the actual activities and city listed. No generic filler."""
 
         prompt = f"""Trip: {constraints.duration_days} days, {constraints.destination_region}
 Preferences: {', '.join(constraints.preferences) if constraints.preferences else 'general'}
@@ -1291,12 +1307,13 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
 
         try:
             import json as _json
+            token_budget = min(800 + (len(draft.days) * 120), 4000)
             content = await self.llm_client.chat_with_retry(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=800
+                max_tokens=token_budget
             )
             content = self._extract_json(content)
             data = _json.loads(content)
@@ -1307,6 +1324,7 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
                 d.mood = str(info.get("mood", ""))[:30] or None
                 d.highlight = str(info.get("highlight", ""))[:100] or None
                 d.day_narrative = str(info.get("narrative", ""))[:500] or None
+                d.local_transport_tip = str(info.get("transport_tip", ""))[:300] or None
         except Exception as e:
             print(f"Day narrative generation failed: {e}")
 

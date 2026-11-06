@@ -133,8 +133,7 @@ describe('AiTravelPlannerComponent (Phase 11 & Phase 12)', () => {
       component.promptText().trim(),
       true,
       component.originCity(),
-      component.travelDate(),
-      'USD'
+      component.travelDate()
     );
   });
 

@@ -75,12 +75,59 @@ export class ItineraryDisplayComponent {
     return this.itinerary?.constraints?.cities?.[0]?.slice(0, 3)?.toUpperCase() || 'DEST';
   }
 
+  public get smartSwaps(): any[] {
+    return this.itinerary?.budget_rollup?.suggested_swaps || [];
+  }
+
   public getAverageFlightFare(): number {
     if (this.itinerary?.flight_options && this.itinerary.flight_options.length > 0) {
       const sum = this.itinerary.flight_options.reduce((acc, f) => acc + (f.price || 0), 0);
       return Math.round(sum / this.itinerary.flight_options.length);
     }
     return 74200;
+  }
+
+  public getCurrencySymbol(): string {
+    const map: Record<string, string> = {
+      'USD': '$',
+      'EUR': '€',
+      'INR': '₹',
+      'GBP': '£',
+      'JPY': '¥',
+      'THB': '฿',
+      'AUD': 'A$',
+      'NZD': 'NZ$',
+      'SEK': 'kr',
+      'CHF': 'CHF',
+      'CAD': 'C$',
+      'SGD': 'S$'
+    };
+    const c = (this.itinerary?.constraints?.currency || this.itinerary?.budget_rollup?.currency || 'USD').toUpperCase();
+    return map[c] || (c ? `${c} ` : '$');
+  }
+
+  public formatLng(lng: number): string {
+    if (lng === undefined || lng === null || isNaN(lng)) return '0.000°E';
+    return `${Math.abs(lng).toFixed(3)}°${lng >= 0 ? 'E' : 'W'}`;
+  }
+
+  public formatLat(lat: number): string {
+    if (lat === undefined || lat === null || isNaN(lat)) return '0.000°N';
+    return `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? 'N' : 'S'}`;
+  }
+
+  public copyShareLink(): void {
+    if (typeof window !== 'undefined' && navigator?.clipboard) {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        alert('Itinerary link copied to clipboard!');
+      }).catch(() => {});
+    }
+  }
+
+  public printItinerary(): void {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
   }
 
   public getRouteWaypoints(): Array<{ name: string; type: string; day: number; x: number; y: number }> {

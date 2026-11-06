@@ -102,12 +102,14 @@ Requirements:
 - {food_count} food (restaurants, bistros, bakeries, cafes — each DIFFERENT)
 - ONLY real specific names, no generic labels
 - All names unique. Mix iconic spots and hidden gems
-- For estimated_cost_usd, provide realistic 2026 pricing in USD (e.g., Louvre = 22, Seine cruise = 18, street food = 8, free park/viewpoint = 0)"""
+- For estimated_cost_usd, provide realistic 2026 pricing in USD (e.g., Louvre = 22, Seine cruise = 18, street food = 8, free park/viewpoint = 0)
+- Consider travel dates/seasonality and suggest weather-appropriate experiences (e.g., outdoor hikes in good seasons, indoor galleries/baths when cold or rainy)"""
 
         user_prompt = f"""Generate {activity_count} unique activities for {days_in_city} days in {city}:
 Likes: {', '.join(constraints.preferences) if constraints.preferences else 'sightseeing, food, culture'}
 Avoid: {', '.join(constraints.avoidances) if constraints.avoidances else 'none'}
-Budget: {constraints.budget_total} {constraints.currency}"""
+Budget: {constraints.budget_total} {constraints.currency}
+Travel Dates / Season: {constraints.start_date or 'Optimal travel window'}"""
 
         content = await self.llm_client.chat_with_retry(
             messages=[

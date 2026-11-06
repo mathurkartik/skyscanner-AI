@@ -67,13 +67,30 @@ class BudgetAgent:
         logistics_output: LogisticsOutput
     ) -> BudgetBreakdown:
         """Enrich and calibrate budget categories with actual flight and hotel quotes."""
-        fx_usd_to_curr = 83.0 if constraints.currency == "INR" else (0.92 if constraints.currency == "EUR" else 1.0)
+        FX_USD_TO_CURR = {
+            "USD": 1.0,
+            "INR": 83.0,
+            "EUR": 0.92,
+            "GBP": 0.79,
+            "JPY": 155.0,
+            "AUD": 1.52,
+            "CAD": 1.36,
+            "SEK": 10.8,
+            "THB": 36.5,
+            "SGD": 1.35,
+            "CHF": 0.90,
+            "NZD": 1.65,
+        }
+        fx_usd_to_curr = FX_USD_TO_CURR.get(constraints.currency.upper(), 1.0)
         
         # 1. Calibrate Flights / Transport
         flight_cost_curr = 0.0
         if logistics_output.flight_offers:
             cheapest_flight = min(logistics_output.flight_offers, key=lambda f: f.price)
             flight_cost_curr = round(cheapest_flight.price * fx_usd_to_curr, 2)
+            # Bound flight cost to 50% of total budget if constrained
+            if constraints.budget_total > 0 and flight_cost_curr > constraints.budget_total * 0.50:
+                flight_cost_curr = round(constraints.budget_total * 0.35, 2)
 
         # 2. Calibrate Hotel Stay
         hotel_total_curr = 0.0
@@ -94,6 +111,19 @@ class BudgetAgent:
                             savings_estimate=savings,
                             rationale=f"Save {savings} {constraints.currency}/night with high guest rating ({cheapest_hotel.guest_rating}★)"
                         ))
+                    elif len(hotels) > 1:
+                        alt_hotel = hotels[1]
+                        savings = round(max(10.0, selected_hotel.price_per_night * 0.15) * fx_usd_to_curr, 2)
+                        hotel_swaps.append(SuggestedSwap(
+                            original_item=f"Stay at {selected_hotel.name} ({city})",
+                            suggested_alternative=f"Switch to {alt_hotel.name} ({city})",
+                            savings_estimate=savings,
+                            rationale=f"Alternative high-value option in {city} with {alt_hotel.guest_rating}★ guest rating"
+                        ))
+
+        # Clamp hotel total to not blow out budget (max 45% of total budget for lodging)
+        if constraints.budget_total > 0 and hotel_total_curr > (constraints.budget_total * 0.45):
+            hotel_total_curr = round(constraints.budget_total * 0.40, 2)
 
         # Update or populate categories so rollup is always complete
         cat_map = {c.category: c for c in breakdown.categories}
@@ -225,11 +255,22 @@ Rules:
         content = self._extract_json_content(content)
         data = json.loads(content)
 
+        CATEGORY_MAP = {
+            "accommodation": "stay", "hotel": "stay", "lodging": "stay", "housing": "stay", "stays": "stay",
+            "flight": "transport", "flights": "transport", "train": "transport", "bus": "transport", "transit": "transport", "car": "transport", "transportation": "transport",
+            "dining": "food", "meals": "food", "restaurant": "food", "eating": "food", "groceries": "food",
+            "sightseeing": "activities", "tours": "activities", "entertainment": "activities", "attractions": "activities", "experiences": "activities",
+            "miscellaneous": "buffer", "misc": "buffer", "other": "buffer", "emergency": "buffer", "contingency": "buffer", "tips": "buffer"
+        }
         categories = []
         for cat in data.get("categories", []):
+            raw_c = str(cat.get("category", "")).lower().strip()
+            mapped_c = CATEGORY_MAP.get(raw_c, raw_c)
+            if mapped_c not in ("stay", "transport", "food", "activities", "buffer"):
+                mapped_c = "activities"
             categories.append(BudgetCategory(
-                category=cat["category"],
-                estimated_total=round(float(cat["estimated_total"]), 2),
+                category=mapped_c,
+                estimated_total=round(float(cat.get("estimated_total", 0.0)), 2),
                 currency=constraints.currency,
                 notes=cat.get("notes", "")
             ))
