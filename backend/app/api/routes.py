@@ -6,6 +6,8 @@ Phase 7: Will implement full orchestration pipeline.
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 
+from ..config import get_settings
+
 from ..models import (
     PlanRequest,
     PlanResponse,
@@ -746,7 +748,11 @@ async def get_token_status():
 
 @router.get("/debug/llm-test", tags=["Monitoring"])
 async def debug_llm_test():
-    """Quick smoke test — verifies LLM returns text."""
+    """Quick smoke test — verifies LLM returns text (development only)."""
+    settings = get_settings()
+    if not (getattr(settings, "debug", True) and getattr(settings, "app_env", "development").lower() in ("development", "dev", "test", "local")):
+        raise HTTPException(status_code=403, detail="Debug endpoints are disabled in production.")
+
     try:
         from ..llm import get_llm_client
         client = get_llm_client()
@@ -762,7 +768,11 @@ async def debug_llm_test():
 
 @router.get("/debug/pipeline-test", tags=["Monitoring"])
 async def debug_pipeline_test():
-    """Test the full pipeline and report where it fails."""
+    """Test the full pipeline and report where it fails (development only)."""
+    settings = get_settings()
+    if not (getattr(settings, "debug", True) and getattr(settings, "app_env", "development").lower() in ("development", "dev", "test", "local")):
+        raise HTTPException(status_code=403, detail="Debug endpoints are disabled in production.")
+
     import traceback
     steps = {}
     try:

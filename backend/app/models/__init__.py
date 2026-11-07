@@ -54,6 +54,7 @@ from .schemas import (
     CarEstimate,
     MapPin,
     CostSavingTip,
+    PracticalInfo,
     
     # Test fixtures
     JAPAN_5D_TOKYO_KYOTO_3000_CONSTRAINTS,
@@ -103,6 +104,7 @@ __all__ = [
     "CarEstimate",
     "MapPin",
     "CostSavingTip",
+    "PracticalInfo",
     "MissingConstraintError",
     "InvalidConstraintError",
     "JAPAN_5D_TOKYO_KYOTO_3000_CONSTRAINTS",

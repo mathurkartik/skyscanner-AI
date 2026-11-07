@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 from ..config import get_settings
 from ..models import TravelConstraints
 from .token_tracker import TokenBudgetExceeded
+from .cache import get_cache
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -24,6 +25,7 @@ class ResilientLLMClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
+        self._cache = get_cache(ttl_seconds=getattr(self.settings, "cache_ttl_seconds", 3600))
         self._primary_client = None
         self._fallback_clients: List[Any] = []
         self._initialize_providers()
@@ -96,6 +98,12 @@ class ResilientLLMClient:
         **kwargs
     ) -> str:
         """Attempt primary provider; on failure/rate-limit, fail over to backup provider."""
+        prompt_key = str(messages)
+        if getattr(self.settings, "enable_response_cache", True):
+            cached = self._cache.get(prompt_key, self.model, temperature or 0.1)
+            if cached is not None:
+                return cached
+
         clients = [self._primary_client] + self._fallback_clients if getattr(self.settings, "llm_failover", True) else [self._primary_client]
 
         last_err = None
@@ -103,12 +111,15 @@ class ResilientLLMClient:
             if not client:
                 continue
             try:
-                return await client.chat_with_retry(
+                result = await client.chat_with_retry(
                     messages=messages,
                     max_tokens=max_tokens,
                     temperature=temperature,
                     **kwargs
                 )
+                if getattr(self.settings, "enable_response_cache", True) and result:
+                    self._cache.set(prompt_key, self.model, result, temperature or 0.1)
+                return result
             except Exception as err:
                 last_err = err
                 logger.warning(
@@ -121,6 +132,12 @@ class ResilientLLMClient:
 
     async def extract_constraints(self, natural_language_request: str) -> TravelConstraints:
         """Extract constraints with auto-failover across providers."""
+        cache_key = f"constraints:{natural_language_request.strip().lower()}"
+        if getattr(self.settings, "enable_response_cache", True):
+            cached = self._cache.get(cache_key, self.model)
+            if cached is not None and isinstance(cached, TravelConstraints):
+                return cached
+
         clients = [self._primary_client] + self._fallback_clients if getattr(self.settings, "llm_failover", True) else [self._primary_client]
 
         last_err = None
@@ -128,7 +145,10 @@ class ResilientLLMClient:
             if not client:
                 continue
             try:
-                return await client.extract_constraints(natural_language_request)
+                result = await client.extract_constraints(natural_language_request)
+                if getattr(self.settings, "enable_response_cache", True) and result:
+                    self._cache.set(cache_key, self.model, result)
+                return result
             except Exception as err:
                 last_err = err
                 logger.warning(

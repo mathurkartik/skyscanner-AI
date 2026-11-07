@@ -446,6 +446,72 @@
         </div>
       </div>
 
+      <!-- Practical Travel & Destination Advisory (P1-6) -->
+      @if (itinerary.practical_info) {
+      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+              <span class="material-symbols-outlined text-[18px]">verified_user</span>
+            </div>
+            <h3 class="text-base font-extrabold text-gray-900">Essential Travel & Entry Info</h3>
+          </div>
+          <span class="text-[11px] font-bold text-gray-500">Logistics & Advisory</span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2.5">
+          <!-- Visa / Entry -->
+          <div class="p-3.5 rounded-2xl bg-[#f2f4f9] border border-gray-200/60 flex items-start gap-3">
+            <span class="material-symbols-outlined text-blue-600 text-[20px] mt-0.5">badge</span>
+            <div>
+              <p class="text-xs font-bold text-gray-900">Visa & Entry Requirements</p>
+              <p class="text-xs text-gray-600 mt-0.5 leading-relaxed">{{ itinerary.practical_info.visa_requirements }}</p>
+            </div>
+          </div>
+
+          <!-- Driving Rules (if road trip or available) -->
+          @if (itinerary.practical_info.driving_requirements) {
+            <div class="p-3.5 rounded-2xl bg-[#f2f4f9] border border-gray-200/60 flex items-start gap-3">
+              <span class="material-symbols-outlined text-indigo-600 text-[20px] mt-0.5">directions_car</span>
+              <div>
+                <p class="text-xs font-bold text-gray-900">Driving & Transit Rules</p>
+                <p class="text-xs text-gray-600 mt-0.5 leading-relaxed">{{ itinerary.practical_info.driving_requirements }}</p>
+              </div>
+            </div>
+          }
+
+          <!-- Currency & Payments -->
+          <div class="p-3.5 rounded-2xl bg-[#f2f4f9] border border-gray-200/60 flex items-start gap-3">
+            <span class="material-symbols-outlined text-emerald-600 text-[20px] mt-0.5">payments</span>
+            <div>
+              <p class="text-xs font-bold text-gray-900">Currency, ATMs & Tipping</p>
+              <p class="text-xs text-gray-600 mt-0.5 leading-relaxed">{{ itinerary.practical_info.currency_notes }}</p>
+            </div>
+          </div>
+
+          <!-- Weather & Seasonality -->
+          <div class="p-3.5 rounded-2xl bg-[#f2f4f9] border border-gray-200/60 flex items-start gap-3">
+            <span class="material-symbols-outlined text-amber-600 text-[20px] mt-0.5">wb_sunny</span>
+            <div>
+              <p class="text-xs font-bold text-gray-900">Weather, Daylight & Packing</p>
+              <p class="text-xs text-gray-600 mt-0.5 leading-relaxed">{{ itinerary.practical_info.seasonal_weather_note }}</p>
+            </div>
+          </div>
+
+          <!-- Emergency Numbers -->
+          @if (itinerary.practical_info.emergency_contacts) {
+            <div class="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-start gap-3">
+              <span class="material-symbols-outlined text-rose-600 text-[20px] mt-0.5">emergency</span>
+              <div>
+                <p class="text-xs font-bold text-rose-900">Emergency Services Number</p>
+                <p class="text-xs text-rose-700 mt-0.5 leading-relaxed">{{ itinerary.practical_info.emergency_contacts }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      }
+
       <!-- D. Itemized Budget Matrix -->
       <div class="rounded-3xl bg-white p-5 shadow-sm space-y-4 border border-gray-200">
         <div class="flex items-center justify-between">

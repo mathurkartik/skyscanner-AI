@@ -349,6 +349,41 @@ class BudgetCategory(BaseModel):
     breakdown: Optional[Dict[str, float]] = None  # e.g., {"hotels": 800, "ryokan": 400}
     notes: Optional[str] = None
 
+    @field_validator("category", mode="before")
+    @classmethod
+    def normalize_category(cls, v: Any) -> str:
+        """Map LLM-generated synonyms to the 5 standard schema categories."""
+        if not isinstance(v, str):
+            return "activities"
+        val = v.lower().strip()
+        synonyms = {
+            "stay": "stay", "accommodation": "stay", "accommodations": "stay", "hotel": "stay", "hotels": "stay",
+            "lodging": "stay", "housing": "stay", "hostel": "stay", "hostels": "stay", "stays": "stay", "resort": "stay",
+            "transport": "transport", "transportation": "transport", "intercity transport": "transport", "transit": "transport",
+            "flight": "transport", "flights": "transport", "train": "transport", "trains": "transport", "bus": "transport",
+            "buses": "transport", "car": "transport", "car rental": "transport", "travel": "transport", "commute": "transport",
+            "food": "food", "dining": "food", "meals": "food", "meal": "food", "restaurant": "food", "restaurants": "food",
+            "eating": "food", "groceries": "food", "drinks": "food",
+            "activities": "activities", "activity": "activities", "sightseeing": "activities", "tours": "activities",
+            "tour": "activities", "entertainment": "activities", "attractions": "activities", "attraction": "activities",
+            "experiences": "activities", "tickets": "activities",
+            "buffer": "buffer", "miscellaneous": "buffer", "misc": "buffer", "other": "buffer", "emergency": "buffer",
+            "contingency": "buffer", "tips": "buffer", "tipping": "buffer", "shopping": "buffer"
+        }
+        if val in synonyms:
+            return synonyms[val]
+        if any(w in val for w in ("stay", "hotel", "lodg", "hostel", "room", "resort")):
+            return "stay"
+        if any(w in val for w in ("transport", "flight", "transit", "train", "bus", "car", "drive")):
+            return "transport"
+        if any(w in val for w in ("food", "din", "meal", "eat", "grocer", "drink")):
+            return "food"
+        if any(w in val for w in ("activit", "tour", "sightsee", "ticket", "attract", "experienc", "museum")):
+            return "activities"
+        if any(w in val for w in ("buffer", "misc", "emergenc", "contingenc", "other", "tip", "shop")):
+            return "buffer"
+        return "activities"
+
 
 class BudgetViolation(BaseModel):
     """When budget exceeds constraints."""
@@ -541,6 +576,15 @@ class CostSavingTip(BaseModel):
     estimated_savings: Optional[str] = None
 
 
+class PracticalInfo(BaseModel):
+    """Essential destination travel logistics and advisory."""
+    visa_requirements: str = Field(default="", description="Visa and entry rules for destination")
+    driving_requirements: Optional[str] = Field(default=None, description="IDP, license rules, side of road")
+    currency_notes: str = Field(default="", description="Cash vs card prevalence, ATM access, tipping culture")
+    seasonal_weather_note: str = Field(default="", description="Clothing, daylight hours, seasonal weather or closures")
+    emergency_contacts: Optional[str] = Field(default="112", description="Local emergency services number")
+
+
 
 
 # ============================================================================
@@ -694,9 +738,11 @@ class FinalItinerary(BaseModel):
     cost_optimization_tips: List[str] = Field(default_factory=list, description="Practical ways to save money")
     cost_saving_tips_v2: List[CostSavingTip] = Field(default_factory=list, description="Structured money-saving tips")
     flight_options: List[RealFlightOffer] = Field(default_factory=list, description="Real flight offers from Skyscanner")
+    hotel_options: List[RealHotelOffer] = Field(default_factory=list, description="Aggregated top-level hotel options")
     transport_segments: List[TransportSegment] = Field(default_factory=list, description="Multi-modal transport connections")
     car_estimates: List[CarEstimate] = Field(default_factory=list, description="Estimated car rental options for road trips")
     map_pins: List[MapPin] = Field(default_factory=list, description="Geocoded pins for map display")
+    practical_info: Optional[PracticalInfo] = Field(default=None, description="Practical travel and entry details")
     why_this_plan: Optional[str] = Field(default=None, description="Why this plan fits the user's specific preferences")
     what_not_to_do: List[str] = Field(default_factory=list, description="Common mistakes or tourist traps to avoid")
     base_selection_rationale: Dict[str, str] = Field(default_factory=dict, description="Per-city rationale for choosing it as a base")
@@ -722,6 +768,7 @@ class PlanInsights(BaseModel):
     base_selection_rationale: Dict[str, str] = Field(default_factory=dict, description="Per-city explanation of why it was chosen as a base")
     experience_highlights: List[ExperienceHighlight] = Field(default_factory=list, description="2-3 standout moments")
     best_time_to_visit: str = Field(default="", description="Seasonal reasoning for the destination")
+    practical_info: Optional[PracticalInfo] = Field(default=None, description="Practical travel rules and tips")
 
     @field_validator("strategic_insight", "budget_analysis", "why_this_plan", "best_time_to_visit", mode="before")
     @classmethod

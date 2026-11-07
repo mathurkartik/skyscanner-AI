@@ -47,11 +47,12 @@
         <!-- Horizontal Input Toolbar -->
         <div class="rounded-2xl bg-white/10 backdrop-blur-md p-2 flex flex-col md:flex-row items-stretch md:items-center gap-2 border border-white/15 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-400/30 transition-all shadow-inner">
           <div class="relative flex-1 flex items-center">
-            <span class="material-symbols-outlined text-gray-400 absolute left-3 text-[20px]">explore</span>
+            <span class="material-symbols-outlined text-gray-400 absolute left-3 text-[20px]" aria-hidden="true">explore</span>
             <input
               [value]="promptText()"
               (input)="promptText.set($any($event.target).value)"
               (keyup.enter)="generatePlan()"
+              aria-label="Trip description prompt"
               placeholder="Describe your trip (e.g. 7-day trip to Japan, $3000 budget, temples & food or 12-day scenic road trip...)"
               type="text"
               class="w-full bg-transparent pl-11 pr-3 py-2.5 text-white placeholder:text-gray-400 text-xs sm:text-sm md:text-base font-medium focus:outline-none" />
@@ -61,6 +62,7 @@
             @if (promptText()) {
               <button
                 (click)="promptText.set('')"
+                aria-label="Clear trip description"
                 class="px-3 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
                 Clear
               </button>
@@ -69,6 +71,7 @@
             @if (plannerService.currentItinerary()) {
               <button
                 (click)="resetPlan()"
+                aria-label="Create new travel plan"
                 class="px-3 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
                 New Plan
               </button>
@@ -77,16 +80,17 @@
             <button
               (click)="generatePlan()"
               [disabled]="plannerService.isLoading() || !promptText().trim()"
+              aria-label="Generate travel plan"
               class="px-5 py-2.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs sm:text-sm font-black flex items-center gap-1.5 shadow-md shadow-[#0062e3]/40 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
               @if (plannerService.isLoading()) {
-                <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
+                <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                 </svg>
                 <span>Agents Working ({{ elapsedSeconds() }}s)...</span>
               } @else {
                 <span>Generate Itinerary</span>
-                <span class="material-symbols-outlined text-[18px]">bolt</span>
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">bolt</span>
               }
             </button>
           </div>
@@ -97,18 +101,19 @@
           <!-- Origin City -->
           <div class="relative flex-1">
             <div class="rounded-xl bg-white/10 border border-white/15 flex items-center px-3 py-2 gap-2 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400/30 transition-all">
-              <span class="material-symbols-outlined text-gray-400 text-[18px]">flight_takeoff</span>
+              <span class="material-symbols-outlined text-gray-400 text-[18px]" aria-hidden="true">flight_takeoff</span>
               <input
                 [value]="originCity()"
                 (input)="originCity.set($any($event.target).value); showOriginSuggestions.set(true)"
                 (focus)="showOriginSuggestions.set(true)"
                 (blur)="hideOriginSuggestionsDelayed()"
+                aria-label="Departure origin city"
                 placeholder="Where are you flying from?"
                 type="text"
                 class="w-full bg-transparent text-white placeholder:text-gray-400 text-xs sm:text-sm font-medium focus:outline-none" />
               @if (originCity()) {
-                <button (click)="originCity.set(''); showOriginSuggestions.set(false)" class="text-gray-400 hover:text-white cursor-pointer">
-                  <span class="material-symbols-outlined text-[16px]">close</span>
+                <button (click)="originCity.set(''); showOriginSuggestions.set(false)" aria-label="Clear departure city" class="text-gray-400 hover:text-white cursor-pointer">
+                  <span class="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
                 </button>
               }
             </div>

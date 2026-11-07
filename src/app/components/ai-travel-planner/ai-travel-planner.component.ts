@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TravelPlannerService } from '../../services/travel-planner.service';
@@ -29,7 +29,7 @@ interface AgentStage {
   templateUrl: './ai-travel-planner.component.html',
   styleUrls: ['./ai-travel-planner.component.css']
 })
-export class AiTravelPlannerComponent implements OnInit {
+export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   public readonly plannerService = inject(TravelPlannerService);
   public readonly flightService = inject(FlightService);
   public readonly currencyService = inject(CurrencyService);
@@ -236,6 +236,10 @@ export class AiTravelPlannerComponent implements OnInit {
       clearInterval(this.progressInterval);
       this.progressInterval = null;
     }
+  }
+
+  public ngOnDestroy(): void {
+    this.stopProgressSimulation();
   }
 
   private stopProgressSimulation(): void {

@@ -14,7 +14,8 @@ from ..models import (
     ActivityCatalog, LogisticsOutput, BudgetBreakdown, DayItinerary,
     DayItineraryItem, BudgetCategory, ActivityType, PlanInsights,
     TripStructure, Region, MissingConstraintError, InvalidConstraintError,
-    MapPin, CostSavingTip, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo
+    MapPin, CostSavingTip, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo,
+    PracticalInfo
 )
 from ..llm.token_tracker import TokenBudgetExceeded
 from ..config import get_settings
@@ -1115,7 +1116,17 @@ class OrchestratorAgent:
             elif repair_cycles > 0:
                 base_disclaimer += f"\nNote: Itinerary required {repair_cycles} repair cycle(s) to resolve issues."
 
-        # Dynamic MapPins from arrival airport, overnight hotels, and attractions
+        # Dynamic MapPins from arrival airport, overnight hotels, and attractions (P0-5)
+        # 0. Pre-populate _COORDS_CACHE from all place POIs in the draft
+        for day in draft.days:
+            if day.places:
+                for pl in day.places:
+                    if pl.lat and pl.lng:
+                        c_key = day.city.lower().strip()
+                        if c_key not in _COORDS_CACHE:
+                            _COORDS_CACHE[c_key] = (pl.lat, pl.lng)
+                        break
+
         map_pins: List[MapPin] = []
         dest_name = (constraints.destination_region or (constraints.cities[0] if constraints.cities else "")).lower()
 
@@ -1127,7 +1138,6 @@ class OrchestratorAgent:
             from ..tools.flight_client import resolve_iata_sync
             dest_code = resolve_iata_sync(dest_name)
 
-        # Airport Pin
         first_day_places = draft.days[0].places if (draft.days and draft.days[0].places) else []
         if first_day_places and first_day_places[0].lat and first_day_places[0].lng:
             alat, alng = first_day_places[0].lat, first_day_places[0].lng
@@ -1136,22 +1146,21 @@ class OrchestratorAgent:
         else:
             coords = _lookup_city_coords(dest_name)
             if not coords:
-                coords = (64.1466, -21.9426) if "iceland" in dest_name.lower() or "reykjavik" in dest_name.lower() else (48.8566, 2.3522)
+                coords = (64.1466, -21.9426) if ("iceland" in dest_name or "reykjavik" in dest_name) else (48.8566, 2.3522)
             map_pins.append(MapPin(label=f"{dest_name.title()} Arrival Gateway", lat=coords[0], lng=coords[1], pin_type="airport"))
 
-        # 2. Overnight Hotel Pins
+        # 2. Overnight Hotel Pins (priority: Google places for this city -> city coords -> fallback)
         seen_hotel_cities = set()
         for day in draft.days:
             if day.city not in seen_hotel_cities:
                 seen_hotel_cities.add(day.city)
                 h = day.hotel_options[0] if day.hotel_options else None
-                # Prioritize places coordinates from this day
                 day_coords = None
                 if day.places and day.places[0].lat and day.places[0].lng:
                     day_coords = (day.places[0].lat, day.places[0].lng)
                 coords = day_coords or _lookup_city_coords(day.city)
                 if not coords:
-                    coords = (64.1466, -21.9426) if "iceland" in dest_name.lower() or "reykjavik" in day.city.lower() else (48.8566, 2.3522)
+                    coords = (64.1466, -21.9426) if ("iceland" in dest_name or "reykjavik" in day.city.lower()) else (48.8566, 2.3522)
                 hotel_label = f"Stay: {h.name} ({day.city})" if h else f"Stay in {day.city}"
                 hotel_desc = f"${h.price_per_night}/night • {h.guest_rating}★" if (h and h.guest_rating) else (f"${h.price_per_night}/night" if h else f"Overnight base in {day.city}")
                 map_pins.append(MapPin(
@@ -1178,8 +1187,41 @@ class OrchestratorAgent:
                         description=fix_utf8(f"★ {p.rating} ({p.review_count:,} reviews)" if p.rating and p.review_count else p.name)
                     ))
 
-        # Structured Cost Saving Tips (Destination Specific)
-        cost_saving_tips_v2 = self._generate_destination_tips(dest_name, constraints.currency)
+        # 4. Top-level Hotel Options Aggregation (P2-7)
+        top_hotel_options: List[RealHotelOffer] = []
+        seen_hotel_ids = set()
+        for day in draft.days:
+            if day.hotel_options:
+                for h in day.hotel_options:
+                    hid = h.id or h.name
+                    if hid not in seen_hotel_ids:
+                        seen_hotel_ids.add(hid)
+                        top_hotel_options.append(h)
+
+        # 5. Dynamic Cost Saving Tips (P2-7: Swaps + Destination Tips)
+        cost_saving_tips_v2: List[CostSavingTip] = []
+        if budget_breakdown and budget_breakdown.suggested_swaps:
+            for swap in budget_breakdown.suggested_swaps:
+                cost_saving_tips_v2.append(CostSavingTip(
+                    title=fix_utf8(swap.original_item),
+                    description=fix_utf8(f"{swap.suggested_alternative}. {swap.rationale}"),
+                    estimated_savings=f"Save ~{swap.savings_estimate:,.0f} {constraints.currency}" if swap.savings_estimate else None
+                ))
+        dest_tips = self._generate_destination_tips(dest_name, constraints.currency)
+        cost_saving_tips_v2.extend(dest_tips)
+
+        # 6. Practical Info (P1-6)
+        practical_info = insights.practical_info if (insights and getattr(insights, "practical_info", None)) else None
+        if practical_info is None:
+            is_road = constraints.is_road_trip
+            dest_cap = (constraints.destination_region or (constraints.cities[0] if constraints.cities else "your destination")).title()
+            practical_info = PracticalInfo(
+                visa_requirements=f"Ensure passport has at least 6 months validity from departure. Check tourist visa or e-visa entry requirements for {dest_cap}.",
+                driving_requirements="International Driving Permit (IDP) and home driving license required for car hire. Verify local road rules." if is_road else "Comprehensive public transit and rideshare options available throughout the route.",
+                currency_notes=f"Major credit and debit cards widely accepted; keep a small amount of local currency ({constraints.currency}) for street markets and tips.",
+                seasonal_weather_note=f"Dress in adaptable layers. Verify daylight hours and seasonal operating schedules for major attractions in {dest_cap}.",
+                emergency_contacts="112 (Universal Emergency Number)"
+            )
         
         return FinalItinerary(
             constraints=draft.constraints,
@@ -1191,9 +1233,11 @@ class OrchestratorAgent:
             cost_optimization_tips=[fix_utf8(t) for t in insights.cost_optimization_tips] if insights else [],
             cost_saving_tips_v2=cost_saving_tips_v2,
             flight_options=draft.flight_options,
+            hotel_options=top_hotel_options,
             transport_segments=getattr(draft, "transport_segments", []),
             car_estimates=draft.car_estimates,
             map_pins=map_pins,
+            practical_info=practical_info,
             why_this_plan=fix_utf8(insights.why_this_plan) if insights else None,
             what_not_to_do=[fix_utf8(w) for w in insights.what_not_to_do] if insights else [],
             base_selection_rationale={fix_utf8(k): fix_utf8(v) for k, v in insights.base_selection_rationale.items()} if insights else {},
@@ -1206,10 +1250,19 @@ class OrchestratorAgent:
         )
     
     async def _generate_insights(self, constraints: TravelConstraints, draft: DraftItinerary) -> PlanInsights:
-        """Generate strategic insights and budget analysis using LLM."""
+        """Generate strategic insights, budget analysis, and practical info using LLM."""
         cities_str = ', '.join(set(d.city for d in draft.days))
         prefs_str = ', '.join(constraints.preferences) if constraints.preferences else 'general sightseeing'
         avoids_str = ', '.join(constraints.avoidances) if constraints.avoidances else 'none'
+        dest_display = (constraints.destination_region or (constraints.cities[0] if constraints.cities else "your destination")).title()
+
+        default_practical = PracticalInfo(
+            visa_requirements=f"Ensure passport has at least 6 months validity. Verify visa or e-visa entry regulations for {dest_display}.",
+            driving_requirements="International Driving Permit (IDP) and home license required for vehicle hire." if constraints.is_road_trip else "Reliable local transit and rideshare options available.",
+            currency_notes=f"Credit and debit cards are widely accepted; carry small amounts of cash in {constraints.currency} for local stalls and tips.",
+            seasonal_weather_note=f"Dress in adaptable layers. Verify daylight hours and seasonal hours for attractions in {dest_display}.",
+            emergency_contacts="112 (Universal Emergency Number)"
+        )
 
         if self.llm_client is None:
              return PlanInsights(
@@ -1220,28 +1273,36 @@ class OrchestratorAgent:
                 what_not_to_do=["Avoid tourist-trap restaurants near major landmarks"],
                 base_selection_rationale={city: f"Central location with good access to attractions" for city in constraints.cities},
                 experience_highlights=[],
-                best_time_to_visit="Check seasonal weather patterns for optimal timing."
+                best_time_to_visit="Check seasonal weather patterns for optimal timing.",
+                practical_info=default_practical
             )
 
         system_prompt = f"""You are a world-class travel strategist. The traveler wants: {prefs_str}. They want to avoid: {avoids_str}.
 
 Analyze the itinerary deeply and generate a JSON response with ALL these fields:
 
-1. "strategic_insight": 2-3 sentences on WHY this routing/pacing is smart and essential visa/entry requirements if traveling internationally (e.g., Schengen visa appointments, 6-month passport validity, or International Driving Permit for road trips).
+1. "strategic_insight": 2-3 sentences on WHY this routing/pacing is smart.
 
 2. "budget_analysis": A frank 'Reality Check'. Is the budget tight, comfortable, or generous for this destination? What tier does it land in (backpacker/mid-range/luxury)? What's the daily spending power?
 
-3. "cost_optimization_tips": 3-5 specific, actionable tips for THIS trip (not generic). Reference real local options. Example: "Take the Shatabdi Express instead of a private car to save 60%."
+3. "cost_optimization_tips": 3-5 specific, actionable tips for THIS trip (not generic). Reference real local options.
 
 4. "why_this_plan": 2-3 sentences explaining why THIS specific plan matches THEIR stated preferences ({prefs_str}). Connect activities to what they asked for.
 
-5. "what_not_to_do": 3-4 specific mistakes tourists make at THIS destination. Example: "Don't eat at restaurants directly facing the Taj — they charge 3x for mediocre food. Walk 2 blocks to Panchhi Dhaba instead."
+5. "what_not_to_do": 3-4 specific mistakes tourists make at THIS destination.
 
-6. "base_selection_rationale": Object mapping each city name to a sentence explaining why it's a good base. Example: {{"Delhi": "Old Delhi puts you within walking distance of Chandni Chowk street food and Red Fort"}}
+6. "base_selection_rationale": Object mapping each city name to a sentence explaining why it's a good base.
 
-7. "experience_highlights": Array of 2-3 standout moments. Each has "title" (short name), "description" (why it's special), and "tag" (one of: splurge, romantic, adventure, cultural, hidden-gem, must-see). Pick the BEST moments from the itinerary.
+7. "experience_highlights": Array of 2-3 standout moments. Each has "title" (short name), "description" (why it's special), and "tag" (one of: splurge, romantic, adventure, cultural, hidden-gem, must-see).
 
 8. "best_time_to_visit": 2-3 sentences on seasonal considerations. Mention weather, festivals, peak/off-peak pricing, and the best months.
+
+9. "practical_info": Object containing practical travel advice:
+   - "visa_requirements": string (passport validity, visa/entry permit rules for {dest_display})
+   - "driving_requirements": string or null (IDP requirement, side of road, toll rules)
+   - "currency_notes": string (card vs cash acceptance, ATMs, tipping culture)
+   - "seasonal_weather_note": string (clothing, daylight hours, seasonal weather or closures)
+   - "emergency_contacts": string (emergency phone number e.g. "112")
 
 Respond with valid JSON only. Keep each field concise — quality over quantity."""
 
@@ -1262,11 +1323,13 @@ Days breakdown: {', '.join(f'Day {d.day_number}: {d.city}' for d in draft.days)}
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=1000
+                max_tokens=1800
             )
             content = self._extract_json(content)
             data = _json.loads(content)
             insights = PlanInsights.model_validate(data)
+            if not insights.practical_info:
+                insights.practical_info = default_practical
             return insights
         except Exception as e:
              print(f"Insight generation failed: {e}")
@@ -1278,7 +1341,8 @@ Days breakdown: {', '.join(f'Day {d.day_number}: {d.city}' for d in draft.days)}
                 what_not_to_do=["Avoid overpriced tourist restaurants near major landmarks"],
                 base_selection_rationale={city: "Good central location" for city in constraints.cities},
                 experience_highlights=[],
-                best_time_to_visit="Check local weather and festival calendars for your travel dates."
+                best_time_to_visit="Check local weather and festival calendars for your travel dates.",
+                practical_info=default_practical
             )
     
     async def _enrich_day_narratives(self, constraints: TravelConstraints, draft: DraftItinerary):

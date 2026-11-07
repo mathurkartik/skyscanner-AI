@@ -109,7 +109,17 @@ class LogisticsAgent:
         except Exception as e:
             print(f"Logistics flight query failed: {e}")
 
-        # 3. Query Real Hotels via Booking.com RapidAPI
+        # 3. Query Real Hotels via Booking.com RapidAPI (calibrated to budget tier)
+        per_night_budget = (constraints.budget_total * 0.40 / max(1, duration)) if constraints.budget_total > 0 else 150.0
+        fx_rates = {"INR": 0.012, "USD": 1.0, "EUR": 1.08, "GBP": 1.28, "AUD": 0.65, "JPY": 0.0067, "SEK": 0.095, "CAD": 0.74, "CHF": 1.10}
+        per_night_usd = per_night_budget * fx_rates.get(constraints.currency.upper(), 1.0)
+
+        budget_tier = "moderate"
+        if per_night_usd > 300 or any(p in [pref.lower() for pref in constraints.preferences] for p in ["luxury", "5-star", "splurge", "lavish", "premium"]):
+            budget_tier = "luxury"
+        elif per_night_usd < 75 or any(p in [pref.lower() for pref in constraints.preferences] for p in ["budget", "backpack", "hostel", "cheap", "affordable"]):
+            budget_tier = "budget"
+
         hotels_by_city: Dict[str, List[RealHotelOffer]] = {}
         for city in cities:
             try:
@@ -119,7 +129,8 @@ class LogisticsAgent:
                     city_name=city,
                     arrival_date=departure_date,
                     departure_date=return_date,
-                    adults=1
+                    adults=1,
+                    budget_tier=budget_tier
                 )
                 hotels_by_city[city] = hotels
             except Exception as e:

@@ -97,12 +97,13 @@ class HotelClient:
         adults: int = 1,
         room_qty: int = 1,
         currency: str = "USD",
-        city_name: Optional[str] = None
+        city_name: Optional[str] = None,
+        budget_tier: str = "moderate"
     ) -> List[RealHotelOffer]:
         """
         Search hotels by dest_id or fallback to curated inventory.
         """
-        cache_key = f"{dest_id}:{arrival_date}:{departure_date}:{adults}:{room_qty}:{currency}".lower()
+        cache_key = f"{dest_id}:{arrival_date}:{departure_date}:{adults}:{room_qty}:{currency}:{budget_tier}".lower()
         cached = self._search_cache.get(cache_key)
         if cached:
             age = time.time() - cached.get("timestamp", 0)
@@ -129,10 +130,11 @@ class HotelClient:
                 except Exception as err:
                     logger.warning("Booking.com hotel search failed for dest_id %s: %s", dest_id, err)
 
-        # Dynamic LLM-generated hotels for any city worldwide
+        # Dynamic LLM-generated hotels matching user's budget tier
         if city_name and city_name.strip():
             llm_hotels = await self._generate_llm_hotels(
                 city_name=city_name.strip(),
+                budget_tier=budget_tier,
                 arrival_date=arrival_date,
                 departure_date=departure_date,
                 currency=currency
@@ -141,13 +143,14 @@ class HotelClient:
                 self._search_cache[cache_key] = {"timestamp": time.time(), "data": llm_hotels}
                 return llm_hotels
 
-        # Fallback to curated inventory
+        # Fallback to curated inventory matching budget tier
         offers = self._generate_fallback_hotels(
             dest_id=dest_id,
             city_name=city_name,
             arrival_date=arrival_date,
             departure_date=departure_date,
-            currency=currency
+            currency=currency,
+            budget_tier=budget_tier
         )
         self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
         return offers
@@ -170,14 +173,22 @@ class HotelClient:
                 return []
 
             clean_city = city_name.strip().title()
-            prompt = f"""Generate 3 REAL, currently operating hotels in {clean_city} across 3 distinct tiers (1 budget, 1 mid-range, 1 premium) with different realistic nightly rates in USD.
+            if budget_tier == "luxury":
+                tier_instruction = f"Hotels MUST match the LUXURY tier (5-star hotels, luxury resorts, boutique palaces, 4.5-5.0 stars) with realistic nightly rates $350 - $800+ USD."
+            elif budget_tier == "budget":
+                tier_instruction = f"Hotels MUST match the BUDGET tier (hostels, 3-star boutique hotels, clean guest houses) with realistic nightly rates $35 - $80 USD."
+            else:
+                tier_instruction = f"Hotels MUST match the MID-RANGE tier (4-star hotels, boutique properties) with realistic nightly rates $110 - $220 USD."
+
+            prompt = f"""Generate 3 REAL, currently operating hotels in {clean_city}.
+{tier_instruction}
 Return ONLY a valid JSON array of 3 objects with this exact format:
 [
   {{
     "name": "Actual Real Hotel Name",
-    "price_per_night": 95.0,
-    "star_rating": 3.5,
-    "guest_rating": 8.6,
+    "price_per_night": 150.0,
+    "star_rating": 4.0,
+    "guest_rating": 8.8,
     "review_count": 1250,
     "neighborhood": "Real Neighborhood or District",
     "address": "Real street address or district, {clean_city}",
@@ -371,11 +382,86 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
         city_name: Optional[str],
         arrival_date: str,
         departure_date: str,
-        currency: str
+        currency: str,
+        budget_tier: str = "moderate"
     ) -> List[RealHotelOffer]:
         display_city = (city_name or "Destination").title()
         target_key = display_city.lower()
-        hotel_list = [
+
+        if budget_tier == "luxury":
+            hotel_list = [
+                {
+                    "name": f"The Ritz-Carlton / Palace Resort {display_city}",
+                    "price_per_night": 520.0,
+                    "star_rating": 5.0,
+                    "guest_rating": 9.5,
+                    "review_count": 1420,
+                    "neighborhood": f"{display_city} Waterfront / Golden Mile",
+                    "address": f"Royal Boulevard, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Infinity Pool", "Full-Service Spa", "Fine Dining", "Butler Service", "Valet"]
+                },
+                {
+                    "name": f"Grand {display_city} Luxury Suites & Villas",
+                    "price_per_night": 410.0,
+                    "star_rating": 4.8,
+                    "guest_rating": 9.3,
+                    "review_count": 890,
+                    "neighborhood": f"Diplomatic Quarter, {display_city}",
+                    "address": f"Palace Road, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Rooftop Lounge", "Spa & Sauna", "Airport Limousine", "Concierge"]
+                },
+                {
+                    "name": f"{display_city} Heritage Luxury Boutique",
+                    "price_per_night": 320.0,
+                    "star_rating": 4.5,
+                    "guest_rating": 9.1,
+                    "review_count": 670,
+                    "neighborhood": f"Historic Promenade, {display_city}",
+                    "address": f"Old Harbor Drive, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Fine Dining", "Cocktail Lounge", "Chauffeured Transfers", "Free WiFi"]
+                }
+            ]
+        elif budget_tier == "budget":
+            hotel_list = [
+                {
+                    "name": f"{display_city} Central Hostel & Pods",
+                    "price_per_night": 45.0,
+                    "star_rating": 3.0,
+                    "guest_rating": 8.4,
+                    "review_count": 820,
+                    "neighborhood": f"{display_city} Center",
+                    "address": f"Station Road, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Free High-Speed WiFi", "Shared Kitchen", "Lockers", "24/7 Desk"]
+                },
+                {
+                    "name": f"City Express Inn {display_city}",
+                    "price_per_night": 65.0,
+                    "star_rating": 3.5,
+                    "guest_rating": 8.5,
+                    "review_count": 450,
+                    "neighborhood": f"Market District, {display_city}",
+                    "address": f"Main Street, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Free WiFi", "Private Bathroom", "Air Conditioning", "Breakfast Included"]
+                },
+                {
+                    "name": f"Urban Prime Suites {display_city}",
+                    "price_per_night": 85.0,
+                    "star_rating": 3.5,
+                    "guest_rating": 8.6,
+                    "review_count": 310,
+                    "neighborhood": f"Downtown {display_city}",
+                    "address": f"Commerce Way, {display_city}",
+                    "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
+                    "amenities": ["Free WiFi", "Kitchenette", "Air Conditioning", "Luggage Storage"]
+                }
+            ]
+        else:
+            hotel_list = [
                 {
                     "name": f"Grand {display_city} Hotel & Suites",
                     "price_per_night": 175.0,

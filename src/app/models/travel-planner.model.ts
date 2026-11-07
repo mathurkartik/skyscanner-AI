@@ -188,6 +188,14 @@ export interface TransportSegment {
   booking_url?: string | null;
 }
 
+export interface PracticalInfo {
+  visa_requirements: string;
+  driving_requirements?: string | null;
+  currency_notes: string;
+  seasonal_weather_note: string;
+  emergency_contacts?: string | null;
+}
+
 export interface FinalItinerary {
   id: string;
   constraints: TravelConstraints;
@@ -199,9 +207,11 @@ export interface FinalItinerary {
   cost_optimization_tips: string[];
   cost_saving_tips_v2?: CostSavingTip[];
   flight_options?: RealFlightOffer[];
+  hotel_options?: RealHotelOffer[];
   transport_segments?: TransportSegment[];
   car_estimates?: CarEstimate[];
   map_pins?: MapPin[];
+  practical_info?: PracticalInfo | null;
   why_this_plan?: string | null;
   what_not_to_do?: string[];
   base_selection_rationale?: Record<string, string>;

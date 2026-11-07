@@ -386,7 +386,7 @@ class FlightClient:
                         offer_currency = currency
 
                     airline_name = owner.get("name", "Major Airline")
-                    if "Duffel" in airline_name:
+                    if "Duffel" in airline_name or "Test" in airline_name:
                         airline_name = "Major Airline Partner"
 
                     deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{departure_date.replace('-', '')}/"

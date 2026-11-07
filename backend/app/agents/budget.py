@@ -176,6 +176,38 @@ class BudgetAgent:
 
         # Standard category order
         order = ["stay", "transport", "food", "activities", "buffer"]
+
+        # Post-calibration budget cap check & swap engine trigger (P1-1)
+        grand_total = round(sum(cat_map[k].estimated_total for k in order if k in cat_map), 2)
+        if constraints.budget_total > 0 and grand_total > constraints.budget_total:
+            # First try to absorb overage by applying hotel savings
+            total_hotel_savings = sum(s.savings_estimate for s in hotel_swaps)
+            if total_hotel_savings > 0 and "stay" in cat_map:
+                reduced_stay = max(constraints.budget_total * 0.25, cat_map["stay"].estimated_total - total_hotel_savings)
+                cat_map["stay"] = BudgetCategory(
+                    category="stay",
+                    estimated_total=round(reduced_stay, 2),
+                    currency=constraints.currency,
+                    notes="Calibrated with cost-effective lodging alternatives"
+                )
+            # Recalculate
+            grand_total = round(sum(cat_map[k].estimated_total for k in order if k in cat_map), 2)
+            # If still over budget, proportionally scale discretionary categories (food, activities, buffer)
+            if grand_total > constraints.budget_total:
+                fixed_total = (cat_map["stay"].estimated_total if "stay" in cat_map else 0.0) + (cat_map["transport"].estimated_total if "transport" in cat_map else 0.0)
+                discretionary_allowed = max(constraints.budget_total * 0.20, constraints.budget_total - fixed_total)
+                discretionary_current = sum(cat_map[k].estimated_total for k in ("food", "activities", "buffer") if k in cat_map)
+                if discretionary_current > 0:
+                    scale = discretionary_allowed / discretionary_current
+                    for k in ("food", "activities", "buffer"):
+                        if k in cat_map:
+                            cat_map[k] = BudgetCategory(
+                                category=k,
+                                estimated_total=round(cat_map[k].estimated_total * scale, 2),
+                                currency=constraints.currency,
+                                notes=cat_map[k].notes
+                            )
+
         updated_categories = [cat_map[k] for k in order if k in cat_map]
         for k, v in cat_map.items():
             if k not in order:
@@ -307,49 +339,58 @@ Rules:
         )
 
     async def _fallback_analyze(self, constraints: TravelConstraints) -> BudgetBreakdown:
-        """Simple fallback when LLM is unavailable."""
-        categories = []
-        total_cost = 0.0
+        """Deterministic budget allocation when LLM is unavailable (0% drift)."""
+        total = constraints.budget_total if constraints.budget_total > 0 else 1000.0
+        cities_str = ", ".join(constraints.cities) if constraints.cities else (constraints.destination_region or "Destination")
 
-        daily_budget = constraints.budget_total / max(1, constraints.duration_days)
-        stay_pct, food_pct, transport_pct, activity_pct = 0.35, 0.25, 0.20, 0.20
+        stay_cost = round(total * 0.35, 2)
+        transport_cost = round(total * 0.20, 2)
+        food_cost = round(total * 0.25, 2)
+        activity_cost = round(total * 0.15, 2)
+        buffer_cost = round(total - (stay_cost + transport_cost + food_cost + activity_cost), 2)
 
-        cities = constraints.cities if constraints.cities else [constraints.destination_region or "Destination"]
-        for city in cities:
-            days = max(1, constraints.duration_days // len(cities))
-            city_budget = daily_budget * days
+        categories = [
+            BudgetCategory(
+                category="stay",
+                estimated_total=stay_cost,
+                currency=constraints.currency,
+                notes=f"Accommodations across {cities_str}"
+            ),
+            BudgetCategory(
+                category="transport",
+                estimated_total=transport_cost,
+                currency=constraints.currency,
+                notes="Intercity transit and local transport"
+            ),
+            BudgetCategory(
+                category="food",
+                estimated_total=food_cost,
+                currency=constraints.currency,
+                notes=f"Daily dining and meals ({constraints.duration_days} days)"
+            ),
+            BudgetCategory(
+                category="activities",
+                estimated_total=activity_cost,
+                currency=constraints.currency,
+                notes="Tours, admission tickets, and experiences"
+            ),
+            BudgetCategory(
+                category="buffer",
+                estimated_total=buffer_cost,
+                currency=constraints.currency,
+                notes="Contingency buffer and emergency reserve"
+            ),
+        ]
 
-            stay_cost = round(city_budget * stay_pct, 2)
-            food_cost = round(city_budget * food_pct, 2)
-            transport_cost = round(city_budget * transport_pct, 2)
-            activity_cost = round(city_budget * activity_pct, 2)
-
-            categories.extend([
-                BudgetCategory(category="stay", estimated_total=stay_cost,
-                               currency=constraints.currency, notes=f"{days} nights in {city}"),
-                BudgetCategory(category="food", estimated_total=food_cost,
-                               currency=constraints.currency, notes=f"{days} days of meals in {city}"),
-                BudgetCategory(category="transport", estimated_total=transport_cost,
-                               currency=constraints.currency, notes=f"Local + inter-city transport from {city}"),
-                BudgetCategory(category="activities", estimated_total=activity_cost,
-                               currency=constraints.currency, notes=f"Activities and attractions in {city}"),
-            ])
-            total_cost += stay_cost + food_cost + transport_cost + activity_cost
-
-        within_budget = total_cost <= constraints.budget_total
-        violations = []
-        if not within_budget:
-            violations.append(BudgetViolation(
-                category="total", estimated=total_cost,
-                limit=constraints.budget_total, over_by=total_cost - constraints.budget_total
-            ))
+        grand_total = round(sum(c.estimated_total for c in categories), 2)
+        within_budget = grand_total <= constraints.budget_total
 
         return BudgetBreakdown(
             categories=categories,
-            grand_total=round(total_cost, 2),
+            grand_total=grand_total,
             currency=constraints.currency,
             within_budget=within_budget,
-            remaining_buffer=round(max(0, constraints.budget_total - total_cost), 2),
-            violations=violations,
+            remaining_buffer=round(max(0.0, constraints.budget_total - grand_total), 2),
+            violations=[],
             suggested_swaps=[]
         )

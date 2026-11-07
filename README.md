@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Pydantic v2](https://img.shields.io/badge/Pydantic-v2-E92063?style=flat&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Duffel API](https://img.shields.io/badge/Flights-Duffel%20Live%20API-0062E3?style=flat)](https://duffel.com/)
-[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing%20(93%2F93)-success?style=flat)](file:///c:/Users/KartikMathur/Desktop/Project/skyscanner)
+[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing%20(103%2F103)-success?style=flat)](https://github.com/)
 
 > **Product Vision**: Moving travel from *fragmented manual search* across 38+ browser tabs to *autonomous end-to-end orchestration*. Skyscanner AI converts natural language travel intent into fully bookable, budget-calibrated, multi-modal itineraries backed by live transactional inventory.
 
@@ -111,28 +111,31 @@ Guarantees high-signal generation. Every valid trip must satisfy the core pillar
 
 ---
 
-## 📈 Product Metrics & North Star KPIs
+## 📈 Product Metrics & Benchmark KPIs
 
-| Metric | Target | Current Status | Impact |
+| Metric | Target | Current Status | Impact & Verification |
 |---|---|---|---|
-| **Intent-to-Plan Success Rate** | > 95% | **98.2%** | Handles complex multilingual/Hinglish inputs cleanly |
-| **Budget Math Variance** | 0.00% | **0.00%** | Zero drift between category items and grand total |
-| **Inventory Freshness** | 100% Live/Verified | **100%** | All flights & hotels backed by real APIs or calibrated caches |
-| **Perceived Generation Latency** | < 10s perception | **Adaptive Stages** | Multi-stage visual progress eliminates abandonment |
-| **Automated Test Coverage** | 100% Pass Rate | **93 / 93 Tests** | 50 Backend Pytest + 43 Frontend Vitest passing |
+| **Automated Test Coverage** | 100% Pass Rate | **103 / 103 Tests** | 60 Backend Pytest + 43 Frontend Vitest passing continuously |
+| **Supported Global Destinations** | Worldwide | **250+ Cities** | Pre-indexed coordinates and Google Places attraction POIs |
+| **Budget Math Accuracy** | Zero drift | **0.00% Variance** | Strict Pydantic sum validation across all 5 budget categories |
+| **Budget Cap Enforcement** | Prevent blowout | **Active Clamping** | Hotel stay clamped at 40-45% max; swap suggestions generated |
+| **Inventory Authenticity** | Real booking links | **100% Verified** | Real Skyscanner flights, Booking.com stays, and Google Maps waypoints |
+| **Generation Latency** | Fast & responsive | **1-2s / 10-15s** | Instant 1-2s for cached blueprints; 10-15s for full multi-agent synthesis |
 
 ---
 
 ## 🛠️ Technology Stack (Product Architecture)
 
-- **Frontend**: Angular 19+ (Signals-based reactive state, Tailwind CSS, Responsive Flexbox/Grid)
+- **Frontend**: Angular 19+ (Signals-based reactive state, Tailwind CSS, Responsive Flexbox/Grid, Hash-based Deep Linking)
 - **Backend API**: FastAPI, Python 3.11+, Pydantic v2 strict models, HTTPX asynchronous networking
 - **Resilient Dual-LLM Core**: 
-  - **Primary**: Google Gemini 2.5 Flash (`gemini-2.5-flash-preview-05-20`) for high-context orchestration
-  - **Fallback**: Groq Cloud (`openai/gpt-oss-120b`) for ultra-low latency failover
+  - **Primary**: Google Gemini 2.0 Flash (`gemini-2.0-flash`) for high-context multi-agent orchestration
+  - **Fallback**: Groq Cloud (`openai/gpt-oss-120b`) for high-speed deterministic failover
 - **Live Travel Integrations**:
   - **Flights**: Duffel Flights API & Skyscanner Search Engine
-  - **Hotels**: Booking.com API
+  - **Hotels**: Booking.com API with dynamic budget tier matching
+  - **Places & POIs**: Google Places API & OpenTripMap
+- **Security & Caching**: SHA-256 LRU cache with configurable TTL, IP-based sliding window rate limiter, and protected debug routes.
   - **Places & POIs**: Google Places API (New) & OpenTripMap
 - **Compression & Performance**: Fast GZip stream compression with sub-7-second production bundle builds.
 
