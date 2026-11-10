@@ -3,3 +3,27 @@
   width: 100%;
 }
 
+/* Phase UX: MF-2 & SF-4 Horizontal Day Tabs Scroll & Visual Contrast */
+.tabs-scroll-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabs-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-snap-item {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.day-tab-btn {
+  transition: all 150ms ease-in-out;
+  min-height: 44px;
+}
+

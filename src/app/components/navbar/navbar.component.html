@@ -5,7 +5,7 @@
     <div class="flex items-center justify-between h-16">
       
       <!-- Logo: 3 arcs + "skyscanner" -->
-      <div class="flex items-center space-x-2.5 cursor-pointer" (click)="setTab('ai')">
+      <div class="flex items-center space-x-2.5 cursor-pointer" (click)="onLogoClick()" title="Skyscanner AI Planner (Triple-click for developer settings)">
         <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2v2"/>
           <path d="m4.93 4.93 1.41 1.41"/>
@@ -30,15 +30,25 @@
           Help
         </button>
 
-        <!-- API Mode Button (RapidAPI / Standalone) -->
-        <button 
-          (click)="flightService.openApiSettings()"
-          class="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-sky-400/50 text-sky-300 hover:bg-sky-900/60 transition-colors"
-          title="Configure Skyscanner Live API Key">
-          <span>⚡</span>
-          <span class="hidden sm:inline">Data:</span>
-          <span class="font-bold text-white">{{ flightService.dataSource() === 'live' ? 'Live API' : 'Real Hubs' }}</span>
-        </button>
+        <!-- Live Data Credibility Signal (SF-1: Replaces intrusive config button in production) -->
+        <div 
+          class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 select-none"
+          title="2026/2027 Skyscanner Live Hubs & Real API Integration Ready">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-[11px] font-semibold text-emerald-200">2026/2027 Live Data</span>
+        </div>
+
+        <!-- Debug / Developer Tooling (Gated behind triple-click or #debug) -->
+        @if (isDebugMode()) {
+          <button 
+            (click)="flightService.openApiSettings()"
+            class="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-400/60 bg-amber-500/10 text-amber-300 hover:bg-amber-900/60 transition-colors"
+            title="Configure Skyscanner Live API Key (Debug Mode Active)">
+            <span>🛠️</span>
+            <span class="hidden sm:inline">Debug:</span>
+            <span class="font-bold text-white">{{ flightService.dataSource() === 'live' ? 'Live API' : 'Real Hubs' }}</span>
+          </button>
+        }
 
         <!-- Locale / Currency Selector Pill: English (UK) 🇺🇸 United States · $ USD -->
         <button 

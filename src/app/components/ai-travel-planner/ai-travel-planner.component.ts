@@ -41,6 +41,11 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   public originCity = signal<string>('');
   public travelDate = signal<string>('');
   public showOriginSuggestions = signal<boolean>(false);
+  public showAdvancedDetails = signal<boolean>(false);
+
+  public toggleAdvancedDetails(): void {
+    this.showAdvancedDetails.update(v => !v);
+  }
 
   public readonly popularOrigins = [
     'New York', 'London', 'Dubai', 'Singapore', 'Mumbai',

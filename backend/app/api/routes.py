@@ -603,11 +603,13 @@ async def _generate_enriched_stub_response(
         title, act_title, act_type, notes = day_blueprints[bp_idx]
         city_name = trip_cities[min((d - 1) % len(trip_cities), len(trip_cities) - 1)]
 
-        matched_places = [p for p in verified_places if (d <= len(verified_places) and p == verified_places[(d - 1) % len(verified_places)])]
-        if not matched_places and verified_places:
-            matched_places = [verified_places[(d - 1) % len(verified_places)]]
+        # C-3: 2-3 verified POIs per day
+        day_places = []
+        if verified_places:
+            n_places = min(len(verified_places), 3)
+            day_places = [verified_places[(bp_idx * 2 + i) % len(verified_places)] for i in range(n_places)]
 
-        item_places = matched_places[0] if matched_places else None
+        item_places = day_places[0] if day_places else None
 
         items = [
             DayItineraryItem(
@@ -633,6 +635,42 @@ async def _generate_enriched_stub_response(
             )
         ]
 
+        # SF-3: 3 hotel options per city with distinct tiers (Recommended, Great Value, Boutique/Budget)
+        day_hotels = []
+        if hotel_offer:
+            base_rate = hotel_offer.price_per_night or round((daily_budget * 0.38), 2)
+            day_hotels = [
+                hotel_offer,
+                RealHotelOffer(
+                    name=f"{city_name} City Center Suites",
+                    city=city_name,
+                    price_per_night=round(base_rate * 0.78, 2),
+                    total_price=round(base_rate * 0.78 * 3, 2),
+                    currency=currency,
+                    star_rating=4.0,
+                    guest_rating=8.8,
+                    review_count=1420,
+                    address=f"Central Avenue, {city_name}",
+                    neighborhood=f"{city_name} Downtown",
+                    deeplink=f"https://www.booking.com/searchresults.html?ss={city_name}",
+                    amenities=["Free WiFi", "Breakfast Included", "City View"]
+                ),
+                RealHotelOffer(
+                    name=f"{city_name} Boutique Guest Lodge",
+                    city=city_name,
+                    price_per_night=round(base_rate * 0.52, 2),
+                    total_price=round(base_rate * 0.52 * 3, 2),
+                    currency=currency,
+                    star_rating=3.5,
+                    guest_rating=8.6,
+                    review_count=980,
+                    address=f"Old Town District, {city_name}",
+                    neighborhood=f"{city_name} Historic Area",
+                    deeplink=f"https://www.booking.com/searchresults.html?ss={city_name}",
+                    amenities=["Free WiFi", "Local Host", "Baggage Storage"]
+                )
+            ]
+
         days.append(
             DayItinerary(
                 day_number=d,
@@ -641,8 +679,8 @@ async def _generate_enriched_stub_response(
                 day_summary=f"Day {d}: {title}",
                 day_cost=round(daily_budget * 0.22, 2),
                 lodging_area=f"{city_name} Central District",
-                hotel_options=[hotel_offer] if hotel_offer and d <= 3 else [],
-                places=matched_places,
+                hotel_options=day_hotels,
+                places=day_places,
                 driving_time_to_next="2h 15m" if d < duration else None,
                 local_transport_tip=f"Convenient local transport and connections within {city_name}."
             )

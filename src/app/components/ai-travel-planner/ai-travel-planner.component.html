@@ -96,8 +96,22 @@
           </div>
         </div>
 
-        <!-- Origin City & Travel Date Row -->
-        <div class="flex flex-col sm:flex-row items-stretch gap-2">
+        <!-- Mobile Expandable Trip Details Toggle (MF-1) -->
+        <div class="flex items-center justify-between md:hidden pt-0.5">
+          <button
+            type="button"
+            (click)="toggleAdvancedDetails()"
+            class="flex items-center gap-1.5 text-xs font-bold text-sky-300 hover:text-white transition-colors cursor-pointer py-1 px-1">
+            <span class="material-symbols-outlined text-[16px]">{{ showAdvancedDetails() ? 'expand_less' : 'tune' }}</span>
+            <span>{{ showAdvancedDetails() ? 'Hide flight & dates' : ((originCity() || travelDate()) ? 'Trip details active (tap to edit)' : '+ Add flight origin & dates (optional)') }}</span>
+          </button>
+          @if (originCity() || travelDate()) {
+            <span class="text-[10px] bg-sky-500/20 text-sky-200 px-2 py-0.5 rounded-full font-semibold">Configured</span>
+          }
+        </div>
+
+        <!-- Origin City & Travel Date Row (Collapsible on mobile, always visible on desktop) -->
+        <div [class.hidden]="!showAdvancedDetails()" class="md:!flex flex-col sm:flex-row items-stretch gap-2 transition-all">
           <!-- Origin City -->
           <div class="relative flex-1">
             <div class="rounded-xl bg-white/10 border border-white/15 flex items-center px-3 py-2 gap-2 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400/30 transition-all">
@@ -270,4 +284,30 @@
     }
 
   </div>
+
+  <!-- Floating Bottom Mobile CTA Bar (MF-1: Eliminates below-the-fold abandonment) -->
+  @if (promptText().trim().length > 0) {
+    <div class="fixed bottom-0 left-0 right-0 p-3 bg-[#02122c]/95 backdrop-blur-md border-t border-white/15 md:hidden z-40 shadow-2xl flex items-center justify-between gap-3 animate-fade-in">
+      <div class="min-w-0 flex-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400 block truncate">Ready to generate</span>
+        <p class="text-xs text-white truncate font-medium">{{ promptText() }}</p>
+      </div>
+      <button
+        (click)="generatePlan()"
+        [disabled]="plannerService.isLoading()"
+        aria-label="Generate travel plan floating CTA"
+        class="px-5 py-2.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-[#0062e3]/40 transition-all shrink-0 active:scale-95 disabled:opacity-50 cursor-pointer">
+        @if (plannerService.isLoading()) {
+          <svg class="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Planning...</span>
+        } @else {
+          <span>Generate</span>
+          <span class="material-symbols-outlined text-[16px]">bolt</span>
+        }
+      </button>
+    </div>
+  }
 </div>

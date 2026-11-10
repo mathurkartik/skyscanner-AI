@@ -142,4 +142,12 @@ describe('AiTravelPlannerComponent (Phase 11 & Phase 12)', () => {
     component.resetPlan();
     expect(spy).toHaveBeenCalled();
   });
+
+  it('should toggle showAdvancedDetails signal for mobile collapsible details (MF-1)', () => {
+    expect(component.showAdvancedDetails()).toBe(false);
+    component.toggleAdvancedDetails();
+    expect(component.showAdvancedDetails()).toBe(true);
+    component.toggleAdvancedDetails();
+    expect(component.showAdvancedDetails()).toBe(false);
+  });
 });

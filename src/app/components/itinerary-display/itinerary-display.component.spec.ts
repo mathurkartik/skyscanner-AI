@@ -239,5 +239,32 @@ describe('ItineraryDisplayComponent', () => {
       component.onBookCarClick(car);
       expect(spy).toHaveBeenCalledWith(car);
     });
+
+    it('should return 3 tier-calibrated hotel options per city (SF-3)', () => {
+      const hotels = component.getActiveDayHotels();
+      expect(hotels.length).toBe(3);
+      expect(hotels[0].name).toBe('Hotel Reykjavik');
+      expect(hotels[1].name).toContain('Reykjavik');
+      expect(hotels[2].name).toContain('Reykjavik');
+    });
+
+    it('should return 2-3 verified places for active day (C-3)', () => {
+      const places = component.getActiveDayPlaces();
+      expect(places.length).toBeGreaterThanOrEqual(2);
+      expect(places.length).toBeLessThanOrEqual(3);
+      expect(places[0].name).toBe('Sun Voyager');
+    });
+
+    it('should emit refined prompt when refineItinerary is invoked (C-1)', () => {
+      const spy = vi.spyOn(component.selectPrompt, 'emit');
+      component.refineItinerary('budget');
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('tighter budget'));
+
+      component.refineItinerary('swap_city');
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('swap one destination'));
+
+      component.refineItinerary('deep_dive');
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('extra deep dive'));
+    });
   });
 });

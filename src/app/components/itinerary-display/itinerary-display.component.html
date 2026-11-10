@@ -118,24 +118,30 @@
       </div>
 
       <div class="flex items-center gap-4 sm:gap-6 text-right divide-x divide-gray-300">
-        <div>
+        <div title="Average estimated airfare based on live Skyscanner routes">
           <div class="text-[10px] font-bold uppercase text-gray-500">Skyscanner Fare</div>
-          <div class="text-xs sm:text-sm font-bold text-gray-900">₹{{ getAverageFlightFare() | number:'1.0-0' }} avg</div>
+          <div class="text-xs sm:text-sm font-bold text-gray-900">{{ getCurrencySymbol() }}{{ getAverageFlightFare() | number:'1.0-0' }} avg</div>
         </div>
-        <div class="pl-4">
-          <div class="text-[10px] font-bold uppercase text-gray-500">Daily Drive</div>
+        <div class="pl-4" title="Average driving or transit time between overnight bases">
+          <div class="text-[10px] font-bold uppercase text-gray-500">Daily Transit</div>
           <div class="text-xs sm:text-sm font-bold text-gray-900">{{ getDailyDriveAverage() }} hrs / day</div>
         </div>
-        <div class="pl-4">
-          <div class="text-[10px] font-bold uppercase text-gray-500">Pacing Score</div>
-          <div class="text-xs sm:text-sm font-bold text-[#00776d]">{{ getPacingScore() }}</div>
+        <!-- C-2: Clear Contextual Pacing Score -->
+        <div class="pl-4 cursor-help" title="Pacing Score: Optimal balance of active exploration vs rest & transit across your {{ itinerary.constraints.duration_days || 7 }}-day trip">
+          <div class="flex items-center justify-end gap-1 text-[10px] font-bold uppercase text-gray-500">
+            <span>Pacing Score</span>
+            <span class="material-symbols-outlined text-[13px] text-gray-400">help_outline</span>
+          </div>
+          <div class="text-xs sm:text-sm font-bold text-[#00776d]">Well-Paced ({{ getPacingScore() }})</div>
         </div>
+        <!-- C-2: Clear Contextual Route Map Button -->
         <div class="pl-4">
           <button
             (click)="toggleMap()"
+            title="Interactive Route Map: Explore {{ itinerary.map_pins?.length || getRouteWaypoints().length }} geocoded destinations and driving path"
             class="px-2.5 py-1 bg-[#0062e3] hover:bg-[#0050b8] text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs">
             <span class="material-symbols-outlined text-[14px]">pin_drop</span>
-            <span>Route Map ({{ itinerary.map_pins?.length || 11 }})</span>
+            <span>{{ itinerary.map_pins?.length || getRouteWaypoints().length }}-Stop Route Map</span>
           </button>
         </div>
       </div>
@@ -519,37 +525,70 @@
           <span class="text-[11px] font-bold text-[#00776d]">All-Inclusive Estimation</span>
         </div>
 
+        @let stayCat = getCategorySpend('stay');
+        @let transCat = getCategorySpend('transport');
+        @let foodCat = getCategorySpend('food');
+        @let actCat = getCategorySpend('activities');
+
+        <!-- Proportional Stacked Spend Bar (SF-2: Visual Proportionality) -->
+        <div class="space-y-1.5">
+          <div class="h-3 w-full rounded-full bg-gray-100 overflow-hidden flex p-0.5 border border-gray-200/80 shadow-inner">
+            <div 
+              [style.width.%]="stayCat.percent" 
+              class="h-full bg-[#00776d] rounded-l-full transition-all duration-300" 
+              title="Stays: {{ stayCat.percent }}%">
+            </div>
+            <div 
+              [style.width.%]="transCat.percent" 
+              class="h-full bg-[#0062e3] transition-all duration-300" 
+              title="Transport: {{ transCat.percent }}%">
+            </div>
+            <div 
+              [style.width.%]="foodCat.percent" 
+              class="h-full bg-[#ea580c] transition-all duration-300" 
+              title="Food: {{ foodCat.percent }}%">
+            </div>
+            <div 
+              [style.width.%]="actCat.percent" 
+              class="h-full bg-[#16a34a] rounded-r-full transition-all duration-300" 
+              title="Activities: {{ actCat.percent }}%">
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-gray-500 font-bold px-1 flex-wrap gap-1">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#00776d]"></span> Stays {{ stayCat.percent }}%</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#0062e3]"></span> Transit {{ transCat.percent }}%</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#ea580c]"></span> Food {{ foodCat.percent }}%</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#16a34a]"></span> Activities {{ actCat.percent }}%</span>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Stays -->
-          @let stayCat = getCategorySpend('stay');
-          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70 border-l-4 border-l-[#00776d]">
             <span class="text-[10px] font-bold uppercase text-gray-500">Stays ({{ itinerary.constraints.duration_days || 1 }} Nights)</span>
             <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ stayCat.amount | number:'1.0-0' }}</div>
-            <span class="text-[11px] text-gray-400 font-medium">{{ stayCat.percent }}% of total</span>
+            <span class="text-[11px] text-[#00776d] font-bold">{{ stayCat.percent }}% of total</span>
           </div>
 
           <!-- Transport & Car -->
-          @let transCat = getCategorySpend('transport');
-          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70 border-l-4 border-l-[#0062e3]">
             <span class="text-[10px] font-bold uppercase text-gray-500">Transport & Car</span>
             <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ transCat.amount | number:'1.0-0' }}</div>
-            <span class="text-[11px] text-gray-400 font-medium">{{ transCat.percent }}% of total</span>
+            <span class="text-[11px] text-[#0062e3] font-bold">{{ transCat.percent }}% of total</span>
           </div>
 
           <!-- Food & Fuel -->
-          @let foodCat = getCategorySpend('food');
-          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70 border-l-4 border-l-[#ea580c]">
             <span class="text-[10px] font-bold uppercase text-gray-500">Food & Dining</span>
             <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ foodCat.amount | number:'1.0-0' }}</div>
-            <span class="text-[11px] text-gray-400 font-medium">{{ foodCat.percent }}% of total</span>
+            <span class="text-[11px] text-[#ea580c] font-bold">{{ foodCat.percent }}% of total</span>
           </div>
 
           <!-- Activities & Parks -->
-          @let actCat = getCategorySpend('activities');
-          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70">
+          <div class="p-3 rounded-2xl bg-[#f2f4f9] border border-gray-200/70 border-l-4 border-l-[#16a34a]">
             <span class="text-[10px] font-bold uppercase text-gray-500">Activities & Attractions</span>
             <div class="text-base font-black text-gray-900 mt-0.5">{{ getCurrencySymbol() }}{{ actCat.amount | number:'1.0-0' }}</div>
-            <span class="text-[11px] text-gray-400 font-medium">{{ actCat.percent }}% of total</span>
+            <span class="text-[11px] text-[#16a34a] font-bold">{{ actCat.percent }}% of total</span>
           </div>
         </div>
 
@@ -577,24 +616,33 @@
     <!-- ==================== RIGHT COLUMN: Day-by-Day Itinerary Deep Dive (~60%) ==================== -->
     <div class="lg:col-span-7 flex flex-col gap-6">
 
-      <!-- A. Day Selector Timeline Tabs (Horizontal Scroll) -->
-      <div class="rounded-3xl bg-white p-2.5 shadow-sm overflow-x-auto border border-gray-200">
-        <div class="flex items-center gap-2 min-w-max">
+      <!-- A. Day Selector Timeline Tabs (MF-2 & SF-4: Horizontal Scroll with Snap & Distinct Brand Styling) -->
+      <div class="relative rounded-3xl bg-white p-2.5 shadow-sm border border-gray-200 overflow-hidden">
+        <div class="tabs-scroll-container flex items-center gap-2 pr-8 scroll-smooth">
           @for (day of itinerary.days; track day.day_number) {
             <button
               (click)="selectDay(day.day_number)"
-              [class.bg-[#02122c]]="activeDayNumber() === day.day_number"
+              [class.bg-[#0062e3]]="activeDayNumber() === day.day_number"
               [class.text-white]="activeDayNumber() === day.day_number"
-              [class.bg-[#f2f4f9]]="activeDayNumber() !== day.day_number"
-              [class.text-gray-800]="activeDayNumber() !== day.day_number"
-              class="px-4 py-2 rounded-2xl text-left hover:opacity-90 transition-all cursor-pointer">
+              [class.shadow-md]="activeDayNumber() === day.day_number"
+              [class.shadow-[#0062e3]/30]="activeDayNumber() === day.day_number"
+              [class.ring-2]="activeDayNumber() === day.day_number"
+              [class.ring-[#0062e3]/40]="activeDayNumber() === day.day_number"
+              [class.bg-[#f8fafc]]="activeDayNumber() !== day.day_number"
+              [class.text-gray-700]="activeDayNumber() !== day.day_number"
+              [class.border]="activeDayNumber() !== day.day_number"
+              [class.border-gray-200]="activeDayNumber() !== day.day_number"
+              class="day-tab-btn tab-snap-item shrink-0 px-4 py-2 min-h-[44px] rounded-2xl text-left transition-all duration-150 cursor-pointer flex flex-col justify-center select-none">
               <div
-                [class.text-[#7af7e7]]="activeDayNumber() === day.day_number"
+                [class.text-sky-200]="activeDayNumber() === day.day_number"
                 [class.text-gray-500]="activeDayNumber() !== day.day_number"
-                class="text-[10px] font-bold uppercase tracking-wider">
-                Day {{ day.day_number }} {{ activeDayNumber() === day.day_number ? '· Active' : '' }}
+                class="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                <span>Day {{ day.day_number }}</span>
+                @if (activeDayNumber() === day.day_number) {
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#7af7e7]"></span>
+                }
               </div>
-              <div class="text-xs sm:text-sm font-bold truncate max-w-[120px]">
+              <div class="text-xs sm:text-sm font-bold truncate max-w-[130px]">
                 {{ day.city.split('&')[0].trim() }}
               </div>
             </button>
@@ -603,15 +651,18 @@
           <!-- Toggle Summary Table Button -->
           <button
             (click)="toggleRemainingDays()"
-            class="px-4 py-2 rounded-2xl text-left bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer">
+            class="tab-snap-item shrink-0 px-4 py-2 min-h-[44px] rounded-2xl text-left bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer flex flex-col justify-center border border-gray-200">
             <div class="text-[10px] font-bold uppercase text-gray-500">Summary</div>
-            <div class="text-xs font-bold">All 11 Days Table</div>
+            <div class="text-xs font-bold whitespace-nowrap">All {{ itinerary.constraints.duration_days || itinerary.days.length }} Days Table</div>
           </button>
         </div>
+
+        <!-- Right edge subtle gradient fade (signals more tabs) -->
+        <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent rounded-r-3xl"></div>
       </div>
 
-      <!-- B. Expanded Active Day Workspace -->
-      <div class="rounded-3xl bg-white p-6 sm:p-7 shadow-sm space-y-5 border border-gray-200">
+      <!-- B. Expanded Active Day Workspace (MF-2: Target for auto-scroll on day tab switch) -->
+      <div id="active-day-workspace" class="rounded-3xl bg-white p-6 sm:p-7 shadow-sm space-y-5 border border-gray-200 scroll-mt-20">
 
         <!-- Day Header Banner -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200">
@@ -729,63 +780,57 @@
           </div>
         </div>
 
-        <!-- Verified Sights (Google Places Verified 2x2 Grid) -->
+        <!-- Verified Sights (Google Places Verified Cards Row - C-3) -->
         <div class="space-y-3 pt-1">
           <div class="flex items-center justify-between">
-            <h4 class="text-sm font-extrabold text-gray-900">Verified Sights (Google Places)</h4>
-            <span class="text-[11px] font-bold text-gray-500">Live POI API</span>
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[#0062e3] text-[18px]">verified</span>
+              <h4 class="text-sm font-extrabold text-gray-900">Verified Sights (Google Places)</h4>
+            </div>
+            <span class="text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+              Live POI API · {{ getActiveDayPlaces().length }} Places
+            </span>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            @if (activeDay.places && activeDay.places.length > 0) {
-              @for (place of activeDay.places; track place.id || place.place_id || place.name) {
-                <div class="rounded-2xl bg-[#f2f4f9] p-3 flex gap-3 items-center border border-gray-200/70 hover:border-sky-300 transition-colors">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            @for (place of getActiveDayPlaces(); track place.id || place.place_id || place.name; let pIdx = $index) {
+              <div class="rounded-2xl bg-[#f2f4f9] p-3 flex flex-col justify-between border border-gray-200/70 hover:border-sky-300 transition-colors gap-2.5">
+                <div class="flex gap-2.5 items-center">
                   <img
                     [src]="getPlacePhoto(place)"
                     [alt]="place.name"
-                    class="w-16 h-16 rounded-xl object-cover shrink-0 shadow-xs" />
+                    class="w-14 h-14 rounded-xl object-cover shrink-0 shadow-xs" />
                   <div class="min-w-0 flex-1">
                     <a
                       [href]="getPlaceMapsUrl(place)"
                       target="_blank"
                       rel="noopener"
-                      class="text-xs sm:text-sm font-bold text-gray-900 truncate hover:text-[#0062e3] transition-colors flex items-center gap-1">
+                      class="text-xs font-bold text-gray-900 truncate hover:text-[#0062e3] transition-colors flex items-center gap-1"
+                      title="View {{ place.name }} on Google Maps">
                       <span class="truncate">{{ place.name }}</span>
                       <span class="text-[10px] text-gray-400 shrink-0">↗</span>
                     </a>
-                    <div class="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                      <span class="material-symbols-outlined text-[14px] text-amber-500" style="font-variation-settings: 'FILL' 1;">star</span>
+                    <div class="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
+                      <span class="material-symbols-outlined text-[13px] text-amber-500" style="font-variation-settings: 'FILL' 1;">star</span>
                       <span class="font-bold text-gray-900">{{ place.rating || 4.7 }}</span>
-                      <span>({{ place.review_count ? (place.review_count | number) : '9.8k' }} reviews)</span>
+                      <span>({{ place.review_count ? (place.review_count | number) : '8.5k' }})</span>
                     </div>
-                    <span class="text-[10px] font-bold text-[#00776d] block truncate mt-0.5">
-                      {{ (place.opening_hours && place.opening_hours.length > 0) ? place.opening_hours[0] : 'Open 24 hrs · Iconic Sight' }}
-                    </span>
                   </div>
                 </div>
-              }
-            } @else {
-              <div class="rounded-2xl bg-[#f2f4f9] p-3 flex gap-3 items-center border border-gray-200/70">
-                <img
-                  src="https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&auto=format&fit=crop&q=80"
-                  alt="Reynisfjara Beach"
-                  class="w-16 h-16 rounded-xl object-cover shrink-0" />
-                <div class="min-w-0">
-                  <p class="text-xs sm:text-sm font-bold text-gray-900 truncate">Reynisfjara Beach</p>
-                  <div class="flex items-center gap-1 text-xs text-gray-500">
-                    <span class="material-symbols-outlined text-[14px] text-amber-500">star</span>
-                    <span class="font-bold text-gray-900">4.7</span>
-                    <span>(11.5k reviews)</span>
-                  </div>
-                  <span class="text-[10px] font-bold text-[#00776d]">Open 24 hrs · Dangerous waves</span>
+                <div class="pt-1.5 border-t border-gray-200/60 flex items-center justify-between text-[10px]">
+                  <span class="font-bold text-[#00776d] truncate">
+                    {{ (place.opening_hours && place.opening_hours.length > 0) ? place.opening_hours[0] : 'Open 24 hrs · Top Highlight' }}
+                  </span>
+                  <span class="text-gray-400 font-medium">Google Places</span>
                 </div>
               </div>
             }
           </div>
         </div>
 
-        <!-- Tonight's Stay Options (Multi-Hotel Tiers + Compare on Multiple Platforms) -->
+        <!-- Tonight's Stay Options (Multi-Hotel Tiers + Multi-Platform Comparison - SF-3) -->
         <div class="rounded-2xl bg-[#f2f4f9] p-4 border border-gray-200/90 space-y-3">
+          @let hotels = getActiveDayHotels();
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="w-6 h-6 rounded-lg bg-[#004bb2] text-white flex items-center justify-center">
@@ -795,107 +840,92 @@
                 Where to Stay in {{ activeDay.city.split('&')[0].trim() }}
               </h5>
             </div>
-            <span class="text-[11px] font-bold text-gray-500">
-              {{ (activeDay.hotel_options && activeDay.hotel_options.length) ? (activeDay.hotel_options.slice(0, 3).length + ' Options') : '1 Option' }}
+            <!-- SF-3 Pluralization Bug Fix: ${count} Option${count === 1 ? '' : 's'} -->
+            <span class="text-[11px] font-bold text-gray-600 bg-white px-2 py-0.5 rounded-full border border-gray-200 shadow-2xs">
+              {{ hotels.length }} {{ hotels.length === 1 ? 'Option' : 'Options' }}
             </span>
           </div>
 
-          <div class="space-y-3">
-            @if (activeDay.hotel_options && activeDay.hotel_options.length > 0) {
-              @for (h of activeDay.hotel_options.slice(0, 3); track h.id; let hIdx = $index) {
-                <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 hover:border-gray-300 transition-colors space-y-2.5">
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="flex items-start gap-2.5">
-                      <div class="w-9 h-9 rounded-lg bg-[#003580] text-white flex flex-col items-center justify-center text-xs font-black shrink-0">
-                        <span>{{ h.guest_rating || (9.2 - hIdx * 0.4) | number:'1.1-1' }}</span>
-                      </div>
-                      <div>
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                          <span class="text-xs sm:text-sm font-bold text-gray-900">{{ h.name }}</span>
-                          @if (hIdx === 0) {
-                            <span class="px-1.5 py-0.2 rounded-full bg-[#0062e3] text-white text-[9px] font-bold">Recommended</span>
-                          } @else if (hIdx === 1) {
-                            <span class="px-1.5 py-0.2 rounded-full bg-emerald-700 text-white text-[9px] font-bold">Great Value</span>
-                          } @else {
-                            <span class="px-1.5 py-0.2 rounded-full bg-purple-700 text-white text-[9px] font-bold">Boutique</span>
-                          }
-                        </div>
-                        <p class="text-[11px] text-gray-500 mt-0.5">
-                          {{ h.neighborhood || activeDay.city }} · Free Wi-Fi · {{ h.amenities && h.amenities.length ? h.amenities.slice(0, 2).join(' · ') : 'Central Location' }}
-                        </p>
-                      </div>
+          <!-- SF-3: Stack cards vertically on mobile, 3-column row on desktop -->
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-3">
+            @for (h of hotels; track h.id; let hIdx = $index) {
+              <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 hover:border-sky-300 transition-colors flex flex-col justify-between gap-2.5 shadow-2xs">
+                <div class="space-y-2">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      @if (hIdx === 0) {
+                        <span class="px-2 py-0.5 rounded-full bg-[#0062e3] text-white text-[9px] font-black uppercase tracking-wider">Recommended</span>
+                      } @else if (hIdx === 1) {
+                        <span class="px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider">Great Value</span>
+                      } @else {
+                        <span class="px-2 py-0.5 rounded-full bg-purple-700 text-white text-[9px] font-black uppercase tracking-wider">Budget / Boutique</span>
+                      }
                     </div>
-                    <div class="text-right shrink-0">
-                      <div class="text-sm font-black text-gray-900">
-                        {{ getCurrencySymbol() }}{{ h.price_per_night | number:'1.0-0' }}/nt
-                      </div>
-                      <span class="text-[10px] text-gray-400 font-medium">
-                        Verified Nightly Rate
-                      </span>
+                    <div class="w-7 h-7 rounded-md bg-[#003580] text-white flex items-center justify-center text-[11px] font-black shrink-0" title="Guest Rating">
+                      {{ h.guest_rating || (9.2 - hIdx * 0.4) | number:'1.1-1' }}
                     </div>
                   </div>
 
-                  <!-- Multi-Provider Comparison Bar -->
-                  <div class="pt-2 border-t border-gray-100 flex items-center justify-between flex-wrap gap-1.5">
-                    <span class="text-[10px] font-bold text-gray-500 flex items-center gap-0.5">
-                      <span class="material-symbols-outlined text-[13px] text-gray-400">shopping_bag</span>
-                      Book on:
-                    </span>
-                    <div class="flex items-center gap-1 flex-wrap">
-                      <a
-                        [href]="getHotelBookingUrl(h, activeDay)"
-                        (click)="onBookStayClick(h, activeDay, $event)"
-                        target="_blank"
-                        rel="noopener"
-                        title="Book on Booking.com"
-                        class="px-2 py-0.5 rounded-md bg-[#003580] hover:bg-[#00224f] text-white text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer">
-                        <span>Booking.com</span>
-                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
-                      </a>
-                      <a
-                        [href]="getAgodaUrl(h, activeDay)"
-                        target="_blank"
-                        rel="noopener"
-                        title="Compare on Agoda"
-                        class="px-2 py-0.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer">
-                        <span>Agoda</span>
-                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
-                      </a>
-                      <a
-                        [href]="getMakeMyTripHotelUrl(h, activeDay)"
-                        target="_blank"
-                        rel="noopener"
-                        title="Compare on MakeMyTrip"
-                        class="px-2 py-0.5 rounded-md bg-[#ea2330] hover:bg-[#c41521] text-white text-[10px] font-bold transition-all flex items-center gap-0.5 cursor-pointer">
-                        <span>MakeMyTrip</span>
-                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
-                      </a>
-                      <a
-                        [href]="getGoogleHotelsUrl(h, activeDay)"
-                        target="_blank"
-                        rel="noopener"
-                        title="View on Google Hotels"
-                        class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-semibold transition-all flex items-center gap-0.5 cursor-pointer">
-                        <span>Google</span>
-                        <span class="material-symbols-outlined text-[10px]">open_in_new</span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              }
-            } @else {
-              <!-- Fallback Default Option -->
-              <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 space-y-2">
-                <div class="flex items-start justify-between">
                   <div>
-                    <h5 class="text-xs sm:text-sm font-bold text-gray-900">Recommended Stays in {{ activeDay.city.split('&')[0].trim() }}</h5>
-                    <p class="text-[11px] text-gray-500 mt-0.5">Explore authentic verified accommodations on Booking, Agoda & MakeMyTrip</p>
+                    <h6 class="text-xs sm:text-sm font-bold text-gray-900 line-clamp-1" [title]="h.name">{{ h.name }}</h6>
+                    <p class="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
+                      {{ h.neighborhood || activeDay.city }} · {{ h.amenities && h.amenities.length ? h.amenities.slice(0, 2).join(' · ') : 'Central Location' }}
+                    </p>
+                  </div>
+
+                  <div class="pt-1 flex items-baseline justify-between">
+                    <div>
+                      <span class="text-sm sm:text-base font-black text-gray-900">
+                        {{ getCurrencySymbol() }}{{ h.price_per_night | number:'1.0-0' }}
+                      </span>
+                      <span class="text-[10px] text-gray-500"> / night</span>
+                    </div>
+                    <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">Verified Rate</span>
                   </div>
                 </div>
-                <div class="pt-2 border-t border-gray-100 flex items-center justify-end gap-1 flex-wrap">
-                  <a [href]="getHotelBookingUrl(null, activeDay)" target="_blank" rel="noopener" class="px-2 py-0.5 rounded-md bg-[#003580] text-white text-[10px] font-bold">Booking.com</a>
-                  <a [href]="getAgodaUrl(null, activeDay)" target="_blank" rel="noopener" class="px-2 py-0.5 rounded-md bg-emerald-700 text-white text-[10px] font-bold">Agoda</a>
-                  <a [href]="getMakeMyTripHotelUrl(null, activeDay)" target="_blank" rel="noopener" class="px-2 py-0.5 rounded-md bg-[#ea2330] text-white text-[10px] font-bold">MakeMyTrip</a>
+
+                <!-- Multi-Provider Comparison Bar -->
+                <div class="pt-2 border-t border-gray-100 space-y-1.5">
+                  <span class="text-[10px] font-bold text-gray-400 block">Compare & Book on:</span>
+                  <div class="grid grid-cols-2 gap-1 text-[10px]">
+                    <a
+                      [href]="getHotelBookingUrl(h, activeDay)"
+                      (click)="onBookStayClick(h, activeDay, $event)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Book on Booking.com"
+                      class="px-2 py-1 rounded-md bg-[#003580] hover:bg-[#00224f] text-white font-bold transition-all flex items-center justify-center gap-0.5 cursor-pointer">
+                      <span>Booking</span>
+                      <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                    </a>
+                    <a
+                      [href]="getAgodaUrl(h, activeDay)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Compare on Agoda"
+                      class="px-2 py-1 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold transition-all flex items-center justify-center gap-0.5 cursor-pointer">
+                      <span>Agoda</span>
+                      <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                    </a>
+                    <a
+                      [href]="getMakeMyTripHotelUrl(h, activeDay)"
+                      target="_blank"
+                      rel="noopener"
+                      title="Compare on MakeMyTrip"
+                      class="px-2 py-1 rounded-md bg-[#ea2330] hover:bg-[#c41521] text-white font-bold transition-all flex items-center justify-center gap-0.5 cursor-pointer">
+                      <span>MakeMyTrip</span>
+                      <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                    </a>
+                    <a
+                      [href]="getGoogleHotelsUrl(h, activeDay)"
+                      target="_blank"
+                      rel="noopener"
+                      title="View on Google Hotels"
+                      class="px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-all flex items-center justify-center gap-0.5 cursor-pointer border border-gray-200">
+                      <span>Google</span>
+                      <span class="material-symbols-outlined text-[10px]">open_in_new</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             }
@@ -999,6 +1029,54 @@
 
     </div>
 
+  </div>
+
+  <!-- 3. Conversational Refinement Loop (C-1: Post-Generation Single-Turn Tuning) -->
+  <div class="rounded-3xl bg-gradient-to-r from-[#02122c] via-[#082046] to-[#02122c] text-white p-5 sm:p-6 shadow-xl border border-slate-700 space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-[#0062e3] flex items-center justify-center text-white shadow-md">
+          <span class="material-symbols-outlined text-[20px]">auto_fix_high</span>
+        </div>
+        <div>
+          <h4 class="text-base font-extrabold text-white">Refine This Blueprint</h4>
+          <p class="text-xs text-gray-300">Calibrate the multi-agent system with one-click adjustments:</p>
+        </div>
+      </div>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-sky-200 text-xs font-bold border border-white/10 self-start sm:self-auto">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#7af7e7] animate-pulse"></span>
+        AI Refinement Loop
+      </span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2.5 pt-1">
+      <!-- Chip 1: Adjust budget -->
+      <button
+        (click)="refineItinerary('budget')"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-[#0062e3] text-white text-xs font-bold border border-white/15 transition-all cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99]">
+        <span>💰</span>
+        <span>Adjust Budget (Lower Cost Options)</span>
+        <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+      </button>
+
+      <!-- Chip 2: Swap a city -->
+      <button
+        (click)="refineItinerary('swap_city')"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-[#0062e3] text-white text-xs font-bold border border-white/15 transition-all cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99]">
+        <span>🔄</span>
+        <span>Swap a Destination (Scenic Nature Alternative)</span>
+        <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+      </button>
+
+      <!-- Chip 3: Deep dive active day -->
+      <button
+        (click)="refineItinerary('deep_dive')"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-[#0062e3] text-white text-xs font-bold border border-white/15 transition-all cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99]">
+        <span>📍</span>
+        <span>More Detail on Day {{ activeDayNumber() }} ({{ activeDay.city.split('&')[0].trim() }})</span>
+        <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+      </button>
+    </div>
   </div>
 
   <!-- Interactive Route Map & GPS Pins Modal -->
