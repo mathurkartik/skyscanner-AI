@@ -145,5 +145,6 @@ def test_transform_google_place_item():
     assert place_info.coordinates == {"lat": 64.145, "lng": -21.935}
     assert place_info.open_now is True
     assert "Monday: 9:00 AM – 10:00 PM" in place_info.opening_hours
-    assert "photo_reference=photo_ref_abc_123" in place_info.photo_url
-    assert "key=dummy_key" in place_info.photo_url
+    # AG-001: Proxied URL without exposing API key
+    assert place_info.photo_url == "/api/places/photo/photo_ref_abc_123"
+    assert "dummy_key" not in place_info.photo_url

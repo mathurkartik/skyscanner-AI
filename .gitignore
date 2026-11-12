@@ -43,8 +43,15 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-# Backend
+# Environment & Secrets (AG-005)
+.env
+.env.*
+!.env.example
 backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Backend
 backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/
@@ -61,6 +68,7 @@ backend/test_*.json
 
 # Documentation / Internal Docs
 Docs/
+research_notes/
 
 # Claude
 .claude/

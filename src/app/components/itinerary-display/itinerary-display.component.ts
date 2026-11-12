@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FinalItinerary, DayItinerary, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo, CostSavingTip, TransportSegment } from '../../models/travel-planner.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-itinerary-display',
@@ -248,7 +249,12 @@ export class ItineraryDisplayComponent {
   }
 
   public getPlacePhoto(place: PlaceInfo): string {
-    if (place.photo_url) return place.photo_url;
+    if (place.photo_url) {
+      if (place.photo_url.startsWith('/api/')) {
+        return `${environment.apiBaseUrl}${place.photo_url}`;
+      }
+      return place.photo_url;
+    }
 
     const name = (place.name || '').toLowerCase();
     if (name.includes('reynisfjara') || name.includes('black sand')) {

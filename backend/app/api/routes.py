@@ -4,7 +4,7 @@ Phase 7: Will implement full orchestration pipeline.
 """
 
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from ..config import get_settings
 
@@ -46,6 +46,35 @@ async def api_health_check():
     """Health check endpoint under /api/health."""
     from ..main import health_check
     return await health_check()
+
+
+@router.get("/places/photo/{photo_ref}", tags=["Places"])
+async def get_places_photo(photo_ref: str, maxwidth: int = 800):
+    """
+    AG-001: Secure photo proxy endpoint that keeps Google Places API key confidential.
+    Proxies photo binary from Google Places API or returns cached/fallback response.
+    """
+    import httpx
+    settings = get_settings()
+    api_key = (settings.google_places_api_key or "").strip()
+    if not api_key:
+        raise HTTPException(status_code=404, detail="Photo service unavailable (no key)")
+    url = "https://maps.googleapis.com/maps/api/place/photo"
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, params={"maxwidth": maxwidth, "photo_reference": photo_ref, "key": api_key})
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Photo not found")
+            media_type = resp.headers.get("content-type", "image/jpeg")
+            return Response(
+                content=resp.content,
+                media_type=media_type,
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch photo: {str(err)}")
 
 
 @router.post("/book", tags=["Booking"])
@@ -637,6 +666,7 @@ async def _generate_enriched_stub_response(
 
         # SF-3: 3 hotel options per city with distinct tiers (Recommended, Great Value, Boutique/Budget)
         day_hotels = []
+        city_nights = max(1, duration // len(trip_cities))
         if hotel_offer:
             base_rate = hotel_offer.price_per_night or round((daily_budget * 0.38), 2)
             day_hotels = [
@@ -645,7 +675,7 @@ async def _generate_enriched_stub_response(
                     name=f"{city_name} City Center Suites",
                     city=city_name,
                     price_per_night=round(base_rate * 0.78, 2),
-                    total_price=round(base_rate * 0.78 * 3, 2),
+                    total_price=round(base_rate * 0.78 * city_nights, 2),
                     currency=currency,
                     star_rating=4.0,
                     guest_rating=8.8,
@@ -659,7 +689,7 @@ async def _generate_enriched_stub_response(
                     name=f"{city_name} Boutique Guest Lodge",
                     city=city_name,
                     price_per_night=round(base_rate * 0.52, 2),
-                    total_price=round(base_rate * 0.52 * 3, 2),
+                    total_price=round(base_rate * 0.52 * city_nights, 2),
                     currency=currency,
                     star_rating=3.5,
                     guest_rating=8.6,

@@ -98,12 +98,25 @@ class HotelClient:
         room_qty: int = 1,
         currency: str = "USD",
         city_name: Optional[str] = None,
-        budget_tier: str = "moderate"
+        budget_tier: str = "moderate",
+        num_nights: Optional[int] = None
     ) -> List[RealHotelOffer]:
         """
         Search hotels by dest_id or fallback to curated inventory.
+        AG-002: Scaled dynamically to actual stay duration (num_nights).
         """
-        cache_key = f"{dest_id}:{arrival_date}:{departure_date}:{adults}:{room_qty}:{currency}:{budget_tier}".lower()
+        # Determine actual stay nights from dates if not explicitly provided
+        nights_count = num_nights
+        if nights_count is None or nights_count <= 0:
+            try:
+                from datetime import datetime
+                d_arr = datetime.strptime(arrival_date, "%Y-%m-%d")
+                d_dep = datetime.strptime(departure_date, "%Y-%m-%d")
+                nights_count = max(1, (d_dep - d_arr).days)
+            except Exception:
+                nights_count = 1
+
+        cache_key = f"{dest_id}:{arrival_date}:{departure_date}:{adults}:{room_qty}:{currency}:{budget_tier}:{nights_count}".lower()
         cached = self._search_cache.get(cache_key)
         if cached:
             age = time.time() - cached.get("timestamp", 0)
@@ -122,7 +135,8 @@ class HotelClient:
                         adults=adults,
                         room_qty=room_qty,
                         currency=currency,
-                        city_name=city_name or "Destination"
+                        city_name=city_name or "Destination",
+                        num_nights=nights_count
                     )
                     if offers:
                         self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
@@ -137,7 +151,8 @@ class HotelClient:
                 budget_tier=budget_tier,
                 arrival_date=arrival_date,
                 departure_date=departure_date,
-                currency=currency
+                currency=currency,
+                num_nights=nights_count
             )
             if llm_hotels:
                 self._search_cache[cache_key] = {"timestamp": time.time(), "data": llm_hotels}
@@ -150,7 +165,8 @@ class HotelClient:
             arrival_date=arrival_date,
             departure_date=departure_date,
             currency=currency,
-            budget_tier=budget_tier
+            budget_tier=budget_tier,
+            num_nights=nights_count
         )
         self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
         return offers
@@ -161,7 +177,8 @@ class HotelClient:
         budget_tier: str = "moderate",
         arrival_date: str = "2026-12-01",
         departure_date: str = "2026-12-04",
-        currency: str = "USD"
+        currency: str = "USD",
+        num_nights: int = 1
     ) -> List[RealHotelOffer]:
         """Generate 3 real existing hotels in city_name using Groq/LLM."""
         if not city_name or len(city_name.strip()) < 2:
@@ -216,7 +233,8 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
             offers = []
             for idx, h in enumerate(data):
                 nightly = float(h.get("price_per_night", 120.0))
-                total = round(nightly * 3, 2)
+                # AG-002: Calculate total price using actual stay nights, not hardcoded 3
+                total = round(nightly * max(1, num_nights), 2)
                 offers.append(RealHotelOffer(
                     id=f"llm-ht-{clean_city.lower().replace(' ', '-')}-{idx + 1}",
                     name=h.get("name", f"Hotel in {clean_city}"),
@@ -310,7 +328,8 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
         adults: int,
         room_qty: int,
         currency: str,
-        city_name: str
+        city_name: str,
+        num_nights: int = 1
     ) -> List[RealHotelOffer]:
         headers = {
             "x-rapidapi-key": self.settings.rapidapi_key.strip(),
@@ -334,14 +353,14 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
             if resp.status_code != 200:
                 raise RuntimeError(f"Booking.com API status {resp.status_code}: {resp.text[:200]}")
             data = resp.json().get("data", {}).get("result", [])
-            return self._transform_booking_hotels(data, city_name, currency, 3)
+            return self._transform_booking_hotels(data, city_name, currency, nights=num_nights)
 
     def _transform_booking_hotels(
         self,
         results: List[Dict[str, Any]],
         city_name: str,
         currency: str,
-        nights: int = 3
+        nights: int = 1
     ) -> List[RealHotelOffer]:
         offers: List[RealHotelOffer] = []
         for idx, item in enumerate(results[:10]):
@@ -383,7 +402,8 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
         arrival_date: str,
         departure_date: str,
         currency: str,
-        budget_tier: str = "moderate"
+        budget_tier: str = "moderate",
+        num_nights: int = 1
     ) -> List[RealHotelOffer]:
         display_city = (city_name or "Destination").title()
         target_key = display_city.lower()
@@ -500,7 +520,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
         offers: List[RealHotelOffer] = []
         for idx, h in enumerate(hotel_list):
             nightly = float(h["price_per_night"])
-            total = round(nightly * 3, 2)
+            total = round(nightly * max(1, num_nights), 2)
             deeplink = f"https://www.skyscanner.com/hotels/search?destination={target_key}&checkin={arrival_date}&checkout={departure_date}"
 
             offers.append(

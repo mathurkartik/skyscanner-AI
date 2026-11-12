@@ -15,6 +15,7 @@ import httpx
 
 from ..config import get_settings
 from ..models.schemas import RealFlightOffer
+from ..utils.currency import convert_currency
 
 logger = logging.getLogger(__name__)
 
@@ -376,13 +377,9 @@ class FlightClient:
                     price_val = float(item.get("total_amount", 0.0))
                     offer_currency = item.get("total_currency", currency)
 
-                    # Normalize currency if Duffel sandbox returns AUD or mismatch
+                    # Normalize currency using canonical FX module (AG-003)
                     if offer_currency != currency:
-                        fx_to_usd = {"AUD": 0.65, "USD": 1.0, "EUR": 1.08, "GBP": 1.28, "INR": 0.012, "JPY": 0.0067, "SEK": 0.095}
-                        rate_from = fx_to_usd.get(offer_currency, 1.0)
-                        rate_to = fx_to_usd.get(currency, 1.0)
-                        price_in_usd = price_val * rate_from
-                        price_val = round(price_in_usd / rate_to, 2)
+                        price_val = round(convert_currency(price_val, offer_currency, currency), 2)
                         offer_currency = currency
 
                     airline_name = owner.get("name", "Major Airline")

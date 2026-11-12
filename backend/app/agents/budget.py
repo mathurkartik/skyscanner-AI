@@ -16,6 +16,7 @@ from ..models import (
     CostBand,
     LogisticsOutput,
 )
+from ..utils.currency import convert_currency, from_usd, to_usd
 
 
 class BudgetAgent:
@@ -66,28 +67,16 @@ class BudgetAgent:
         constraints: TravelConstraints,
         logistics_output: LogisticsOutput
     ) -> BudgetBreakdown:
-        """Enrich and calibrate budget categories with actual flight and hotel quotes."""
-        FX_USD_TO_CURR = {
-            "USD": 1.0,
-            "INR": 83.0,
-            "EUR": 0.92,
-            "GBP": 0.79,
-            "JPY": 155.0,
-            "AUD": 1.52,
-            "CAD": 1.36,
-            "SEK": 10.8,
-            "THB": 36.5,
-            "SGD": 1.35,
-            "CHF": 0.90,
-            "NZD": 1.65,
-        }
-        fx_usd_to_curr = FX_USD_TO_CURR.get(constraints.currency.upper(), 1.0)
+        """Enrich and calibrate budget categories with actual flight and hotel quotes using canonical FX rates (AG-003, AG-004)."""
+        target_curr = (constraints.currency or "USD").upper().strip()
         
         # 1. Calibrate Flights / Transport
         flight_cost_curr = 0.0
         if logistics_output.flight_offers:
             cheapest_flight = min(logistics_output.flight_offers, key=lambda f: f.price)
-            flight_cost_curr = round(cheapest_flight.price * fx_usd_to_curr, 2)
+            # AG-004: Convert safely from flight quote currency to target currency (avoids 83x double conversion)
+            flight_curr = getattr(cheapest_flight, "currency", "USD") or "USD"
+            flight_cost_curr = round(convert_currency(cheapest_flight.price, flight_curr, target_curr), 2)
             # Bound flight cost to 50% of total budget if constrained
             if constraints.budget_total > 0 and flight_cost_curr > constraints.budget_total * 0.50:
                 flight_cost_curr = round(constraints.budget_total * 0.35, 2)
@@ -98,13 +87,17 @@ class BudgetAgent:
         for city, hotels in logistics_output.hotels_by_city.items():
             if hotels:
                 selected_hotel = hotels[0]
-                hotel_total_curr += round(selected_hotel.total_price * fx_usd_to_curr, 2)
+                # AG-004: Convert safely from hotel quote currency to target currency
+                hotel_curr = getattr(selected_hotel, "currency", "USD") or "USD"
+                hotel_total_curr += round(convert_currency(selected_hotel.total_price, hotel_curr, target_curr), 2)
                 # If cheaper alternatives exist, create swap
                 if len(hotels) > 1:
                     cheapest_hotel = min(hotels, key=lambda h: h.price_per_night)
                     comparison_hotel = selected_hotel if cheapest_hotel.name != selected_hotel.name else max(hotels, key=lambda h: h.price_per_night)
                     if cheapest_hotel.name != comparison_hotel.name and comparison_hotel.price_per_night > cheapest_hotel.price_per_night:
-                        savings = round((comparison_hotel.price_per_night - cheapest_hotel.price_per_night) * fx_usd_to_curr, 2)
+                        diff = comparison_hotel.price_per_night - cheapest_hotel.price_per_night
+                        h_curr = getattr(comparison_hotel, "currency", "USD") or "USD"
+                        savings = round(convert_currency(diff, h_curr, target_curr), 2)
                         hotel_swaps.append(SuggestedSwap(
                             original_item=f"Stay at {comparison_hotel.name} ({city})",
                             suggested_alternative=f"Switch to {cheapest_hotel.name} ({city})",
@@ -113,7 +106,9 @@ class BudgetAgent:
                         ))
                     elif len(hotels) > 1:
                         alt_hotel = hotels[1]
-                        savings = round(max(10.0, selected_hotel.price_per_night * 0.15) * fx_usd_to_curr, 2)
+                        diff = max(10.0, selected_hotel.price_per_night * 0.15)
+                        h_curr = getattr(selected_hotel, "currency", "USD") or "USD"
+                        savings = round(convert_currency(diff, h_curr, target_curr), 2)
                         hotel_swaps.append(SuggestedSwap(
                             original_item=f"Stay at {selected_hotel.name} ({city})",
                             suggested_alternative=f"Switch to {alt_hotel.name} ({city})",

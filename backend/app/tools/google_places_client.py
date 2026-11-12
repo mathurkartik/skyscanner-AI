@@ -528,13 +528,13 @@ Example format:
         weekday_text = opening.get("weekday_text")
         open_now = opening.get("open_now")
 
-        # Photo reference
+        # Photo reference (AG-001: proxied through backend to avoid leaking Google API key)
         photo_url = None
         photos = item.get("photos", [])
         if photos and isinstance(photos, list):
             photo_ref = photos[0].get("photo_reference")
             if photo_ref:
-                photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={photo_ref}&key={api_key}"
+                photo_url = f"/api/places/photo/{photo_ref}"
 
         return PlaceInfo(
             place_id=item.get("place_id"),

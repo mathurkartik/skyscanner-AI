@@ -25,6 +25,7 @@ from ..models import (
 )
 from ..tools.flight_client import get_flight_client, resolve_iata
 from ..tools.hotel_client import get_hotel_client
+from ..utils.currency import to_usd
 
 
 class LogisticsAgent:
@@ -109,10 +110,9 @@ class LogisticsAgent:
         except Exception as e:
             print(f"Logistics flight query failed: {e}")
 
-        # 3. Query Real Hotels via Booking.com RapidAPI (calibrated to budget tier)
+        # 3. Query Real Hotels via Booking.com RapidAPI (calibrated to budget tier using canonical FX, AG-003)
         per_night_budget = (constraints.budget_total * 0.40 / max(1, duration)) if constraints.budget_total > 0 else 150.0
-        fx_rates = {"INR": 0.012, "USD": 1.0, "EUR": 1.08, "GBP": 1.28, "AUD": 0.65, "JPY": 0.0067, "SEK": 0.095, "CAD": 0.74, "CHF": 1.10}
-        per_night_usd = per_night_budget * fx_rates.get(constraints.currency.upper(), 1.0)
+        per_night_usd = to_usd(per_night_budget, constraints.currency)
 
         budget_tier = "moderate"
         if per_night_usd > 300 or any(p in [pref.lower() for pref in constraints.preferences] for p in ["luxury", "5-star", "splurge", "lavish", "premium"]):
@@ -124,13 +124,15 @@ class LogisticsAgent:
         for city in cities:
             try:
                 dest = await self.hotel_client.search_destination(city)
+                city_nights = night_allocation.get(city, max(1, duration // len(cities)))
                 hotels = await self.hotel_client.search_hotels(
                     dest_id=dest["dest_id"],
                     city_name=city,
                     arrival_date=departure_date,
                     departure_date=return_date,
                     adults=1,
-                    budget_tier=budget_tier
+                    budget_tier=budget_tier,
+                    num_nights=city_nights
                 )
                 hotels_by_city[city] = hotels
             except Exception as e:

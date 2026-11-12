@@ -27,6 +27,7 @@ from .trip_structuring import TripStructuringAgent
 from ..tools import ToolRouter
 from ..tools.city_coords import CITY_COORDS
 from ..utils.observability import ObservabilityLogger
+from ..utils.currency import from_usd
 
 
 _COORDS_CACHE: Dict[str, Tuple[float, float]] = dict(CITY_COORDS)
@@ -168,17 +169,9 @@ class OrchestratorAgent:
                 "luxury": 400.0
             }.get(tier, 180.0)
             
-            # Currency conversion factors
-            curr = (constraints.currency or "USD").upper()
-            fx_to_currency = {
-                "USD": 1.0,
-                "INR": 83.0,
-                "EUR": 0.92,
-                "GBP": 0.79,
-                "JPY": 150.0
-            }.get(curr, 1.0 if curr == "USD" else 83.0)
-            
-            calculated_budget = round(duration * tier_daily_usd * fx_to_currency, 2)
+            # Currency conversion factors (AG-003: Canonical FX module)
+            curr = (constraints.currency or "USD").upper().strip()
+            calculated_budget = from_usd(duration * tier_daily_usd, curr)
             constraints.budget_total = calculated_budget
             
         return constraints

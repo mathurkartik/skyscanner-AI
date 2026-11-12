@@ -17,6 +17,8 @@ from functools import lru_cache
 import time
 from datetime import datetime
 
+from ..utils.currency import convert_currency, to_usd, from_usd, USD_TO_CURRENCY
+
 
 class ToolRouter:
     """
@@ -185,36 +187,11 @@ class ToolRouter:
         """
         cache_key = f"fx:{from_currency.upper()}:{to_currency.upper()}"
         
-        # Phase 3: Static exchange rates (as of 2024)
-        static_rates = {
-            "USD": 1.0,
-            "JPY": 0.0067,      # 1 JPY = 0.0067 USD
-            "EUR": 1.09,
-            "GBP": 1.27,
-            "KRW": 0.00075,     # South Korean Won
-            "THB": 0.028,       # Thai Baht
-            "INR": 0.012,       # Indian Rupee
-            "CNY": 0.14,        # Chinese Yuan
-        }
-        
+        # AG-003: Use canonical currency utility module
         await asyncio.sleep(0.01)  # Simulate network delay
         
-        if from_currency.upper() == to_currency.upper():
-            rate = 1.0
-            result_amount = amount
-        else:
-            # Convert to USD first, then to target
-            from_rate = static_rates.get(from_currency.upper(), 1.0)
-            to_rate = static_rates.get(to_currency.upper(), 1.0)
-            
-            if to_currency.upper() == "USD":
-                rate = from_rate
-                result_amount = amount * rate
-            else:
-                # Convert: from -> USD -> to
-                usd_amount = amount * from_rate
-                rate = from_rate / to_rate
-                result_amount = usd_amount / to_rate
+        result_amount = convert_currency(amount, from_currency, to_currency)
+        rate = round(result_amount / amount, 6) if amount > 0 else 1.0
         
         result = {
             "original_amount": amount,
@@ -222,11 +199,11 @@ class ToolRouter:
             "converted_amount": round(result_amount, 2),
             "target_currency": to_currency.upper(),
             "rate": round(rate, 6),
-            "rate_timestamp": "2024-01-01",  # Static for Phase 3
-            "is_estimate": True  # True for Phase 3 static data
+            "rate_timestamp": "2024-01-01",
+            "is_estimate": True
         }
         
-        self._cache[cache_key] = static_rates.get(from_currency.upper(), 1.0)
+        self._cache[cache_key] = rate
         self._log_call("fx_convert", f"{amount} {from_currency}->{to_currency}", trace_id, result)
         return result
     
