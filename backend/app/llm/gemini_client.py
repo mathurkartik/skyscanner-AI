@@ -35,16 +35,17 @@ class GeminiClient:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
-        max_tokens: int = 900,
+        max_tokens: Optional[int] = None,
         temperature: float = 0.1,
         enable_tracking: bool = True,
         enable_cache: bool = True,
     ):
         settings = get_settings()
+        self.settings = settings
 
         self.api_key = api_key or settings.gemini_api_key
         self.model = model or settings.gemini_model
-        self.max_tokens = max_tokens or settings.groq_max_tokens_per_request
+        self.max_tokens = max_tokens if max_tokens is not None else getattr(settings, "gemini_max_tokens", 4096)
         self.temperature = temperature or settings.groq_temperature
         self.enable_tracking = enable_tracking and settings.enable_token_tracking
         self.enable_cache = enable_cache and settings.enable_response_cache
@@ -123,22 +124,6 @@ class GeminiClient:
             f"Gemini returned no text. "
             f"Candidates: {len(response.candidates) if hasattr(response, 'candidates') and response.candidates else 0}"
         )
-
-    def _extract_json(self, text: str) -> str:
-        """Extract JSON from Gemini response, stripping markdown fences if present."""
-        if not text:
-            raise RuntimeError("Empty text passed to JSON extraction")
-        text = text.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            start = 1
-            end = len(lines)
-            for i in range(1, len(lines)):
-                if lines[i].strip() == "```":
-                    end = i
-                    break
-            text = "\n".join(lines[start:end]).strip()
-        return text
 
     def _generate_sync(self, prompt: str, max_tokens: int, temperature: float, json_mode: bool = False):
         """Synchronous call to Gemini API via google-genai SDK."""
@@ -371,7 +356,8 @@ TRIP TYPE DETECTION:
         """Chat completion with automatic retry — matches GroqClient interface."""
         if not self._client:
             raise RuntimeError("Gemini client not initialized")
-        max_tokens = min(max_tokens, 2000)
+        max_limit = getattr(self.settings, "gemini_max_tokens", 4096)
+        max_tokens = min(max_tokens, max_limit)
 
         combined = []
         for msg in messages:

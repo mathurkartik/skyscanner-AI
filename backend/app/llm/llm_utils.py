@@ -47,6 +47,52 @@ def extract_json_from_text(text: str) -> str:
     return candidate
 
 
+def validate_llm_json(
+    data: Any,
+    required_keys: Optional[List[str]] = None,
+    expected_type: type = dict,
+    caller_name: str = "LLM"
+) -> bool:
+    """
+    Validates parsed LLM JSON output against expected type and required keys (AG-017).
+    Logs warnings when the structure deviates or expected keys are missing.
+    """
+    if not isinstance(data, expected_type):
+        logger.warning(
+            f"[{caller_name}] LLM output type mismatch: expected {expected_type.__name__}, got {type(data).__name__}"
+        )
+        return False
+
+    if required_keys and isinstance(data, dict):
+        missing = [k for k in required_keys if k not in data or data[k] is None]
+        if missing:
+            logger.warning(
+                f"[{caller_name}] LLM output missing expected fields: {missing}. Available keys: {list(data.keys())}"
+            )
+            return False
+
+    return True
+
+
+def validate_item_fields(
+    item: Any,
+    required_keys: List[str],
+    caller_name: str = "LLM"
+) -> bool:
+    """
+    Validates a single item dictionary within a list of LLM-generated items (AG-017).
+    Logs warnings when expected fields are missing.
+    """
+    if not isinstance(item, dict):
+        logger.warning(f"[{caller_name}] Expected item dict, got {type(item).__name__}")
+        return False
+    missing = [k for k in required_keys if k not in item or item[k] is None]
+    if missing:
+        logger.warning(f"[{caller_name}] Item missing fields: {missing}. Present keys: {list(item.keys())}")
+        return False
+    return True
+
+
 def sanitize_numeric_fields(data: dict) -> dict:
     """
     Replace empty strings with None for fields that should be numeric,

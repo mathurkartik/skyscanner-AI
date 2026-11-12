@@ -16,17 +16,22 @@ import httpx
 from ..config import get_settings
 from ..models.schemas import RealFlightOffer
 from ..utils.currency import convert_currency
+from ..llm.llm_utils import validate_llm_json
+from .airports import lookup_iata_code
 
 logger = logging.getLogger(__name__)
 
-# In-memory runtime cache for dynamically resolved IATA codes (zero hardcoded dictionaries)
+# In-memory runtime cache for dynamically resolved IATA codes
 _RESOLVED_IATA_CACHE: Dict[str, str] = {}
 
 
 async def resolve_iata(city_or_code: str, default: str = "DEL") -> str:
     """
-    Dynamically resolve a city name or region to its nearest 3-letter IATA airport code via LLM.
-    Results are cached in memory for zero-latency repeat lookups.
+    Dynamically resolve a city name or region to its nearest 3-letter IATA airport code (AG-009).
+    1. Direct 3-letter code validation
+    2. Dynamic runtime cache check
+    3. Static 500+ global commercial airport database lookup (0 tokens, 0ms)
+    4. LLM fallback for ambiguous or unlisted locations
     """
     if not city_or_code:
         return default
@@ -49,7 +54,13 @@ async def resolve_iata(city_or_code: str, default: str = "DEL") -> str:
         _RESOLVED_IATA_CACHE[normalized] = code
         return code
 
-    # 4. Resolve dynamically via LLM
+    # 4. Check static 500+ airport database (AG-009: 0 tokens, instant resolution)
+    static_code = lookup_iata_code(clean)
+    if static_code:
+        _RESOLVED_IATA_CACHE[normalized] = static_code
+        return static_code
+
+    # 5. Resolve dynamically via LLM for unlisted/ambiguous locations
     try:
         from ..llm import get_llm_client
         llm = get_llm_client()
@@ -100,6 +111,11 @@ def resolve_iata_sync(city_or_code: str, default: str = "DEL") -> str:
     normalized = clean.lower()
     if normalized in _RESOLVED_IATA_CACHE:
         return _RESOLVED_IATA_CACHE[normalized]
+
+    static_code = lookup_iata_code(clean)
+    if static_code:
+        _RESOLVED_IATA_CACHE[normalized] = static_code
+        return static_code
 
     try:
         loop = asyncio.get_event_loop()
@@ -531,7 +547,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                         {"role": "system", "content": "You are a Skyscanner flight inventory data engine. Return ONLY a valid JSON array."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=800
+                    max_tokens=1200
                 ),
                 timeout=25.0
             )
@@ -543,6 +559,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                 if end_b > 0:
                     text = text[:end_b + 1]
             data = json.loads(text)
+            validate_llm_json(data, expected_type=list, caller_name="FlightClient._generate_llm_flights")
 
             offers = []
             for idx, item in enumerate(data):

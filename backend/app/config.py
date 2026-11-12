@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_api_key_2: str | None = None
     gemini_model: str = "gemini-2.0-flash"
+    gemini_max_tokens: int = 4096  # AG-010: Configurable max output tokens (raised from 2000 to 4096)
     llm_failover: bool = True
     
     # Token Budget Management (Groq = 100k tokens/day)

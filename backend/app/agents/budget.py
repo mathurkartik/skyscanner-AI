@@ -5,6 +5,7 @@ Uses LLM for city-specific cost estimation instead of static price bands.
 """
 
 import json
+import logging
 from typing import List, Optional, Dict
 
 from ..models import (
@@ -17,6 +18,9 @@ from ..models import (
     LogisticsOutput,
 )
 from ..utils.currency import convert_currency, from_usd, to_usd
+from ..llm.llm_utils import validate_llm_json, validate_item_fields
+
+logger = logging.getLogger(__name__)
 
 
 class BudgetAgent:
@@ -297,6 +301,7 @@ Rules:
 
         content = self._extract_json_content(content)
         data = json.loads(content)
+        validate_llm_json(data, required_keys=["categories"], caller_name="BudgetAgent._llm_calculate_breakdown")
 
         CATEGORY_MAP = {
             "accommodation": "stay", "hotel": "stay", "lodging": "stay", "housing": "stay", "stays": "stay",
@@ -306,7 +311,9 @@ Rules:
             "miscellaneous": "buffer", "misc": "buffer", "other": "buffer", "emergency": "buffer", "contingency": "buffer", "tips": "buffer"
         }
         categories = []
-        for cat in data.get("categories", []):
+        raw_categories = data.get("categories", []) if isinstance(data, dict) else []
+        for cat in raw_categories:
+            validate_item_fields(cat, ["category", "estimated_total"], caller_name="BudgetAgent.category")
             raw_c = str(cat.get("category", "")).lower().strip()
             mapped_c = CATEGORY_MAP.get(raw_c, raw_c)
             if mapped_c not in ("stay", "transport", "food", "activities", "buffer"):

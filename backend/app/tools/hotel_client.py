@@ -15,6 +15,7 @@ import httpx
 
 from ..config import get_settings
 from ..models.schemas import RealHotelOffer
+from ..llm.llm_utils import validate_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +231,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                 if end_b > 0:
                     text = text[:end_b + 1]
             data = json.loads(text)
+            validate_llm_json(data, expected_type=list, caller_name="HotelClient._generate_llm_hotels")
             offers = []
             for idx, h in enumerate(data):
                 nightly = float(h.get("price_per_night", 120.0))

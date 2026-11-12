@@ -6,12 +6,16 @@ Uses LLM to generate specific, real activities for any destination worldwide.
 
 from typing import List, Optional, Dict
 import json
+import logging
 
 from ..models import (
     TravelConstraints, ActivityCatalog, Activity, ActivityType,
     CrowdLevel, CostBand, PlaceInfo
 )
 from ..tools.google_places_client import get_google_places_client
+from ..llm.llm_utils import validate_llm_json, validate_item_fields
+
+logger = logging.getLogger(__name__)
 
 
 class DestinationAgent:
@@ -149,11 +153,14 @@ Travel Dates / Season: {constraints.start_date or 'Optimal travel window'}"""
             else:
                 raise
 
-        if isinstance(data, dict) and "activities" in data:
-            activities_data = data["activities"]
+        if isinstance(data, dict):
+            if "activities" not in data:
+                logger.warning(f"[DestinationAgent] Missing 'activities' key in LLM response: {list(data.keys())}")
+            activities_data = data.get("activities", [])
         elif isinstance(data, list):
             activities_data = data
         else:
+            logger.warning(f"[DestinationAgent] Unexpected LLM output type: {type(data).__name__}")
             activities_data = []
 
         type_mapping = {
@@ -170,6 +177,11 @@ Travel Dates / Season: {constraints.start_date or 'Optimal travel window'}"""
 
         activities = []
         for i, item in enumerate(activities_data):
+            if not isinstance(item, dict):
+                logger.warning(f"[DestinationAgent] Activity entry {i} is not a dictionary: {type(item).__name__}")
+                continue
+            if not item.get("name"):
+                logger.warning(f"[DestinationAgent] Activity entry {i} missing 'name' field: {item}")
             name = str(item.get("name", ""))[:100]
             rationale = str(item.get("rationale", "") or item.get("description", "") or "Worth visiting")[:200]
             description = str(item.get("description", ""))[:300] if item.get("description") else None

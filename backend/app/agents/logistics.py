@@ -6,6 +6,7 @@ Uses LLM for neighborhood suggestions and route planning.
 
 import asyncio
 import json
+import logging
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 
@@ -26,6 +27,9 @@ from ..models import (
 from ..tools.flight_client import get_flight_client, resolve_iata
 from ..tools.hotel_client import get_hotel_client
 from ..utils.currency import to_usd
+from ..llm.llm_utils import validate_llm_json, validate_item_fields
+
+logger = logging.getLogger(__name__)
 
 
 class LogisticsAgent:
@@ -344,7 +348,8 @@ Budget: {constraints.budget_total} {constraints.currency} for {constraints.durat
 
         content = self._extract_json_content(content)
         data = json.loads(content)
-        return data.get("neighborhoods", {})
+        validate_llm_json(data, required_keys=["neighborhoods"], caller_name="LogisticsAgent._llm_get_neighborhoods")
+        return data.get("neighborhoods", {}) if isinstance(data, dict) else {}
 
     async def _create_movement_plans(self, cities: List[str], constraints: TravelConstraints) -> List[MovementPlan]:
         """Create inter-city movement plans."""
@@ -423,8 +428,11 @@ Budget: {constraints.budget_total} {constraints.currency}"""
 
         content = self._extract_json_content(content)
         data = json.loads(content)
+        validate_llm_json(data, required_keys=["movements"], caller_name="LogisticsAgent._llm_generate_movements")
         movements = []
-        for m in data.get("movements", []):
+        for m in (data.get("movements", []) if isinstance(data, dict) else []):
+            if not validate_item_fields(m, ["from_city", "to_city"], caller_name="LogisticsAgent.movement"):
+                continue
             movements.append(MovementPlan(
                 from_city=m["from_city"],
                 to_city=m["to_city"],
