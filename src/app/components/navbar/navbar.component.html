@@ -32,7 +32,7 @@
 
         <!-- Live Data Credibility Signal (SF-1: Replaces intrusive config button in production) -->
         <div 
-          class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 select-none"
+          class="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 select-none"
           title="2026/2027 Skyscanner Live Hubs & Real API Integration Ready">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span class="text-[11px] font-semibold text-emerald-200">2026/2027 Live Data</span>
@@ -79,13 +79,13 @@
         @if (isLoggedIn()) {
           <button 
             (click)="handleLogout()"
-            class="bg-white text-[#02122c] hover:bg-gray-100 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors">
+            class="hidden sm:block bg-white text-[#02122c] hover:bg-gray-100 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors">
             Log out
           </button>
         } @else {
           <button 
             (click)="toggleLoginModal()"
-            class="bg-white text-[#02122c] hover:bg-gray-100 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors">
+            class="hidden sm:block bg-white text-[#02122c] hover:bg-gray-100 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors">
             Log in
           </button>
         }
@@ -154,11 +154,11 @@
 
 <!-- Currency & Locale Modal -->
 @if (isLocaleModalOpen()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" (click)="toggleLocaleModal()" (keydown.escape)="toggleLocaleModal()" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative" role="dialog" aria-modal="true" aria-labelledby="locale-modal-title" (click)="$event.stopPropagation()">
       <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
-        <h3 class="text-lg font-black text-gray-900">Regional & Currency Settings</h3>
-        <button (click)="toggleLocaleModal()" class="text-gray-400 hover:text-gray-600">
+        <h3 id="locale-modal-title" class="text-lg font-black text-gray-900">Regional & Currency Settings</h3>
+        <button (click)="toggleLocaleModal()" aria-label="Close dialog" class="text-gray-400 hover:text-gray-600">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
       </div>
@@ -197,9 +197,9 @@
 
 <!-- Login Modal -->
 @if (isLoginModalOpen()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-gray-800 relative">
-      <button (click)="toggleLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" (click)="toggleLoginModal()" (keydown.escape)="toggleLoginModal()" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-gray-800 relative" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" (click)="$event.stopPropagation()">
+      <button (click)="toggleLoginModal()" aria-label="Close dialog" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
 
@@ -208,7 +208,7 @@
           ✈
         </div>
         <div>
-          <h2 class="text-xl font-bold text-gray-900">Sign in to Skyscanner</h2>
+          <h2 id="login-modal-title" class="text-xl font-bold text-gray-900">Sign in to Skyscanner</h2>
           <p class="text-xs text-gray-500">Track flight prices and save trips across devices</p>
         </div>
       </div>
@@ -239,12 +239,12 @@
 
 <!-- Help Modal -->
 @if (isHelpModalOpen()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative">
-      <button (click)="toggleHelpModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" (click)="toggleHelpModal()" (keydown.escape)="toggleHelpModal()" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" (click)="$event.stopPropagation()">
+      <button (click)="toggleHelpModal()" aria-label="Close dialog" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
-      <h3 class="text-lg font-black text-gray-900 mb-2">Skyscanner Help Centre</h3>
+      <h3 id="help-modal-title" class="text-lg font-black text-gray-900 mb-2">Skyscanner Help Centre</h3>
       <p class="text-xs text-gray-600 mb-4">Find answers regarding booking, cancellations, ticket changes, and refunds.</p>
       
       <div class="space-y-2 text-xs">
@@ -267,9 +267,9 @@
 
 <!-- Favorites / Saved Drawer -->
 @if (isFavoritesOpen()) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-gray-800 relative">
-      <button (click)="toggleFavorites()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" (click)="toggleFavorites()" (keydown.escape)="toggleFavorites()" tabindex="-1">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-gray-800 relative" role="dialog" aria-modal="true" aria-labelledby="favorites-modal-title" (click)="$event.stopPropagation()">
+      <button (click)="toggleFavorites()" aria-label="Close dialog" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
 
@@ -277,7 +277,7 @@
         <svg class="w-5 h-5 text-pink-500 fill-current" viewBox="0 0 24 24">
           <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
         </svg>
-        <h3 class="text-base font-black text-gray-900">Saved Flights ({{ favoritesService.savedList().length }})</h3>
+        <h3 id="favorites-modal-title" class="text-base font-black text-gray-900">Saved Flights ({{ favoritesService.savedList().length }})</h3>
       </div>
 
       @if (favoritesService.savedList().length === 0) {

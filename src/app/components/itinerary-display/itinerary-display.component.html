@@ -55,7 +55,7 @@
       </div>
 
       <!-- Right Side: Budget KPI Card -->
-      <div class="rounded-2xl bg-[#f2f4f9] p-4 flex items-center gap-6 shrink-0 border border-gray-100">
+      <div class="rounded-2xl bg-[#f2f4f9] p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 shrink-0 border border-gray-100">
         <div class="flex flex-col">
           <span class="text-[11px] font-bold uppercase tracking-wider text-gray-500">Estimated Total Spend</span>
           <div class="flex items-baseline gap-1">
@@ -68,7 +68,7 @@
           </span>
         </div>
 
-        <div class="flex flex-col items-end gap-1">
+        <div class="flex flex-col sm:items-end gap-1">
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#00776d]/15 text-[#005c54] text-xs font-bold">
             <span class="material-symbols-outlined text-[16px]">savings</span>
             Within {{ (itinerary.constraints.budget_total || 350000) | number:'1.0-0' }} {{ itinerary.constraints.currency }} budget
@@ -117,25 +117,25 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-4 sm:gap-6 text-right divide-x divide-gray-300">
-        <div title="Average estimated airfare based on live Skyscanner routes">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-left sm:text-right divide-y sm:divide-y-0 sm:divide-x divide-gray-300 w-full sm:w-auto">
+        <div title="Average estimated airfare based on live Skyscanner routes" class="w-full sm:w-auto">
           <div class="text-[10px] font-bold uppercase text-gray-500">Skyscanner Fare</div>
           <div class="text-xs sm:text-sm font-bold text-gray-900">{{ getCurrencySymbol() }}{{ getAverageFlightFare() | number:'1.0-0' }} avg</div>
         </div>
-        <div class="pl-4" title="Average driving or transit time between overnight bases">
+        <div class="pt-2 sm:pt-0 sm:pl-4 w-full sm:w-auto" title="Average driving or transit time between overnight bases">
           <div class="text-[10px] font-bold uppercase text-gray-500">Daily Transit</div>
           <div class="text-xs sm:text-sm font-bold text-gray-900">{{ getDailyDriveAverage() }} hrs / day</div>
         </div>
         <!-- C-2: Clear Contextual Pacing Score -->
-        <div class="pl-4 cursor-help" title="Pacing Score: Optimal balance of active exploration vs rest & transit across your {{ itinerary.constraints.duration_days || 7 }}-day trip">
-          <div class="flex items-center justify-end gap-1 text-[10px] font-bold uppercase text-gray-500">
+        <div class="pt-2 sm:pt-0 sm:pl-4 cursor-help w-full sm:w-auto" title="Pacing Score: Optimal balance of active exploration vs rest & transit across your {{ itinerary.constraints.duration_days || 7 }}-day trip">
+          <div class="flex items-center justify-start sm:justify-end gap-1 text-[10px] font-bold uppercase text-gray-500">
             <span>Pacing Score</span>
             <span class="material-symbols-outlined text-[13px] text-gray-400">help_outline</span>
           </div>
           <div class="text-xs sm:text-sm font-bold text-[#00776d]">Well-Paced ({{ getPacingScore() }})</div>
         </div>
         <!-- C-2: Clear Contextual Route Map Button -->
-        <div class="pl-4">
+        <div class="pt-2 sm:pt-0 sm:pl-4 w-full sm:w-auto">
           <button
             (click)="toggleMap()"
             title="Interactive Route Map: Explore {{ itinerary.map_pins?.length || getRouteWaypoints().length }} geocoded destinations and driving path"
@@ -618,10 +618,16 @@
 
       <!-- A. Day Selector Timeline Tabs (MF-2 & SF-4: Horizontal Scroll with Snap & Distinct Brand Styling) -->
       <div class="relative rounded-3xl bg-white p-2.5 shadow-sm border border-gray-200 overflow-hidden">
-        <div class="tabs-scroll-container flex items-center gap-2 pr-8 scroll-smooth">
+        <div class="tabs-scroll-container flex items-center gap-2 pr-8 scroll-smooth" role="tablist" aria-label="Trip daily itineraries">
           @for (day of itinerary.days; track day.day_number) {
             <button
               (click)="selectDay(day.day_number)"
+              (keydown.arrowright)="$event.preventDefault(); selectNextDay()"
+              (keydown.arrowleft)="$event.preventDefault(); selectPrevDay()"
+              role="tab"
+              [id]="'day-tab-' + day.day_number"
+              [attr.aria-selected]="activeDayNumber() === day.day_number"
+              [attr.aria-controls]="'day-panel-' + day.day_number"
               [class.bg-[#0062e3]]="activeDayNumber() === day.day_number"
               [class.text-white]="activeDayNumber() === day.day_number"
               [class.shadow-md]="activeDayNumber() === day.day_number"
@@ -662,7 +668,7 @@
       </div>
 
       <!-- B. Expanded Active Day Workspace (MF-2: Target for auto-scroll on day tab switch) -->
-      <div id="active-day-workspace" class="rounded-3xl bg-white p-6 sm:p-7 shadow-sm space-y-5 border border-gray-200 scroll-mt-20">
+      <div id="active-day-workspace" role="tabpanel" [attr.aria-labelledby]="'day-tab-' + activeDay.day_number" class="rounded-3xl bg-white p-6 sm:p-7 shadow-sm space-y-5 border border-gray-200 scroll-mt-20">
 
         <!-- Day Header Banner -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200">
@@ -1081,13 +1087,13 @@
 
   <!-- Interactive Route Map & GPS Pins Modal -->
   @if (showMapModal()) {
-    <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-gray-200 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" (click)="toggleMap()" (keydown.escape)="toggleMap()" tabindex="-1">
+      <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-gray-200 space-y-4 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="map-modal-title" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between border-b border-gray-100 pb-3">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-[#0062e3] text-[24px]">map</span>
             <div>
-              <h3 class="text-lg font-black text-gray-900">{{ itinerary.constraints.destination_region || 'Destination' }} Route & GPS Pins</h3>
+              <h3 id="map-modal-title" class="text-lg font-black text-gray-900">{{ itinerary.constraints.destination_region || 'Destination' }} Route & GPS Pins</h3>
               <p class="text-xs text-gray-500">{{ itinerary.map_pins?.length || 0 }} Geocoded Waypoints with Direct Navigation Links</p>
             </div>
           </div>
@@ -1102,6 +1108,7 @@
             </a>
             <button
               (click)="toggleMap()"
+              aria-label="Close dialog"
               class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">
               ✕
             </button>

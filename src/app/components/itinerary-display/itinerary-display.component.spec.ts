@@ -266,5 +266,52 @@ describe('ItineraryDisplayComponent', () => {
       component.refineItinerary('deep_dive');
       expect(spy).toHaveBeenCalledWith(expect.stringContaining('extra deep dive'));
     });
+
+    it('should navigate through days with selectNextDay and selectPrevDay (AG-034)', () => {
+      expect(component.activeDayNumber()).toBe(1);
+      component.selectNextDay();
+      expect(component.activeDayNumber()).toBe(2);
+      // cannot exceed total days
+      component.selectNextDay();
+      expect(component.activeDayNumber()).toBe(2);
+
+      component.selectPrevDay();
+      expect(component.activeDayNumber()).toBe(1);
+      // cannot go below 1
+      component.selectPrevDay();
+      expect(component.activeDayNumber()).toBe(1);
+    });
+
+    it('should dismiss open modals on Escape key press (AG-024)', () => {
+      component.showMapModal.set(true);
+      component.showRemainingDaysTable.set(true);
+
+      component.onEscapeKey();
+
+      expect(component.showMapModal()).toBe(false);
+      expect(component.showRemainingDaysTable()).toBe(false);
+    });
+
+    it('should format currency symbol accurately via lookup and CurrencyService fallback (AG-033)', () => {
+      expect(component.getCurrencySymbol()).toBe('₹');
+
+      component.itinerary = {
+        ...mockItinerary,
+        constraints: {
+          ...mockItinerary.constraints,
+          currency: 'USD'
+        }
+      };
+      expect(component.getCurrencySymbol()).toBe('$');
+
+      component.itinerary = {
+        ...mockItinerary,
+        constraints: {
+          ...mockItinerary.constraints,
+          currency: 'EUR'
+        }
+      };
+      expect(component.getCurrencySymbol()).toBe('€');
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { Component, inject, signal, output, input, OnInit } from '@angular/core';
+import { Component, inject, signal, output, input, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../../services/currency.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -101,5 +101,13 @@ export class NavbarComponent implements OnInit {
 
   public handleLogout() {
     this.isLoggedIn.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  public onEscapeKey(): void {
+    this.isLocaleModalOpen.set(false);
+    this.isLoginModalOpen.set(false);
+    this.isHelpModalOpen.set(false);
+    this.isFavoritesOpen.set(false);
   }
 }

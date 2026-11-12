@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FinalItinerary, DayItinerary, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo, CostSavingTip, TransportSegment } from '../../models/travel-planner.model';
 import { environment } from '../../../environments/environment';
@@ -66,6 +66,31 @@ export class ItineraryDisplayComponent {
           }
         }, 50);
       }
+    }
+  }
+
+  public selectNextDay(): void {
+    const totalDays = this.itinerary?.days?.length || 1;
+    const current = this.activeDayNumber();
+    if (current < totalDays) {
+      this.selectDay(current + 1);
+    }
+  }
+
+  public selectPrevDay(): void {
+    const current = this.activeDayNumber();
+    if (current > 1) {
+      this.selectDay(current - 1);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  public onEscapeKey(): void {
+    if (this.showMapModal()) {
+      this.showMapModal.set(false);
+    }
+    if (this.showRemainingDaysTable()) {
+      this.showRemainingDaysTable.set(false);
     }
   }
 
