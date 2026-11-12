@@ -33,10 +33,21 @@ class ToolRouter:
     Initially stubs; swapping to real implementations is router-only change.
     """
     
+    CACHE_MAX_ITEMS: int = 500
+
     def __init__(self, settings=None):
         self.settings = settings
         self._cache: Dict[str, Any] = {}
         self._call_log: List[Dict] = []
+        self._max_cache_size: int = self.CACHE_MAX_ITEMS
+
+    def _set_cache(self, key: str, val: Any) -> None:
+        """Bounded cache insertion to prevent memory leaks (AG-038)."""
+        limit = getattr(self, "CACHE_MAX_ITEMS", self._max_cache_size)
+        while len(self._cache) >= limit and self._cache:
+            first_key = next(iter(self._cache))
+            del self._cache[first_key]
+        self._cache[key] = val
     
     async def search(
         self,
@@ -70,7 +81,7 @@ class ToolRouter:
         # Simulate network delay (remove in production)
         await asyncio.sleep(0.1)
         
-        self._cache[cache_key] = result
+        self._set_cache(cache_key, result)
         self._log_call("search", query, trace_id, result)
         return result
     
@@ -107,7 +118,7 @@ class ToolRouter:
         
         await asyncio.sleep(0.05)  # Simulate network delay
         
-        self._cache[cache_key] = result
+        self._set_cache(cache_key, result)
         self._log_call("geo_estimate", f"{from_location}->{to_location}", trace_id, result)
         return result
     
@@ -155,7 +166,7 @@ class ToolRouter:
             "currency": "USD"
         }
         
-        self._cache[cache_key] = result
+        self._set_cache(cache_key, result)
         self._log_call("price_band", f"{category}/{city}/{band}", trace_id, result)
         return result
     
@@ -203,7 +214,7 @@ class ToolRouter:
             "is_estimate": True
         }
         
-        self._cache[cache_key] = rate
+        self._set_cache(cache_key, rate)
         self._log_call("fx_convert", f"{amount} {from_currency}->{to_currency}", trace_id, result)
         return result
     

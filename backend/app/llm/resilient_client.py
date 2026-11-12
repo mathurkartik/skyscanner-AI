@@ -98,7 +98,13 @@ class ResilientLLMClient:
         **kwargs
     ) -> str:
         """Attempt primary provider; on failure/rate-limit, fail over to backup provider."""
-        prompt_key = str(messages)
+        import hashlib
+        import json
+        try:
+            msg_str = json.dumps(messages, sort_keys=True)
+        except Exception:
+            msg_str = str(messages)
+        prompt_key = hashlib.sha256(msg_str.encode("utf-8")).hexdigest()
         if getattr(self.settings, "enable_response_cache", True):
             cached = self._cache.get(prompt_key, self.model, temperature or 0.1)
             if cached is not None:

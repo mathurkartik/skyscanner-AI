@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import time
+import urllib.parse
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -16,6 +17,7 @@ import httpx
 from ..config import get_settings
 from ..models.schemas import RealHotelOffer
 from ..llm.llm_utils import validate_llm_json
+from ..utils.currency import from_usd
 from .city_coords import get_city_coords
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,18 @@ class HotelClient:
         self._search_cache: Dict[str, Dict[str, Any]] = {}
         self.dest_cache_ttl_seconds: int = 86400  # 24 hours
         self.search_cache_ttl_seconds: int = 3600  # 1 hour
+
+    @staticmethod
+    def generate_booking_url(hotel_name: str, city: str, arrival: str = "", departure: str = "") -> str:
+        """Generate authentic Booking.com search URL (AG-054)."""
+        clean_name = urllib.parse.quote_plus(hotel_name)
+        clean_city = urllib.parse.quote_plus(city)
+        base = f"https://www.booking.com/searchresults.html?ss={clean_name}+{clean_city}"
+        if arrival:
+            base += f"&checkin={arrival}"
+        if departure:
+            base += f"&checkout={departure}"
+        return base
 
     async def search_destination(self, query: str) -> Dict[str, Any]:
         """
@@ -194,15 +208,24 @@ class HotelClient:
                 return []
 
             clean_city = city_name.strip().title()
+            target_curr = (currency or "USD").upper().strip()
+
             if budget_tier == "luxury":
-                tier_instruction = f"Hotels MUST match the LUXURY tier (5-star hotels, luxury resorts, boutique palaces, 4.5-5.0 stars) with realistic nightly rates $350 - $800+ USD."
+                min_rate = round(from_usd(350.0, target_curr))
+                max_rate = round(from_usd(800.0, target_curr))
+                tier_instruction = f"Hotels MUST match the LUXURY tier (5-star hotels, luxury resorts, boutique palaces, 4.5-5.0 stars) with realistic nightly rates {min_rate:,.0f} - {max_rate:,.0f}+ {target_curr}."
             elif budget_tier == "budget":
-                tier_instruction = f"Hotels MUST match the BUDGET tier (hostels, 3-star boutique hotels, clean guest houses) with realistic nightly rates $35 - $80 USD."
+                min_rate = round(from_usd(35.0, target_curr))
+                max_rate = round(from_usd(80.0, target_curr))
+                tier_instruction = f"Hotels MUST match the BUDGET tier (hostels, 3-star boutique hotels, clean guest houses) with realistic nightly rates {min_rate:,.0f} - {max_rate:,.0f} {target_curr}."
             else:
-                tier_instruction = f"Hotels MUST match the MID-RANGE tier (4-star hotels, boutique properties) with realistic nightly rates $110 - $220 USD."
+                min_rate = round(from_usd(110.0, target_curr))
+                max_rate = round(from_usd(220.0, target_curr))
+                tier_instruction = f"Hotels MUST match the MID-RANGE tier (4-star hotels, boutique properties) with realistic nightly rates {min_rate:,.0f} - {max_rate:,.0f} {target_curr}."
 
             prompt = f"""Generate 3 REAL, currently operating hotels in {clean_city}.
 {tier_instruction}
+All price_per_night values MUST be calibrated in {target_curr}.
 Return ONLY a valid JSON array of 3 objects with this exact format:
 [
   {{
@@ -527,7 +550,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
         for idx, h in enumerate(hotel_list):
             nightly = float(h["price_per_night"])
             total = round(nightly * max(1, num_nights), 2)
-            deeplink = f"https://www.skyscanner.com/hotels/search?destination={target_key}&checkin={arrival_date}&checkout={departure_date}"
+            deeplink = HotelClient.generate_booking_url(h["name"], display_city, arrival_date, departure_date)
 
             offers.append(
                 RealHotelOffer(

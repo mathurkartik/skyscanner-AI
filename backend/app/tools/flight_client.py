@@ -118,10 +118,13 @@ def resolve_iata_sync(city_or_code: str, default: str = "DEL") -> str:
         return static_code
 
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
             return default
-        return loop.run_until_complete(resolve_iata(city_or_code, default))
+        return asyncio.run(resolve_iata(city_or_code, default))
     except Exception:
         return default
 

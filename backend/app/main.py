@@ -43,16 +43,23 @@ MAX_REQUESTS_PER_WINDOW = 30
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    """Rate limit intensive planning requests by client IP."""
-    if request.url.path.startswith("/api/plan") and request.method == "POST":
+    """Rate limit intensive planning and booking write requests by client IP (AG-039, AG-076)."""
+    if (request.url.path.startswith("/api/plan") or request.url.path.startswith("/api/book")) and request.method == "POST":
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
+
+        # Prune store to prevent unbounded growth
+        if len(_RATE_LIMIT_STORE) > 2000:
+            expired_ips = [ip for ip, times in _RATE_LIMIT_STORE.items() if not times or (now - times[-1]) > RATE_LIMIT_WINDOW_SECONDS]
+            for ip in expired_ips:
+                _RATE_LIMIT_STORE.pop(ip, None)
+
         timestamps = _RATE_LIMIT_STORE.get(client_ip, [])
         valid_timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW_SECONDS]
         if len(valid_timestamps) >= MAX_REQUESTS_PER_WINDOW:
             return JSONResponse(
                 status_code=429,
-                content={"detail": "Too many travel plan generation requests. Please wait a minute before requesting another plan."}
+                content={"detail": "Too many requests. Please wait a minute before making another request."}
             )
         valid_timestamps.append(now)
         _RATE_LIMIT_STORE[client_ip] = valid_timestamps

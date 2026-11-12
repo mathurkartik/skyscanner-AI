@@ -11,6 +11,78 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def repair_json_string(json_str: str) -> str:
+    """
+    Repair truncated or incomplete JSON using bracket-depth tracking (AG-037).
+    Closes open strings, array brackets, and object braces in reverse order.
+    """
+    if not json_str:
+        return "{}"
+
+    try:
+        json.loads(json_str)
+        return json_str
+    except Exception:
+        pass
+
+    s = json_str.strip()
+    in_string = False
+    escape = False
+    stack = []
+
+    clean_chars = []
+    for char in s:
+        if escape:
+            clean_chars.append(char)
+            escape = False
+            continue
+        if char == '\\':
+            clean_chars.append(char)
+            escape = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            clean_chars.append(char)
+            continue
+        if not in_string:
+            if char in '{[':
+                stack.append(char)
+            elif char == '}':
+                if stack and stack[-1] == '{':
+                    stack.pop()
+            elif char == ']':
+                if stack and stack[-1] == '[':
+                    stack.pop()
+        clean_chars.append(char)
+
+    repaired = "".join(clean_chars).rstrip().rstrip(",")
+    if in_string:
+        repaired += '"'
+
+    for opener in reversed(stack):
+        repaired = repaired.rstrip().rstrip(",")
+        if opener == '{':
+            repaired += "}"
+        elif opener == '[':
+            repaired += "]"
+
+    try:
+        json.loads(repaired)
+        return repaired
+    except Exception:
+        last_obj = repaired.rfind("}")
+        last_arr = repaired.rfind("]")
+        cut = max(last_obj, last_arr)
+        if cut > 0:
+            sub = repaired[:cut + 1]
+            try:
+                json.loads(sub)
+                return sub
+            except Exception:
+                pass
+        return repaired
+
+
 def extract_json_from_text(text: str) -> str:
     """Extract JSON from LLM response that may contain markdown fences or preamble."""
     if not text:
@@ -44,7 +116,13 @@ def extract_json_from_text(text: str) -> str:
     end_idx = max(rbrace, rbracket)
     if end_idx != -1:
         candidate = candidate[:end_idx + 1]
-    return candidate
+    
+    # Try parsing; if failed, attempt bracket-depth repair (AG-037)
+    try:
+        json.loads(candidate)
+        return candidate
+    except json.JSONDecodeError:
+        return repair_json_string(candidate)
 
 
 def validate_llm_json(

@@ -4,6 +4,18 @@ import { POPULAR_AIRPORTS } from '../data/airports.data';
 import { generateFlightsForRoute } from '../data/flights.data';
 import { SkyscannerApiService } from './skyscanner-api.service';
 
+const DEFAULT_QUERY: SearchQuery = {
+  tripType: 'round-trip',
+  origin: POPULAR_AIRPORTS[0], // Nagpur (NAG)
+  destination: POPULAR_AIRPORTS.find(a => a.code === 'SIN') || POPULAR_AIRPORTS[19], // Singapore (SIN)
+  departDate: '2026-11-15',
+  returnDate: '2026-11-22',
+  adults: 1,
+  children: 0,
+  cabinClass: 'economy',
+  directOnly: false
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -20,20 +32,19 @@ export class FlightService {
   public readonly nearbyDestination = signal<boolean>(false);
 
   // Default Search Query matching screenshot (From: Nagpur (NAG), Destination: Singapore or Tokyo)
-  public readonly searchQuery = signal<SearchQuery>({
-    tripType: 'round-trip',
-    origin: POPULAR_AIRPORTS[0], // Nagpur (NAG)
-    destination: POPULAR_AIRPORTS.find(a => a.code === 'SIN') || POPULAR_AIRPORTS[19], // Singapore (SIN)
-    departDate: '2026-11-15',
-    returnDate: '2026-11-22',
-    adults: 1,
-    children: 0,
-    cabinClass: 'economy',
-    directOnly: false
-  });
+  public readonly searchQuery = signal<SearchQuery>(DEFAULT_QUERY);
 
-  // Raw Flights
-  private readonly rawFlights = signal<FlightOffer[]>([]);
+  // Raw Flights (synchronously initialized with default route inventory to prevent constructor side-effects - AG-067)
+  private readonly rawFlights = signal<FlightOffer[]>(
+    generateFlightsForRoute(
+      DEFAULT_QUERY.origin,
+      DEFAULT_QUERY.destination,
+      DEFAULT_QUERY.departDate,
+      DEFAULT_QUERY.returnDate,
+      DEFAULT_QUERY.cabinClass,
+      DEFAULT_QUERY.adults
+    )
+  );
 
   // Sorting
   public readonly sortOption = signal<SortOption>('best');
@@ -59,7 +70,7 @@ export class FlightService {
   public readonly dataSource = signal<'live' | 'realistic'>('realistic');
 
   constructor() {
-    this.executeSearch(this.searchQuery(), false);
+    // Pure constructor with zero async side-effects (AG-067)
   }
 
   public async executeSearch(query: SearchQuery, openResults = true) {

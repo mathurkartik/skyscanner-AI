@@ -7,15 +7,39 @@ Uses LLM to generate specific, real activities for any destination worldwide.
 from typing import List, Optional, Dict
 import json
 import logging
+import re
 
 from ..models import (
     TravelConstraints, ActivityCatalog, Activity, ActivityType,
     CrowdLevel, CostBand, PlaceInfo
 )
 from ..tools.google_places_client import get_google_places_client
-from ..llm.llm_utils import validate_llm_json, validate_item_fields
+from ..llm.llm_utils import validate_llm_json, validate_item_fields, extract_json_from_text
 
 logger = logging.getLogger(__name__)
+
+
+def _matches_place_name(act_name: str, place_name: str) -> bool:
+    """Word-boundary aware matching to prevent false positives like 'Art' matching 'Kart racing' (AG-042)."""
+    if not act_name or not place_name:
+        return False
+    a_lower = act_name.lower().strip()
+    p_lower = place_name.lower().strip()
+    if a_lower == p_lower:
+        return True
+
+    # Word-boundary check: exact phrase contained
+    if re.search(rf"\b{re.escape(p_lower)}\b", a_lower) or re.search(rf"\b{re.escape(a_lower)}\b", p_lower):
+        return True
+
+    # Meaningful keyword overlap (tokens >= 4 chars, excluding generic travel words)
+    stop = {"tour", "visit", "trip", "place", "city", "main", "hall", "street", "park", "hotel", "center"}
+    a_words = {w for w in re.findall(r'\b[a-z]{4,}\b', a_lower) if w not in stop}
+    p_words = {w for w in re.findall(r'\b[a-z]{4,}\b', p_lower) if w not in stop}
+    overlap = a_words.intersection(p_words)
+    if len(overlap) >= 2 or (overlap and (len(overlap) / max(len(a_words), len(p_words), 1)) >= 0.65):
+        return True
+    return False
 
 
 class DestinationAgent:
@@ -51,15 +75,11 @@ class DestinationAgent:
             # 2. Generate activities via LLM
             city_activities = await self._research_city(city=city, constraints=constraints)
 
-            # 3. Enrich activities with real Google Places details when names match
+            # 3. Enrich activities with real Google Places details when names match (AG-042)
             if places_by_city[city]:
                 for act in city_activities:
                     for p in places_by_city[city]:
-                        if (
-                            p.name.lower() in act.name.lower()
-                            or act.name.lower() in p.name.lower()
-                            or any(w in act.name.lower() for w in p.name.lower().split() if len(w) > 4)
-                        ):
+                        if _matches_place_name(act.name, p.name):
                             if p.rating:
                                 act.rationale += f" ★ {p.rating} ({p.review_count:,} reviews)"
                             if p.opening_hours:
@@ -123,35 +143,8 @@ Travel Dates / Season: {constraints.start_date or 'Optimal travel window'}"""
             max_tokens=3500
         )
 
-        content = content.strip()
-        if content.startswith("```"):
-            lines = content.split("\n")
-            content = "\n".join(lines[1:])
-            if "```" in content:
-                content = content[:content.rfind("```")]
-        brace = content.find("{")
-        if brace > 0:
-            content = content[brace:]
-
-        try:
-            data = json.loads(content)
-        except json.JSONDecodeError:
-            # Try to repair truncated JSON by closing open brackets
-            repaired = content.rstrip().rstrip(",")
-            # Find the last complete object (ends with })
-            last_close = repaired.rfind("}")
-            if last_close > 0:
-                repaired = repaired[:last_close + 1]
-                if '"activities"' in repaired:
-                    repaired += "]}"
-                elif repaired.startswith("["):
-                    repaired += "]"
-                try:
-                    data = json.loads(repaired)
-                except json.JSONDecodeError:
-                    raise
-            else:
-                raise
+        cleaned_json = extract_json_from_text(content)
+        data = json.loads(cleaned_json)
 
         if isinstance(data, dict):
             if "activities" not in data:
@@ -253,18 +246,44 @@ Travel Dates / Season: {constraints.start_date or 'Optimal travel window'}"""
         return activities
 
     def _filter_avoidances(self, activities: List[Activity], avoidances: List[str]) -> List[Activity]:
-        """Filter out activities matching avoidances."""
+        """Filter out activities matching avoidances across tags, names, descriptions, and rationales (AG-043)."""
         filtered = []
+        avoidance_synonyms = {
+            "alcohol": ["wine", "beer", "brewery", "distillery", "pub", "bar", "cocktail", "liquor", "vineyard"],
+            "meat": ["steak", "beef", "pork", "barbecue", "bbq", "butcher", "bacon"],
+            "smoking": ["cigar", "hookah", "tobacco", "shisha"],
+        }
+
         for activity in activities:
             should_include = True
+            act_text = f"{activity.name} {activity.description or ''} {activity.rationale or ''}".lower()
+
             for avoidance in avoidances:
-                avoidance_lower = avoidance.lower()
+                avoidance_lower = avoidance.lower().strip()
+                if not avoidance_lower:
+                    continue
+
+                # 1. Tag matches
                 if any(avoidance_lower in tag.lower() for tag in activity.tags):
                     should_include = False
                     break
+
+                # 2. Crowd avoidance
                 if avoidance_lower in ["crowd", "crowds"] and activity.crowd_level == CrowdLevel.HIGH:
                     should_include = False
                     break
+
+                # 3. Direct word-boundary match in name, description, or rationale (AG-043)
+                if re.search(rf"\b{re.escape(avoidance_lower)}\b", act_text):
+                    should_include = False
+                    break
+
+                # 4. Synonym match (e.g. alcohol -> wine, bar, brewery)
+                if avoidance_lower in avoidance_synonyms:
+                    if any(re.search(rf"\b{re.escape(syn)}\b", act_text) for syn in avoidance_synonyms[avoidance_lower]):
+                        should_include = False
+                        break
+
             if should_include:
                 filtered.append(activity)
         return filtered

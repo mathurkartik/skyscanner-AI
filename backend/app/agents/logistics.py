@@ -7,6 +7,7 @@ Uses LLM for neighborhood suggestions and route planning.
 import asyncio
 import json
 import logging
+import urllib.parse
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 
@@ -26,7 +27,7 @@ from ..models import (
 )
 from ..tools.flight_client import get_flight_client, resolve_iata
 from ..tools.hotel_client import get_hotel_client
-from ..utils.currency import to_usd
+from ..utils.currency import to_usd, from_usd
 from ..llm.llm_utils import validate_llm_json, validate_item_fields
 
 logger = logging.getLogger(__name__)
@@ -231,9 +232,10 @@ class LogisticsAgent:
             logistics_summary=self._generate_summary(movement_plans)
         )
 
-    def _generate_car_estimates(self, constraints: TravelConstraints, duration: int) -> List[CarEstimate]:
+    def _generate_car_estimates(self, constraints: TravelConstraints, duration: Optional[int] = None) -> List[CarEstimate]:
         """Generate realistic car hire options calibrated by destination."""
         region = (constraints.destination_region or "").lower()
+        num_days = duration if duration is not None else (constraints.duration_days or 7)
         
         if "iceland" in region:
             rate_economy = 55.0
@@ -257,39 +259,49 @@ class LogisticsAgent:
             name_suv = "Nissan Qashqai"
             name_camper = "Ford Transit Custom"
             
+        target_curr = (constraints.currency or "USD").upper().strip()
+        rate_econ_curr = round(from_usd(rate_economy, target_curr), 2)
+        rate_suv_curr = round(from_usd(rate_suv, target_curr), 2)
+        rate_camper_curr = round(from_usd(rate_camper, target_curr), 2)
+
+        pickup_city = constraints.cities[0] if constraints.cities else (constraints.destination_region or "Destination")
+        pickup_param = urllib.parse.quote_plus(pickup_city)
+        date_param = constraints.start_date or "2026-12-01"
+        car_deeplink = f"https://www.skyscanner.net/carhire?pickup={pickup_param}&dropoff={pickup_param}&start_date={date_param}"
+
         return [
             CarEstimate(
                 vehicle_name=name_economy,
                 category="Economy",
-                price_per_day=rate_economy,
-                total_price=round(rate_economy * duration, 2),
-                currency="USD",
+                price_per_day=rate_econ_curr,
+                total_price=round(rate_econ_curr * num_days, 2),
+                currency=target_curr,
                 seats=4,
                 transmission="Automatic",
                 is_estimate=True,
-                deeplink="https://www.skyscanner.net/carhire"
+                deeplink=car_deeplink
             ),
             CarEstimate(
                 vehicle_name=name_suv,
                 category="SUV 4x4",
-                price_per_day=rate_suv,
-                total_price=round(rate_suv * duration, 2),
-                currency="USD",
+                price_per_day=rate_suv_curr,
+                total_price=round(rate_suv_curr * num_days, 2),
+                currency=target_curr,
                 seats=5,
                 transmission="Automatic",
                 is_estimate=True,
-                deeplink="https://www.skyscanner.net/carhire"
+                deeplink=car_deeplink
             ),
             CarEstimate(
                 vehicle_name=name_camper,
                 category="Campervan",
-                price_per_day=rate_camper,
-                total_price=round(rate_camper * duration, 2),
-                currency="USD",
+                price_per_day=rate_camper_curr,
+                total_price=round(rate_camper_curr * num_days, 2),
+                currency=target_curr,
                 seats=4,
                 transmission="Manual",
                 is_estimate=True,
-                deeplink="https://www.skyscanner.net/carhire"
+                deeplink=car_deeplink
             )
         ]
 

@@ -6,5 +6,3 @@ python-dotenv>=1.0.0,<2.0.0
 httpx>=0.28.1,<1.0.0
 groq>=0.13.0,<2.0.0
 google-genai>=1.14.0,<2.0.0
-pytest>=7.4.4,<9.0.0
-pytest-asyncio>=0.23.3,<1.0.0

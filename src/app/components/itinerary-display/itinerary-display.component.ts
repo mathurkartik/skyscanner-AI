@@ -36,6 +36,7 @@ export class ItineraryDisplayComponent {
   public readonly showMapModal = signal<boolean>(false);
   public readonly showRemainingDaysTable = signal<boolean>(false);
   public readonly appliedSwap = signal<boolean>(false);
+  public readonly shareCopied = signal<boolean>(false);
 
   // Active Day computation
   public get activeDay(): DayItinerary {
@@ -124,12 +125,21 @@ export class ItineraryDisplayComponent {
     return this.itinerary?.budget_rollup?.suggested_swaps || [];
   }
 
-  public getAverageFlightFare(): number {
+  public getAverageFlightFare(): number | null {
     if (this.itinerary?.flight_options && this.itinerary.flight_options.length > 0) {
       const sum = this.itinerary.flight_options.reduce((acc, f) => acc + (f.price || 0), 0);
       return Math.round(sum / this.itinerary.flight_options.length);
     }
-    return 74200;
+    return null;
+  }
+
+  public getEstimatedTotalSpend(): number {
+    const base = this.itinerary?.budget_rollup?.grand_total || 312400;
+    if (this.appliedSwap()) {
+      const savings = this.smartSwaps.length > 0 ? (this.smartSwaps[0].savings_estimate || 8200) : 8200;
+      return Math.max(0, base - savings);
+    }
+    return base;
   }
 
   public getCurrencySymbol(): string {
@@ -166,10 +176,30 @@ export class ItineraryDisplayComponent {
   }
 
   public copyShareLink(): void {
-    if (typeof window !== 'undefined' && navigator?.clipboard) {
-      navigator.clipboard.writeText(window.location.href).then(() => {
-        alert('Itinerary link copied to clipboard!');
-      }).catch(() => {});
+    if (typeof navigator !== 'undefined' && navigator?.clipboard) {
+      const baseHref = typeof window !== 'undefined' && window.location?.href ? window.location.href : 'https://skyscanner.com/travel-planner';
+      try {
+        const url = new URL(baseHref);
+        if (this.itinerary?.constraints) {
+          url.searchParams.set('dest', this.itinerary.constraints.destination_region || '');
+          url.searchParams.set('days', String(this.itinerary.constraints.duration_days || 7));
+          url.searchParams.set('budget', String(this.itinerary.constraints.budget_total || ''));
+          url.searchParams.set('currency', this.itinerary.constraints.currency || 'USD');
+        }
+        this.shareCopied.set(true);
+        navigator.clipboard.writeText(url.toString()).then(() => {
+          setTimeout(() => this.shareCopied.set(false), 2500);
+        }).catch(() => {
+          this.shareCopied.set(false);
+        });
+      } catch {
+        this.shareCopied.set(true);
+        navigator.clipboard.writeText(baseHref).then(() => {
+          setTimeout(() => this.shareCopied.set(false), 2500);
+        }).catch(() => {
+          this.shareCopied.set(false);
+        });
+      }
     }
   }
 
@@ -537,42 +567,42 @@ export class ItineraryDisplayComponent {
     return [
       {
         id: 'h-rec-1',
-        name: `Grand Hotel ${city}`,
+        name: `Hotel ${city}`,
         city: city,
         price_per_night: 180,
         currency: cur,
         star_rating: 4.5,
-        guest_rating: 9.2,
-        review_count: 1840,
-        neighborhood: `${city} Downtown`,
-        deeplink: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent('Grand Hotel ' + city)}`,
-        amenities: ['Free WiFi', 'City View', 'Restaurant & Bar']
+        guest_rating: 9.0,
+        neighborhood: `${city} Center`,
+        deeplink: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(city + ' Hotels')}`,
+        amenities: ['Free WiFi', 'City View'],
+        is_estimate: true
       },
       {
         id: 'h-val-2',
-        name: `${city} Comfort Suites`,
+        name: `${city} Suites`,
         city: city,
         price_per_night: 135,
         currency: cur,
         star_rating: 4.0,
-        guest_rating: 8.8,
-        review_count: 1220,
+        guest_rating: 8.7,
         neighborhood: `${city} Transit Hub`,
-        deeplink: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(city + ' Comfort Suites')}`,
-        amenities: ['Free Breakfast', 'Metro Access', 'Free WiFi']
+        deeplink: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(city + ' Suites')}`,
+        amenities: ['Free Breakfast', 'Metro Access', 'Free WiFi'],
+        is_estimate: true
       },
       {
         id: 'h-bud-3',
-        name: `${city} Traveler Lodge`,
+        name: `${city} Lodge`,
         city: city,
         price_per_night: 85,
         currency: cur,
         star_rating: 3.5,
-        guest_rating: 8.5,
-        review_count: 940,
+        guest_rating: 8.4,
         neighborhood: `${city} Old Town`,
-        deeplink: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(city + ' Traveler Lodge')}`,
-        amenities: ['Free WiFi', 'Shared Lounge', 'Luggage Storage']
+        deeplink: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(city + ' Lodge')}`,
+        amenities: ['Free WiFi', 'Shared Lounge'],
+        is_estimate: true
       }
     ];
   }
@@ -604,20 +634,18 @@ export class ItineraryDisplayComponent {
       result.push({
         name: `${city} Historic Promenade & Cultural Plaza`,
         city: city,
-        rating: 4.8,
-        review_count: 9800,
         opening_hours: ['Open 24 hours · Pedestrian Area'],
-        google_maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(city + ' Historic Center')}`
+        google_maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(city + ' Historic Center')}`,
+        is_estimate: true
       });
     }
     if (result.length < 3) {
       result.push({
         name: `${city} Panoramic Scenic Viewpoint`,
         city: city,
-        rating: 4.9,
-        review_count: 6400,
         opening_hours: ['Sunrise to Sunset · Scenic Vista'],
-        google_maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(city + ' Viewpoint')}`
+        google_maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(city + ' Viewpoint')}`,
+        is_estimate: true
       });
     }
 

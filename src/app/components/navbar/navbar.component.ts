@@ -1,4 +1,4 @@
-import { Component, inject, signal, output, input, OnInit, HostListener } from '@angular/core';
+import { Component, inject, signal, output, input, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../../services/currency.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -13,7 +13,7 @@ export type MainTab = 'flights' | 'hotels' | 'cars' | 'explore' | 'ai';
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css']
 })
-export class NavbarComponent implements OnInit {
+export class NavbarComponent implements OnInit, OnDestroy {
   public readonly currencyService = inject(CurrencyService);
   public readonly favoritesService = inject(FavoritesService);
   public readonly flightService = inject(FlightService);
@@ -33,16 +33,24 @@ export class NavbarComponent implements OnInit {
   private logoClicks = 0;
   private lastLogoClickTime = 0;
 
+  private readonly onHashChange = () => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('debug')) {
+      this.isDebugMode.set(true);
+    }
+  };
+
   public ngOnInit(): void {
     if (typeof window !== 'undefined') {
       if (window.location.hash.includes('debug')) {
         this.isDebugMode.set(true);
       }
-      window.addEventListener('hashchange', () => {
-        if (window.location.hash.includes('debug')) {
-          this.isDebugMode.set(true);
-        }
-      });
+      window.addEventListener('hashchange', this.onHashChange);
+    }
+  }
+
+  public ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('hashchange', this.onHashChange);
     }
   }
 

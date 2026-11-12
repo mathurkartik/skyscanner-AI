@@ -313,5 +313,42 @@ describe('ItineraryDisplayComponent', () => {
       };
       expect(component.getCurrencySymbol()).toBe('€');
     });
+
+    it('should copy share link with serialized params without invoking alert (AG-058, AG-059)', () => {
+      const clipboardMock = {
+        writeText: vi.fn().mockResolvedValue(undefined)
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: clipboardMock,
+        writable: true,
+        configurable: true
+      });
+
+      component.itinerary = mockItinerary;
+      component.copyShareLink();
+      expect(clipboardMock.writeText).toHaveBeenCalled();
+      const calledUrl = clipboardMock.writeText.mock.calls[0][0];
+      expect(calledUrl).toContain('dest=');
+      expect(component.shareCopied()).toBe(true);
+    });
+
+    it('should calculate estimated total spend subtracting smart swap deduction (AG-060)', () => {
+      component.itinerary = mockItinerary;
+      component.appliedSwap.set(false);
+      const baseSpend = component.getEstimatedTotalSpend();
+      expect(baseSpend).toBe(312400);
+
+      component.appliedSwap.set(true);
+      const discountedSpend = component.getEstimatedTotalSpend();
+      expect(discountedSpend).toBe(312400 - 8200);
+    });
+
+    it('should return null for getAverageFlightFare when flight_options is empty (AG-061)', () => {
+      component.itinerary = {
+        ...mockItinerary,
+        flight_options: []
+      };
+      expect(component.getAverageFlightFare()).toBeNull();
+    });
   });
 });

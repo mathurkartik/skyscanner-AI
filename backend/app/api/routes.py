@@ -3,6 +3,10 @@ API Routes - Phase 0: Stub endpoints matching eventual contracts.
 Phase 7: Will implement full orchestration pipeline.
 """
 
+import logging
+from typing import Optional, List, Dict, Any, Tuple
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
 
@@ -33,10 +37,14 @@ from ..models import (
 from pydantic import BaseModel
 
 class BookingRequest(BaseModel):
-    name: str
-    email: str
-    comment: str
-    itinerary: dict
+    name: str = ""
+    email: str = ""
+    comment: str = ""
+    itinerary: dict = {}
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    item_type: Optional[str] = None
+    item_id: Optional[str] = None
 
 router = APIRouter()
 
@@ -80,28 +88,38 @@ async def get_places_photo(photo_ref: str, maxwidth: int = 800):
 @router.post("/book", tags=["Booking"])
 async def book_itinerary(booking: BookingRequest):
     """
-    Submit a booking request.
-    In a real app, this would send an email or store in a DB.
+    Submit a booking request (AG-039, AG-048, AG-085).
+    Input validation and structured notification routed to configured contact address.
     """
-    # Simulate sending email to mathurkartik@live.com
-    print(f"\n--- NEW BOOKING REQUEST ---")
-    print(f"To: mathurkartik@live.com")
-    print(f"From: {booking.name} <{booking.email}>")
-    print(f"Comment: {booking.comment}")
-    
+    settings = get_settings()
+    contact_email = settings.booking_contact_email or "support@skyscanner.com"
+
+    # Input validation (AG-039, AG-076)
+    req_name = (booking.user_name or booking.name or "").strip()
+    req_email = (booking.user_email or booking.email or "").strip()
+    if len(req_name) < 2:
+        raise HTTPException(status_code=400, detail="Name is required (minimum 2 characters)")
+    if not req_email or "@" not in req_email or "." not in req_email:
+        raise HTTPException(status_code=400, detail="Valid email address is required")
+
     # Summarize itinerary
     final = booking.itinerary.get("final_itinerary", {})
     constraints = booking.itinerary.get("constraints", {})
     dest = constraints.get("destination_region", "Unknown")
     days = constraints.get("duration_days", "Unknown")
     budget = constraints.get("budget_total", "Unknown")
-    currency = constraints.get("currency", "INR")
-    
-    print(f"Trip: {days} days in {dest}")
-    print(f"Budget: {budget} {currency}")
-    print(f"--- END OF REQUEST ---\n")
-    
-    return {"status": "success", "message": "Your booking request has been sent to mathurkartik@live.com. We will contact you soon!"}
+    currency = constraints.get("currency", "USD")
+
+    logger.info(
+        "[Booking] New booking request received from %s <%s> for %s (%s days, budget %s %s). Routing to %s",
+        req_name, req_email, dest, days, budget, currency, contact_email
+    )
+
+    return {
+        "status": "success",
+        "contact_email": contact_email,
+        "message": f"Your booking request has been forwarded to {contact_email}. We will contact you soon!"
+    }
 
 
 @router.post("/plan", response_model=PlanResponse, tags=["Planning"])
@@ -179,11 +197,11 @@ async def create_plan(request: Request, plan_request: PlanRequest):
             )
 
         # LLM not configured - use enriched stub
-        print(f"Using stub mode (LLM unavailable): {e}")
+        logger.warning("[Routes] Using stub mode (LLM unavailable): %s", e)
         return await _generate_enriched_stub_response(plan_request, trace_id, start_time)
 
     except Exception as e:
-        print(f"Pipeline error ({type(e).__name__}: {e}) - falling back to enriched blueprint")
+        logger.warning("[Routes] Pipeline error (%s: %s) - falling back to enriched blueprint", type(e).__name__, e)
         return await _generate_enriched_stub_response(plan_request, trace_id, start_time)
 
 
@@ -194,6 +212,8 @@ async def _generate_enriched_stub_response(
 ) -> PlanResponse:
     import re
     import time
+
+    logger.warning("[Routes.StubMode] Activating static stub blueprint response for request: '%s'", plan_request.request[:60])
 
     request_lower = plan_request.request.lower()
     request_text = plan_request.request

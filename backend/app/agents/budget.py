@@ -18,7 +18,7 @@ from ..models import (
     LogisticsOutput,
 )
 from ..utils.currency import convert_currency, from_usd, to_usd
-from ..llm.llm_utils import validate_llm_json, validate_item_fields
+from ..llm.llm_utils import validate_llm_json, validate_item_fields, extract_json_from_text
 
 logger = logging.getLogger(__name__)
 
@@ -35,26 +35,24 @@ class BudgetAgent:
 
     @staticmethod
     def _extract_json_content(text: str) -> str:
-        text = text.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:])
-            if "```" in text:
-                text = text[:text.rfind("```")]
-            text = text.strip()
-        brace = text.find("{")
-        if brace > 0:
-            text = text[brace:]
-        return text
+        return extract_json_from_text(text)
 
     async def analyze(self, constraints: TravelConstraints, logistics_output: Optional[LogisticsOutput] = None) -> BudgetBreakdown:
         """Generate budget breakdown from constraints calibrated with real data."""
         breakdown = None
+        known_flight = None
+        known_hotel = None
+        if logistics_output:
+            if logistics_output.flight_offers:
+                known_flight = logistics_output.flight_offers[0].price
+            if logistics_output.hotels_by_city:
+                known_hotel = sum(h[0].total_price for h in logistics_output.hotels_by_city.values() if h and h[0].total_price)
+
         if self.llm_client:
             try:
-                breakdown = await self._llm_analyze(constraints)
+                breakdown = await self._llm_analyze(constraints, known_flight_cost=known_flight, known_hotel_cost=known_hotel)
             except Exception as e:
-                print(f"LLM budget analysis failed: {e}")
+                logger.warning(f"LLM budget analysis failed: {e}")
 
         if not breakdown:
             breakdown = await self._fallback_analyze(constraints)
@@ -251,8 +249,13 @@ class BudgetAgent:
             suggested_swaps=all_swaps[:5]
         )
 
-    async def _llm_analyze(self, constraints: TravelConstraints) -> BudgetBreakdown:
-        """Use LLM to generate city-specific budget estimates."""
+    async def _llm_analyze(
+        self,
+        constraints: TravelConstraints,
+        known_flight_cost: Optional[float] = None,
+        known_hotel_cost: Optional[float] = None
+    ) -> BudgetBreakdown:
+        """Use LLM to generate city-specific budget estimates informed by known quotes (AG-050)."""
         system_prompt = f"""You are a travel budget expert. Estimate realistic costs for a trip.
 
 Respond with valid JSON:
@@ -284,12 +287,18 @@ Rules:
 - If over budget, suggest at most 3 specific swaps
 - Keep each note under 12 words (mention real hotel tiers, food types, transport modes)"""
 
+        known_context = ""
+        if known_flight_cost:
+            known_context += f"\n- Real Flight Airfare Quote: {known_flight_cost:,.0f} {constraints.currency}"
+        if known_hotel_cost:
+            known_context += f"\n- Real Accommodation Quote: {known_hotel_cost:,.0f} {constraints.currency}"
+
         user_prompt = f"""Estimate costs for:
 - Destination: {constraints.destination_region}
 - Cities: {', '.join(constraints.cities)}
 - Duration: {constraints.duration_days} days
 - Budget: {constraints.budget_total} {constraints.currency}
-- Preferences: {', '.join(constraints.preferences) if constraints.preferences else 'general'}"""
+- Preferences: {', '.join(constraints.preferences) if constraints.preferences else 'general'}{known_context}"""
 
         content = await self.llm_client.chat_with_retry(
             messages=[

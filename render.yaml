@@ -25,7 +25,7 @@ services:
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
       - key: CORS_ORIGINS
-        value: "http://localhost:4200,https://skyscanner-ai-beige.vercel.app,https://*.vercel.app"
+        value: "http://localhost:4200,https://skyscanner-ai-beige.vercel.app"
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_API_KEY_2

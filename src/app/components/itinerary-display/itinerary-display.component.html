@@ -663,7 +663,8 @@
           </button>
         </div>
 
-        <!-- Right edge subtle gradient fade (signals more tabs) -->
+        <!-- Left & Right edge subtle gradient fades (signals horizontal scrollability - AG-071) -->
+        <div class="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent rounded-l-3xl"></div>
         <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent rounded-r-3xl"></div>
       </div>
 
@@ -939,57 +940,6 @@
         </div>
 
       </div>
-
-      <!-- C. Compare Other Blueprints Drawer (Hidden by default to avoid static mismatch) -->
-      @if (false) {
-      <div class="rounded-3xl bg-white p-5 shadow-sm space-y-3 border border-gray-200">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-[#0062e3] text-[20px]">explore_nearby</span>
-            <h4 class="text-sm font-extrabold text-gray-900">Compare Other Blueprints</h4>
-          </div>
-          <span class="text-xs text-gray-500">1-click recalculation</span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <!-- Option B -->
-          <button
-            (click)="onSelectBlueprintClick('Plan a 10-day trip to Japan: Tokyo + Kyoto, $3,000 budget, authentic food and quiet morning temples')"
-            class="p-3.5 rounded-2xl bg-[#f2f4f9] hover:bg-[#eceef3] text-left transition-colors flex flex-col justify-between border border-gray-200/60 cursor-pointer">
-            <div>
-              <span class="text-[10px] font-bold uppercase text-gray-500">Option B</span>
-              <p class="text-xs sm:text-sm font-bold text-gray-900">Tokyo & Kyoto (10 Days)</p>
-              <p class="text-xs text-gray-500 mt-1">Shinkansen high-speed rail, temples, culinary trail.</p>
-            </div>
-            <span class="text-xs font-bold text-[#0062e3] mt-2">Est. ₹2,90,000</span>
-          </button>
-
-          <!-- Option C -->
-          <button
-            (click)="onSelectBlueprintClick('Plan an 8-day trip to Sikkim: Gangtok, Pelling, and Lachung, ₹1.2L budget, mountain views')"
-            class="p-3.5 rounded-2xl bg-[#f2f4f9] hover:bg-[#eceef3] text-left transition-colors flex flex-col justify-between border border-gray-200/60 cursor-pointer">
-            <div>
-              <span class="text-[10px] font-bold uppercase text-gray-500">Option C</span>
-              <p class="text-xs sm:text-sm font-bold text-gray-900">Sikkim Monasteries (8 Days)</p>
-              <p class="text-xs text-gray-500 mt-1">Kanchenjunga views, high altitude lakes.</p>
-            </div>
-            <span class="text-xs font-bold text-[#0062e3] mt-2">Est. ₹1,15,000</span>
-          </button>
-
-          <!-- Option D -->
-          <button
-            (click)="onSelectBlueprintClick('Plan a 9-day Switzerland scenic train trip through Zurich, Lucerne, Interlaken and Zermatt, €3,500 budget')"
-            class="p-3.5 rounded-2xl bg-[#f2f4f9] hover:bg-[#eceef3] text-left transition-colors flex flex-col justify-between border border-gray-200/60 cursor-pointer">
-            <div>
-              <span class="text-[10px] font-bold uppercase text-gray-500">Option D</span>
-              <p class="text-xs sm:text-sm font-bold text-gray-900">Swiss Alps Trains (9 Days)</p>
-              <p class="text-xs text-gray-500 mt-1">Glacier Express, Zermatt, Matterhorn hiking.</p>
-            </div>
-            <span class="text-xs font-bold text-[#0062e3] mt-2">Est. ₹3,40,000</span>
-          </button>
-        </div>
-      </div>
-      }
 
       <!-- D. Compact Remaining Days Summary Table Modal/Drawer -->
       @if (showRemainingDaysTable()) {

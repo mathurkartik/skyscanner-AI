@@ -10,7 +10,6 @@ import json
 import re
 import time
 from typing import Optional, Any, Dict, Type, TypeVar
-from functools import lru_cache
 
 try:
     from groq import Groq
@@ -360,9 +359,9 @@ TRIP TYPE DETECTION:
         max_tokens: int = 900,
         temperature: Optional[float] = None,
         response_format: Optional[dict] = None,
-        max_retries: int = 6,
+        max_retries: int = 3,
     ) -> str:
-        """Chat completion with automatic retry on 429 rate limit errors."""
+        """Chat completion with automatic retry on 429 rate limit errors (AG-045: capped at 3 retries, max 10s wait)."""
         if not self._client:
             raise RuntimeError("Groq client not initialized")
         settings = get_settings()
@@ -391,13 +390,13 @@ TRIP TYPE DETECTION:
                     msg = str(e)
                     if "429" in msg or "rate_limit" in msg:
                         match = re.search(r"try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", msg)
-                        wait = (int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3)) + 1) if match else 5 * (attempt + 1)
+                        wait = (int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3)) + 1) if match else 3 * (attempt + 1)
                         if "tokens per day" in msg and model == self.model and fallback and fallback != model:
                             self._primary_blocked_until = time.time() + wait
-                            print(f"Daily quota hit on {model}; using {fallback} for {wait:.0f}s")
+                            logger.warning(f"Daily quota hit on {model}; using {fallback} for {wait:.0f}s")
                             continue
-                        wait = min(wait, 30)
-                        print(f"Rate limited, waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})")
+                        wait = min(wait, 10)
+                        logger.warning(f"Rate limited on {model}, waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})")
                         await asyncio.sleep(wait)
                         continue
                     raise

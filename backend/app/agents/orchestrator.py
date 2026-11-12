@@ -6,6 +6,8 @@ Phase 8: Timeouts, observability, and partial failure handling.
 """
 
 import asyncio
+import logging
+import re
 import time
 from typing import Optional, List, Dict, Any, Tuple
 
@@ -26,6 +28,7 @@ from .review import ReviewAgent
 from .trip_structuring import TripStructuringAgent
 from ..tools import ToolRouter
 from ..tools.city_coords import CITY_COORDS, get_airport_coords, get_city_coords
+from ..tools.destination_tips import get_destination_tips
 from ..utils.observability import ObservabilityLogger
 from ..utils.currency import from_usd
 
@@ -42,14 +45,20 @@ def _lookup_city_coords(name: str) -> Optional[Tuple[float, float]]:
     # Check if city name is contained in any cache entry (e.g. "Paris, France" -> "paris")
     for k, v in _COORDS_CACHE.items():
         if k in name_clean or name_clean in k:
+            if len(_COORDS_CACHE) < 1000:
+                _COORDS_CACHE[name_clean] = v
             return v
     return None
 
 def fix_utf8(text: Any) -> Any:
-    """Repair mojibake or double-encoded UTF-8 characters."""
+    """Repair mojibake or double-encoded UTF-8 characters without corrupting valid Portuguese/Spanish text (AG-052)."""
     if not isinstance(text, str):
         return text
-    mojibake_markers = ("Ã", "â€™", "â€œ", "â€", "â€“", "â€”")
+    # Known 2-character double-encoded sequences (prevents bare 'Ã' false-positives on uppercase text)
+    mojibake_markers = (
+        "Ã©", "Ã¡", "Ã£", "Ã§", "Ã³", "Ãº", "Ã­", "Ã ", "Ã¼", "Ã¶", "Ã¤", "Ã«",
+        "Ã®", "Ã¯", "Ã±", "â€™", "â€œ", "â€\x9d", "â€“", "â€”"
+    )
     if any(m in text for m in mojibake_markers):
         try:
             return text.encode("latin-1").decode("utf-8")
@@ -738,14 +747,17 @@ class OrchestratorAgent:
                     day_items.append(item)
                     continue
                 
-                # Try to match activity by name from slot notes first
+                # Try to match activity by name from slot notes first (AG-051)
                 activity_ref = None
                 if slot.notes:
-                    note_name = slot.notes.split(".")[0].strip()
+                    first_sentence = slot.notes.split(".")[0].strip()
+                    note_clean = re.sub(r'^(visit|explore|see|tour|head to|walk around|check out)\s+', '', first_sentence, flags=re.IGNORECASE).lower().strip()
                     for aid, act in activity_by_id.items():
-                        if act.city == skeleton.city and act.name == note_name:
-                            activity_ref = aid
-                            break
+                        if act.city.lower() == skeleton.city.lower():
+                            act_clean = act.name.lower().strip()
+                            if act_clean == note_clean or act_clean in note_clean or note_clean in act_clean:
+                                activity_ref = aid
+                                break
 
                 if not activity_ref:
                     activity_ref = self._find_activity_for_slot(
@@ -931,97 +943,8 @@ class OrchestratorAgent:
         return round(max(3.0, cost), 2)
 
     def _generate_destination_tips(self, destination: str, currency: str = "USD") -> List[CostSavingTip]:
-        dest_lower = (destination or "").lower()
-        if "france" in dest_lower or "paris" in dest_lower:
-            return [
-                CostSavingTip(
-                    title="Get the Paris Museum Pass",
-                    description="A 4-day Paris Museum Pass (€70) gives skip-the-line access to over 50 museums and monuments including the Louvre, Musée d'Orsay, and Arc de Triomphe.",
-                    estimated_savings="Save €40 - €70 vs individual tickets"
-                ),
-                CostSavingTip(
-                    title="Book TGV / OUIGO Trains Early",
-                    description="SNCF opens TGV high-speed and low-cost OUIGO bookings 3 months ahead with tickets from €19 compared to €80+ on travel week.",
-                    estimated_savings="Save 60% - 75% on intercity transit"
-                ),
-                CostSavingTip(
-                    title="Dine at Boulangeries and Set-Menu Bistros",
-                    description="Opt for a boulangerie formule déjeuner (sandwich, dessert, beverage for €8-€10) and bistros offering 'menu du jour' at lunch instead of pricey dinners.",
-                    estimated_savings="Save €25 - €40 per person daily"
-                )
-            ]
-        elif "japan" in dest_lower or "tokyo" in dest_lower or "kyoto" in dest_lower:
-            return [
-                CostSavingTip(
-                    title="Use 24/48/72-Hour Tokyo Subway Passes",
-                    description="Unlimited rides on all Tokyo Metro and Toei Subway lines for only ¥1,500 (72 hours), saving significant money over single IC fares.",
-                    estimated_savings="Save ¥1,000 - ¥2,000 per day"
-                ),
-                CostSavingTip(
-                    title="Take Advantage of Evening Depachika Sales",
-                    description="Department store basement food halls (depachika) discount gourmet bento and sushi boxes by 20% to 50% every evening after 7:30 PM.",
-                    estimated_savings="Save ¥1,500 - ¥3,000 per meal"
-                ),
-                CostSavingTip(
-                    title="Compare Regional Rail Passes with Individual Shinkansen",
-                    description="Unless doing heavy cross-country travel, point-to-point Shinkansen tickets via the SmartEX app often cost less than nationwide rail passes.",
-                    estimated_savings="Save $80 - $150 per person"
-                )
-            ]
-        elif "iceland" in dest_lower or "reykjavik" in dest_lower:
-            return [
-                CostSavingTip(
-                    title="Stock Up at Bónus or Krónan Discount Supermarkets",
-                    description="Icelandic restaurants and roadside diners carry high markups. Buying breakfast and road trip snacks at Bónus cuts food bills dramatically.",
-                    estimated_savings="Save $40 - $70 per person daily"
-                ),
-                CostSavingTip(
-                    title="Visit Local Geothermal Pools Over Commercial Spas",
-                    description="Local municipal pools like Laugardalslaug cost around 1,200 ISK ($9) and offer authentic hot pots, saunas, and steam rooms without $100+ resort fees.",
-                    estimated_savings="Save $80 - $120 per visit"
-                ),
-                CostSavingTip(
-                    title="Fill Up with Rental Fuel Key Discount Fobs",
-                    description="Most car rental agencies provide key fobs that give 3-5 ISK per liter discounts and free coffee at designated gas stations (N1, Olís, Orkan).",
-                    estimated_savings="Save 5% - 8% on total fuel"
-                )
-            ]
-        elif "russia" in dest_lower or "moscow" in dest_lower or "murmansk" in dest_lower:
-            return [
-                CostSavingTip(
-                    title="Use Troika & Podorozhnik Metro Smart Cards",
-                    description="Moscow and Saint Petersburg metros have world-class networks. A Troika card offers deeply discounted rides and seamless transfers between metro, MCC, and trams.",
-                    estimated_savings="Save 40% vs single ride tokens"
-                ),
-                CostSavingTip(
-                    title="Book Sapsan & Arctic Trains via Official RZD Portal",
-                    description="High-speed Sapsan trains between Moscow and St. Petersburg, and the Arctic overnight sleeper to Murmansk, open 90 days ahead with dynamic tiered pricing.",
-                    estimated_savings="Save 50% vs last-minute agencies"
-                ),
-                CostSavingTip(
-                    title="Book Multi-Night Aurora Chasing Packages",
-                    description="Northern lights in Murmansk/Teriberka require mobile weather tracking. Multi-night local guide passes guarantee re-runs on cloudy nights.",
-                    estimated_savings="Save 30% on combined aurora excursions"
-                )
-            ]
-        else:
-            return [
-                CostSavingTip(
-                    title="Book Flights 6-8 Weeks in Advance",
-                    description="Skyscanner historical pricing indicates airfare rises by 18-24% inside the 3-week departure window.",
-                    estimated_savings="Save 15% - 25% on flights"
-                ),
-                CostSavingTip(
-                    title="Opt for Neighborhood Stays with Transit Links",
-                    description="Choosing well-reviewed accommodations just 2-3 metro stops from the historic center yields 30-40% lower nightly rates.",
-                    estimated_savings="Save $30 - $60 per night"
-                ),
-                CostSavingTip(
-                    title="Use Multi-Attraction City Passes & Walking Tours",
-                    description="City tourism cards bundle public transit with top museum admissions and offer free guided walking tours.",
-                    estimated_savings="Save $20 - $40 per traveler"
-                )
-            ]
+        """Generate structured destination tips and cost-saving advice (AG-047)."""
+        return get_destination_tips(destination, currency)
     
     def _generate_day_summary(
         self,
@@ -1153,16 +1076,15 @@ class OrchestratorAgent:
         aname = f"{dest_name.title()} Gateway Airport ({dest_code or 'Arrival'})"
         map_pins.append(MapPin(label=aname, lat=airport_coords[0], lng=airport_coords[1], pin_type="airport"))
 
-        # 2. Overnight Hotel Pins (priority: Google places for this city -> city coords -> fallback)
+        # 2. Overnight Hotel Pins (AG-056: prioritize city center coordinates from city_coords.py)
         seen_hotel_cities = set()
         for day in draft.days:
             if day.city not in seen_hotel_cities:
                 seen_hotel_cities.add(day.city)
                 h = day.hotel_options[0] if day.hotel_options else None
-                day_coords = None
-                if day.places and day.places[0].lat and day.places[0].lng:
-                    day_coords = (day.places[0].lat, day.places[0].lng)
-                coords = day_coords or _lookup_city_coords(day.city)
+                coords = _lookup_city_coords(day.city)
+                if not coords and day.places and day.places[0].lat and day.places[0].lng:
+                    coords = (day.places[0].lat, day.places[0].lng)
                 if not coords:
                     coords = (64.1466, -21.9426) if ("iceland" in dest_name or "reykjavik" in day.city.lower()) else (48.8566, 2.3522)
                 hotel_label = f"Stay: {h.name} ({day.city})" if h else f"Stay in {day.city}"
@@ -1176,20 +1098,22 @@ class OrchestratorAgent:
                     description=fix_utf8(hotel_desc)
                 ))
 
-        # 3. Attraction Pins
+        # 3. Attraction Pins (AG-057: Deduplicate normalizing punctuation, spacing, and hyphens)
         seen_attractions = set()
         for day in draft.days:
             for p in day.places:
-                if p.name not in seen_attractions and p.lat and p.lng:
-                    seen_attractions.add(p.name)
-                    map_pins.append(MapPin(
-                        label=fix_utf8(p.name),
-                        lat=p.lat,
-                        lng=p.lng,
-                        day_number=day.day_number,
-                        pin_type="attraction",
-                        description=fix_utf8(f"★ {p.rating} ({p.review_count:,} reviews)" if p.rating and p.review_count else p.name)
-                    ))
+                if p.lat and p.lng:
+                    norm_attraction_name = re.sub(r'[\s\-_,\.]+', '', (p.name or '').lower())
+                    if norm_attraction_name and norm_attraction_name not in seen_attractions:
+                        seen_attractions.add(norm_attraction_name)
+                        map_pins.append(MapPin(
+                            label=fix_utf8(p.name),
+                            lat=p.lat,
+                            lng=p.lng,
+                            day_number=day.day_number,
+                            pin_type="attraction",
+                            description=fix_utf8(f"★ {p.rating} ({p.review_count:,} reviews)" if p.rating and p.review_count else p.name)
+                        ))
 
         # 4. Top-level Hotel Options Aggregation (P2-7)
         top_hotel_options: List[RealHotelOffer] = []

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@theme {
+  --color-sky-navy: #02122c;
+  --color-sky-navy-light: #072044;
+  --color-sky-blue: #0062e3;
+  --color-sky-blue-hover: #0050b8;
+  --color-sky-blue-light: #e8f4fd;
+  --color-sky-teal: #00776d;
+  --color-sky-teal-accent: #85ffef;
+  --color-sky-coral: #ff5452;
+}
+
 @layer base {
   :root {
     --sky-navy: #02122c;

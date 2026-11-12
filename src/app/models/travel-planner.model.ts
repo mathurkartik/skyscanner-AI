@@ -20,6 +20,7 @@ export interface RealFlightOffer {
   arrival: string;
   is_greener?: boolean;
   deeplink?: string | null;
+  is_estimate?: boolean;
 }
 
 export interface RealHotelOffer {
@@ -37,6 +38,7 @@ export interface RealHotelOffer {
   image_url?: string | null;
   deeplink?: string | null;
   amenities?: string[];
+  is_estimate?: boolean;
 }
 
 export interface CarEstimate {
@@ -72,6 +74,7 @@ export interface PlaceInfo {
   website?: string | null;
   google_maps_url?: string | null;
   coordinates?: { lat: number; lng: number } | null;
+  is_estimate?: boolean;
 }
 
 export interface MapPin {

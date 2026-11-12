@@ -27,7 +27,7 @@ AIRPORT_LOOKUP: Dict[str, str] = {
     "kolkata": "CCU", "calcutta": "CCU",
     "goa": "GOI", "dabolim": "GOI", "mopa": "GOX", "north goa": "GOX", "south goa": "GOI",
     "jaipur": "JAI", "pink city": "JAI",
-    "ahmedabad": "AMD",
+    "ahmedabad": "AMD", "gandhinagar": "AMD",
     "pune": "PNQ",
     "kochi": "COK", "cochin": "COK",
     "lucknow": "LKO",

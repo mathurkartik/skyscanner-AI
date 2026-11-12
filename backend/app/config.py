@@ -17,8 +17,9 @@ class Settings(BaseSettings):
     
     # App
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = False
     log_level: str = "INFO"
+    booking_contact_email: str = "support@skyscanner.com"
     
     # API
     api_host: str = "0.0.0.0"
@@ -79,3 +80,6 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
+settings = get_settings()
