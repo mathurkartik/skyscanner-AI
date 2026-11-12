@@ -25,7 +25,7 @@ from .budget import BudgetAgent
 from .review import ReviewAgent
 from .trip_structuring import TripStructuringAgent
 from ..tools import ToolRouter
-from ..tools.city_coords import CITY_COORDS
+from ..tools.city_coords import CITY_COORDS, get_airport_coords, get_city_coords
 from ..utils.observability import ObservabilityLogger
 from ..utils.currency import from_usd
 
@@ -464,7 +464,8 @@ class OrchestratorAgent:
             except Exception:
                 pass
 
-        origin_iata = "DEL"
+        # AG-012: Never override user's stated origin with DEL; infer from currency only when omitted
+        origin_iata = None
         if constraints.origin_city:
             origin_iata = await resolve_iata(constraints.origin_city)
         else:
@@ -473,9 +474,15 @@ class OrchestratorAgent:
                     from_c = pref.lower().split("from ")[-1].strip()
                     origin_iata = await resolve_iata(from_c)
                     break
+            if not origin_iata:
+                currency_gateways = {
+                    "INR": "DEL", "USD": "JFK", "GBP": "LHR", "EUR": "CDG",
+                    "JPY": "HND", "AUD": "SYD", "CAD": "YYZ"
+                }
+                origin_iata = currency_gateways.get(constraints.currency, "JFK")
 
         dest_target = trip_structure.route[0] if (trip_structure and trip_structure.route) else (constraints.cities[0] if constraints.cities else constraints.destination_region)
-        dest_iata = await resolve_iata(dest_target)
+        dest_iata = await resolve_iata(dest_target) if dest_target else None
 
         # Multi-modal check: skip flight query if user route is explicitly land-based (train/bus/drive)
         needs_flight = True
@@ -485,7 +492,7 @@ class OrchestratorAgent:
                 needs_flight = False
 
         async def _query_trip_flights():
-            if not needs_flight:
+            if not needs_flight or not origin_iata or not dest_iata:
                 return []
             try:
                 return await self.logistics_agent.flight_client.search_flights(
@@ -1132,15 +1139,19 @@ class OrchestratorAgent:
             dest_code = resolve_iata_sync(dest_name)
 
         first_day_places = draft.days[0].places if (draft.days and draft.days[0].places) else []
-        if first_day_places and first_day_places[0].lat and first_day_places[0].lng:
-            alat, alng = first_day_places[0].lat, first_day_places[0].lng
-            aname = f"{dest_name.title()} Gateway Airport ({dest_code or 'Arrival'})"
-            map_pins.append(MapPin(label=aname, lat=alat, lng=alng, pin_type="airport"))
-        else:
-            coords = _lookup_city_coords(dest_name)
-            if not coords:
-                coords = (64.1466, -21.9426) if ("iceland" in dest_name or "reykjavik" in dest_name) else (48.8566, 2.3522)
-            map_pins.append(MapPin(label=f"{dest_name.title()} Arrival Gateway", lat=coords[0], lng=coords[1], pin_type="airport"))
+        # AG-021: Place airport pin at actual commercial airport coordinates, not tourist attractions
+        airport_coords = get_airport_coords(dest_code) if dest_code else None
+        if not airport_coords:
+            airport_coords = get_airport_coords(dest_name)
+        if not airport_coords:
+            airport_coords = _lookup_city_coords(dest_name)
+        if not airport_coords and first_day_places and first_day_places[0].lat and first_day_places[0].lng:
+            airport_coords = (first_day_places[0].lat, first_day_places[0].lng)
+        if not airport_coords:
+            airport_coords = (64.1466, -21.9426) if ("iceland" in dest_name or "reykjavik" in dest_name) else (48.8566, 2.3522)
+
+        aname = f"{dest_name.title()} Gateway Airport ({dest_code or 'Arrival'})"
+        map_pins.append(MapPin(label=aname, lat=airport_coords[0], lng=airport_coords[1], pin_type="airport"))
 
         # 2. Overnight Hotel Pins (priority: Google places for this city -> city coords -> fallback)
         seen_hotel_cities = set()

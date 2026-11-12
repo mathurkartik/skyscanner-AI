@@ -15,6 +15,7 @@ import httpx
 
 from ..config import get_settings
 from ..models.schemas import PlaceInfo
+from .city_coords import get_city_coords
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +138,9 @@ class GooglePlacesClient:
             elif isinstance(data, PlaceInfo) and (data.place_id == place_id or data.name == place_id):
                 return data
 
-        # Dynamic fallback PlaceInfo
+        # AG-013 & AG-016: Dynamic fallback PlaceInfo using city_coords instead of fixed Reykjavik coordinates
+        coords = get_city_coords(place_id)
+        fallback_lat, fallback_lng = coords if coords else (64.1417, -21.9266)
         place_info = PlaceInfo(
             place_id=place_id,
             name=place_id.replace("ChIJ", "").replace("-", " ").title(),
@@ -145,12 +148,13 @@ class GooglePlacesClient:
             review_count=1500,
             types=["tourist_attraction", "point_of_interest"],
             address="Historic City Center",
-            lat=64.1417,
-            lng=-21.9266,
+            lat=fallback_lat,
+            lng=fallback_lng,
             opening_hours=["Mon-Sun: 09:00 - 18:00"],
             description="Historic landmark and popular sightseeing destination.",
             price_level=1,
-            google_maps_url=f"https://www.google.com/maps/search/?api=1&query={place_id}"
+            google_maps_url=f"https://www.google.com/maps/search/?api=1&query={place_id}",
+            is_estimate=True
         )
         self._cache[cache_key] = {"data": place_info, "timestamp": time.time()}
         return place_info
@@ -213,7 +217,8 @@ class GooglePlacesClient:
                 lng=location_bias.get("lng") if location_bias else 0.0,
                 description=f"Iconic visitor landmark in {clean_query.title()}.",
                 price_level=1,
-                google_maps_url=f"https://www.google.com/maps/search/?api=1&query={clean_query.replace(' ', '+')}"
+                google_maps_url=f"https://www.google.com/maps/search/?api=1&query={clean_query.replace(' ', '+')}",
+                is_estimate=True
             )
             for i in range(min(limit, 3))
         ]
@@ -252,15 +257,17 @@ class GooglePlacesClient:
                         if not name:
                             continue
                         point = item.get("point", {})
+                        # AG-014 & AG-016: Do not fabricate 4.5 rating / 1200 reviews for OpenTripMap results; set None and is_estimate=True
                         places.append(PlaceInfo(
                             place_id=item.get("xid", f"otm-{idx}"),
                             name=name,
-                            rating=4.5,
-                            review_count=1200,
+                            rating=None,
+                            review_count=None,
                             types=["tourist_attraction"],
                             lat=point.get("lat"),
                             lng=point.get("lon"),
-                            google_maps_url=f"https://www.google.com/maps/search/?api=1&query={name.replace(' ', '+')}"
+                            google_maps_url=f"https://www.google.com/maps/search/?api=1&query={name.replace(' ', '+')}",
+                            is_estimate=True
                         ))
                     return places
         except Exception as e:
@@ -346,7 +353,8 @@ Example format:
                     price_level=int(p.get("price_level", 1)),
                     photo_url="https://images.unsplash.com/photo-1529963183134-61a90db47eaf?w=800&auto=format&fit=crop&q=80",
                     opening_hours=["Mon-Sun: 09:00 - 18:00"],
-                    google_maps_url=f"https://www.google.com/maps/search/?api=1&query={p_name.replace(' ', '+')}+{target_loc.replace(' ', '+')}"
+                    google_maps_url=f"https://www.google.com/maps/search/?api=1&query={p_name.replace(' ', '+')}+{target_loc.replace(' ', '+')}",
+                    is_estimate=True
                 ))
             if len(places) >= 2:
                 return places

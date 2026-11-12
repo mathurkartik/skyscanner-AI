@@ -156,3 +156,75 @@ def get_city_coords(city: str) -> tuple[float, float] | None:
             return v
     return None
 
+
+# Primary Commercial Airport Coordinates (AG-021)
+# Prevents airport pins from being placed on tourist attractions.
+AIRPORT_COORDS: dict[str, tuple[float, float]] = {
+    # India & South Asia
+    "DEL": (28.5562, 77.1000), "BOM": (19.0896, 72.8656), "BLR": (13.1986, 77.7066),
+    "HYD": (17.2403, 78.4294), "MAA": (12.9941, 80.1709), "CCU": (22.6547, 88.4467),
+    "JAI": (26.8242, 75.8122), "GOI": (15.3808, 73.8314), "GOX": (15.7533, 73.8683),
+    "AMD": (23.0734, 72.6347), "COK": (10.1520, 76.4019), "KTM": (27.6966, 85.3591),
+    "CMB": (7.1808, 79.8841),
+
+    # Europe & Iceland
+    "KEF": (63.9850, -22.6056), "LHR": (51.4700, -0.4543), "LGW": (51.1537, -0.1821),
+    "CDG": (49.0097, 2.5479), "ORY": (48.7262, 2.3652), "AMS": (52.3105, 4.7683),
+    "FRA": (50.0379, 8.5622), "MUC": (48.3537, 11.7750), "ZRH": (47.4582, 8.5555),
+    "GVA": (46.2370, 6.1092), "FCO": (41.8003, 12.2389), "MXP": (45.6301, 8.7255),
+    "BCN": (41.2974, 2.0833), "MAD": (40.4839, -3.5680), "VIE": (48.1103, 16.5697),
+    "PRG": (50.1008, 14.2600), "BUD": (47.4369, 19.2556), "DUB": (53.4264, -6.2499),
+    "EDI": (55.9508, -3.3725), "LIS": (38.7756, -9.1354), "OPO": (41.2481, -8.6814),
+    "ATH": (37.9364, 23.9445), "IST": (41.2753, 28.7519), "CPH": (55.6180, 12.6508),
+    "ARN": (59.6498, 17.9238), "OSL": (60.1976, 11.1004), "HEL": (60.3172, 24.9633),
+    "TBS": (41.6692, 44.9547),
+
+    # Americas
+    "JFK": (40.6413, -73.7781), "EWR": (40.6895, -74.1745), "LGA": (40.7769, -73.8740),
+    "BOS": (42.3656, -71.0096), "ORD": (41.9742, -87.9073), "LAX": (33.9416, -118.4085),
+    "SFO": (37.6213, -122.3790), "SEA": (47.4502, -122.3088), "MIA": (25.7959, -80.2870),
+    "MCO": (28.4312, -81.3081), "LAS": (36.0840, -115.1537), "DFW": (32.8998, -97.0403),
+    "ATL": (33.6407, -84.4277), "YYZ": (43.6777, -79.6248), "YVR": (49.1967, -123.1815),
+    "YUL": (45.4657, -73.7455), "MEX": (19.4361, -99.0719), "CUN": (21.0365, -86.8771),
+    "GRU": (-23.4356, -46.4731), "GIG": (-22.8134, -43.2494), "EZE": (-34.8222, -58.5358),
+    "LIM": (-12.0219, -77.1143),
+
+    # Asia-Pacific & Middle East
+    "HND": (35.5494, 139.7798), "NRT": (35.7720, 140.3929), "KIX": (34.4320, 135.2304),
+    "CTS": (42.7752, 141.6923), "FUK": (33.5859, 130.4507), "ICN": (37.4602, 126.4407),
+    "PUS": (35.1795, 128.9382), "SIN": (1.3644, 103.9915), "BKK": (13.6900, 100.7501),
+    "DMK": (13.9126, 100.6067), "HKT": (8.1132, 98.3169), "CNX": (18.7713, 98.9626),
+    "KUL": (2.7456, 101.7072), "DPS": (-8.7482, 115.1672), "CGK": (-6.1275, 106.6537),
+    "HAN": (21.2212, 105.8072), "SGN": (10.8188, 106.6518), "MNL": (14.5086, 121.0194),
+    "SYD": (-33.9399, 151.1753), "MEL": (-37.6690, 144.8410), "BNE": (-27.3942, 153.1218),
+    "PER": (-31.9403, 115.9668), "AKL": (-37.0082, 174.7850), "ZQN": (-45.0216, 168.7392),
+    "CHC": (-43.4894, 172.5322), "DXB": (25.2532, 55.3657), "AUH": (24.4330, 54.6511),
+    "DOH": (25.2731, 51.6081), "RUH": (24.9576, 46.6988),
+
+    # Africa
+    "CAI": (30.1219, 31.4056), "JNB": (-26.1367, 28.2411), "CPT": (-33.9715, 18.6021),
+    "NBO": (-1.3192, 36.9275), "RAK": (31.6069, -8.0363), "CMN": (33.3675, -7.5898),
+}
+
+
+def get_airport_coords(iata_or_city: str) -> tuple[float, float] | None:
+    """
+    Retrieve commercial airport coordinates by IATA code or city name (AG-021).
+    Falls back to city center coordinates if airport not specifically indexed.
+    """
+    if not iata_or_city:
+        return None
+    clean = iata_or_city.strip()
+    upper_code = clean.upper()
+    if upper_code in AIRPORT_COORDS:
+        return AIRPORT_COORDS[upper_code]
+
+    # Resolve city name to IATA if applicable
+    from .airports import lookup_iata_code
+    resolved_iata = lookup_iata_code(clean)
+    if resolved_iata and resolved_iata in AIRPORT_COORDS:
+        return AIRPORT_COORDS[resolved_iata]
+
+    # Fall back to city center coordinates
+    return get_city_coords(clean)
+

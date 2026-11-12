@@ -341,4 +341,4 @@ async def test_edge_case_flight_search_uncommon_route():
     assert offer.destination == "TOS"
     assert offer.price > 0
     assert offer.duration_minutes > 0
-    assert "skyscanner.com" in offer.deeplink
+    assert "duffel.com" in offer.deeplink or "skyscanner.com" in offer.deeplink

@@ -16,6 +16,7 @@ import httpx
 from ..config import get_settings
 from ..models.schemas import RealHotelOffer
 from ..llm.llm_utils import validate_llm_json
+from .city_coords import get_city_coords
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +79,15 @@ class HotelClient:
                 except Exception as err:
                     logger.warning("Destination search failed for '%s': %s", query, err)
 
-        # Default fallback
+        # AG-013: Use city_coords lookup table (140+ cities) before falling back to default coordinates
+        coords = get_city_coords(clean_query)
+        lat, lng = coords if coords else (64.1466, -21.9426)
         fallback = {
             "dest_id": f"-{abs(hash(clean_query)) % 10000000}",
             "dest_type": "city",
             "label": query.title(),
-            "lat": 64.1466,
-            "lng": -21.9426
+            "lat": lat,
+            "lng": lng
         }
         self._dest_cache[clean_query] = {"timestamp": time.time(), "data": fallback}
         return fallback
@@ -251,7 +254,8 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                     address=h.get("address", f"{clean_city}"),
                     image_url="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&auto=format&fit=crop&q=80",
                     deeplink=f"https://www.booking.com/searchresults.html?ss={clean_city.lower().replace(' ', '+')}",
-                    amenities=h.get("amenities", ["Free WiFi", "Air Conditioning", "Breakfast"])
+                    amenities=h.get("amenities", ["Free WiFi", "Air Conditioning", "Breakfast"]),
+                    is_estimate=True
                 ))
             if len(offers) >= 2:
                 return offers
@@ -540,7 +544,8 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                     address=h["address"],
                     image_url=h["image_url"],
                     deeplink=deeplink,
-                    amenities=h["amenities"]
+                    amenities=h["amenities"],
+                    is_estimate=True
                 )
             )
 

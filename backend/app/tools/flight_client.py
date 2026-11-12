@@ -402,7 +402,13 @@ class FlightClient:
                     if "Duffel" in airline_name or "Test" in airline_name:
                         airline_name = "Major Airline Partner"
 
-                    deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{departure_date.replace('-', '')}/"
+                    # AG-015: Use Duffel's actual booking link / checkout URL rather than fabricated Skyscanner URL
+                    offer_id = item.get("id", "")
+                    deeplink = item.get("booking_url") or item.get("booking_link") or item.get("checkout_url")
+                    if not deeplink and offer_id:
+                        deeplink = f"https://app.duffel.com/book/{offer_id}"
+                    if not deeplink:
+                        deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{departure_date.replace('-', '')}/"
 
                     offer = RealFlightOffer(
                         airline=airline_name,
@@ -589,7 +595,8 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                     return_departure=item.get("return_departure", "11:00"),
                     return_arrival=item.get("return_arrival", "18:00"),
                     return_duration_minutes=int(item.get("return_duration_minutes", 420)),
-                    return_stops=int(item.get("return_stops", item.get("stops", 1)))
+                    return_stops=int(item.get("return_stops", item.get("stops", 1))),
+                    is_estimate=True
                 ))
             if len(offers) >= 2:
                 return offers
@@ -779,6 +786,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                     return_arrival="19:30" if return_date else None,
                     return_duration_minutes=duration if return_date else None,
                     return_stops=stops if return_date else None,
+                    is_estimate=True
                 )
             )
         return offers

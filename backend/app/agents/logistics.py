@@ -87,32 +87,45 @@ class LogisticsAgent:
             except Exception:
                 pass
 
-        # Resolve Origin Airport
-        origin_iata = "DEL"  # Sensible default global hub
-        if constraints.origin_city:
-            origin_iata = await resolve_iata(constraints.origin_city)
-        else:
+        # Resolve Origin Airport (AG-012: Never override a user's stated origin with DEL)
+        origin_name = constraints.origin_city
+        if not origin_name:
             for pref in constraints.preferences:
                 if "from " in pref.lower():
-                    from_city = pref.lower().split("from ")[-1].strip()
-                    origin_iata = await resolve_iata(from_city)
+                    origin_name = pref.lower().split("from ")[-1].strip()
                     break
 
-        dest_target = cities[0] if cities else (constraints.destination_region or "Iceland")
-        dest_iata = await resolve_iata(dest_target)
+        if origin_name:
+            origin_iata = await resolve_iata(origin_name)
+        else:
+            # Fall back to currency-aligned gateway when origin is omitted by the user
+            currency_gateways = {
+                "INR": "DEL",
+                "USD": "JFK",
+                "GBP": "LHR",
+                "EUR": "CDG",
+                "JPY": "HND",
+                "AUD": "SYD",
+                "CAD": "YYZ"
+            }
+            origin_iata = currency_gateways.get(constraints.currency, "JFK")
+
+        dest_target = cities[0] if cities else constraints.destination_region
+        dest_iata = await resolve_iata(dest_target) if dest_target else None
 
         flight_offers: List[RealFlightOffer] = []
-        try:
-            flight_offers = await self.flight_client.search_flights(
-                origin=origin_iata,
-                destination=dest_iata,
-                departure_date=departure_date,
-                return_date=return_date,
-                cabin_class="economy",
-                adults=1
-            )
-        except Exception as e:
-            print(f"Logistics flight query failed: {e}")
+        if origin_iata and dest_iata:
+            try:
+                flight_offers = await self.flight_client.search_flights(
+                    origin=origin_iata,
+                    destination=dest_iata,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    cabin_class="economy",
+                    adults=1
+                )
+            except Exception as e:
+                logger.warning(f"Logistics flight query failed: {e}")
 
         # 3. Query Real Hotels via Booking.com RapidAPI (calibrated to budget tier using canonical FX, AG-003)
         per_night_budget = (constraints.budget_total * 0.40 / max(1, duration)) if constraints.budget_total > 0 else 150.0
@@ -161,7 +174,9 @@ class LogisticsAgent:
             elif any("train" in p.lower() for p in constraints.preferences):
                 arrival_mode = "train"
 
-            booking_url = f"https://www.skyscanner.com/transport/flights/{origin_iata.lower()}/{dest_iata.lower()}" if arrival_mode == "flight" else f"https://www.thetrainline.com/book/results?origin={orig_name}&destination={dest_first}"
+            orig_code = (origin_iata or "origin").lower()
+            dest_code = (dest_iata or "destination").lower()
+            booking_url = f"https://www.skyscanner.com/transport/flights/{orig_code}/{dest_code}" if arrival_mode == "flight" else f"https://www.thetrainline.com/book/results?origin={orig_name}&destination={dest_first}"
             transport_segments.append(TransportSegment(
                 from_city=orig_name,
                 to_city=dest_first,

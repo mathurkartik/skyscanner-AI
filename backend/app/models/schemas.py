@@ -487,6 +487,7 @@ class RealFlightOffer(BaseModel):
     return_arrival: Optional[str] = None
     return_duration_minutes: Optional[int] = None
     return_stops: Optional[int] = None
+    is_estimate: bool = False
 
 
 class RealHotelOffer(BaseModel):
@@ -505,6 +506,7 @@ class RealHotelOffer(BaseModel):
     image_url: Optional[str] = None
     deeplink: Optional[str] = None
     amenities: List[str] = Field(default_factory=list)
+    is_estimate: bool = False
 
 
 class PlaceInfo(BaseModel):
@@ -526,6 +528,7 @@ class PlaceInfo(BaseModel):
     description: Optional[str] = None
     website: Optional[str] = None
     google_maps_url: Optional[str] = None
+    is_estimate: bool = False
 
     @model_validator(mode="before")
     @classmethod
