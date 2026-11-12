@@ -33,6 +33,36 @@ from ..llm.llm_utils import validate_llm_json, validate_item_fields
 logger = logging.getLogger(__name__)
 
 
+def generate_transport_booking_url(from_city: str, to_city: str, mode: str, operator_name: str = "") -> str:
+    """Generate authentic, destination-aware transport booking or navigation URLs (AG-099)."""
+    q_from = urllib.parse.quote_plus(from_city.strip())
+    q_to = urllib.parse.quote_plus(to_city.strip())
+    slug_from = urllib.parse.quote(from_city.strip().lower().replace(" ", "-"))
+    slug_to = urllib.parse.quote(to_city.strip().lower().replace(" ", "-"))
+    op_lower = operator_name.lower()
+
+    if mode == "flight":
+        return f"https://www.skyscanner.com/transport/flights/{slug_from}/{slug_to}"
+    if mode == "drive":
+        return f"https://www.google.com/maps/dir/?api=1&origin={q_from}&destination={q_to}&travelmode=driving"
+    if mode == "bus":
+        return f"https://global.flixbus.com/"
+
+    # Train / Rail modes
+    combined = f"{from_city} {to_city}".lower()
+    if "shinkansen" in op_lower or any(c in combined for c in ["tokyo", "kyoto", "osaka", "hiroshima", "nagoya"]):
+        return "https://smart-ex.jp/en/"
+    if "sncf" in op_lower or "tgv" in op_lower or any(c in combined for c in ["paris", "lyon", "nice", "marseille"]):
+        return "https://www.sncf-connect.com/en-en/"
+    if "sbb" in op_lower or any(c in combined for c in ["zurich", "geneva", "lucerne", "interlaken"]):
+        return "https://www.sbb.ch/en"
+    if "irctc" in op_lower or "railway" in op_lower or any(c in combined for c in ["delhi", "mumbai", "jaipur", "agra", "goa"]):
+        return "https://www.irctc.co.in/"
+
+    # Universal reliable transit search
+    return f"https://www.rome2rio.com/s/{q_from}/{q_to}"
+
+
 class LogisticsAgent:
     """
     Plans lodging, transport, and day structures.
@@ -177,7 +207,7 @@ class LogisticsAgent:
 
             orig_code = (origin_iata or "origin").lower()
             dest_code = (dest_iata or "destination").lower()
-            booking_url = f"https://www.skyscanner.com/transport/flights/{orig_code}/{dest_code}" if arrival_mode == "flight" else f"https://www.thetrainline.com/book/results?origin={orig_name}&destination={dest_first}"
+            booking_url = generate_transport_booking_url(orig_name, dest_first, arrival_mode, flight_offers[0].airline if (flight_offers and arrival_mode == "flight") else "")
             transport_segments.append(TransportSegment(
                 from_city=orig_name,
                 to_city=dest_first,
@@ -207,7 +237,7 @@ class LogisticsAgent:
                 elif "sbb" in notes_lower:
                     op_name = "SBB Swiss Federal Railways"
 
-                b_url = f"https://www.thetrainline.com/book/results?origin={mp.from_city}&destination={mp.to_city}" if mode_str == "train" else (f"https://www.google.com/maps/dir/?api=1&origin={mp.from_city}&destination={mp.to_city}" if mode_str == "drive" else "https://global.flixbus.com/")
+                b_url = generate_transport_booking_url(mp.from_city, mp.to_city, mode_str, op_name)
                 transport_segments.append(TransportSegment(
                     from_city=mp.from_city,
                     to_city=mp.to_city,

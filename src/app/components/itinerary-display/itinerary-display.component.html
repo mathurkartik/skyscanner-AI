@@ -8,7 +8,7 @@
       <div class="space-y-1.5 max-w-2xl">
         <div class="flex items-center gap-2">
           <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00776d]/15 text-[#005c54] font-bold text-[11px] uppercase tracking-wider">
-            <span class="material-symbols-outlined text-[14px]">check_circle</span>
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">check_circle</span>
             Review Status: {{ (itinerary.review_status || 'pass') | uppercase }}
           </span>
           <span class="text-xs text-gray-500 font-medium">Route Engine v4.2</span>
@@ -42,13 +42,13 @@
           <button
             (click)="copyShareLink()"
             class="px-3 py-1 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
-            <span class="material-symbols-outlined text-[16px]">share</span>
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">share</span>
             <span>Share Plan</span>
           </button>
           <button
             (click)="printItinerary()"
             class="px-3 py-1 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
-            <span class="material-symbols-outlined text-[16px]">print</span>
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">print</span>
             <span>Print / PDF</span>
           </button>
         </div>
@@ -70,7 +70,7 @@
 
         <div class="flex flex-col sm:items-end gap-1">
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#00776d]/15 text-[#005c54] text-xs font-bold">
-            <span class="material-symbols-outlined text-[16px]">savings</span>
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">savings</span>
             Within {{ (itinerary.constraints.budget_total || 350000) | number:'1.0-0' }} {{ itinerary.constraints.currency }} budget
           </span>
           <span class="text-[11px] text-gray-400 font-medium">Per couple basis</span>
@@ -83,7 +83,7 @@
     @if (itinerary.strategic_insight) {
       <div class="rounded-2xl bg-[#e5eaff] p-4 flex items-start gap-3 border border-[#cbdafd]">
         <div class="w-8 h-8 rounded-full bg-[#0062e3] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-          <span class="material-symbols-outlined text-[18px]">lightbulb</span>
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lightbulb</span>
         </div>
         <div class="space-y-0.5">
           <p class="text-xs font-bold text-[#0b1b35]">Strategic Routing Rationale</p>
@@ -100,19 +100,19 @@
         <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-600">5/5 AGENTS COMPLETE</span>
         <div class="flex items-center gap-1.5 flex-wrap">
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
-            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">hub</span> Orchestrator
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]" aria-hidden="true">hub</span> Orchestrator
           </span>
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
-            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">map</span> Destination
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]" aria-hidden="true">map</span> Destination
           </span>
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
-            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">commute</span> Logistics
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]" aria-hidden="true">commute</span> Logistics
           </span>
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
-            <span class="material-symbols-outlined text-[#0062e3] text-[16px]">account_balance_wallet</span> Budget
+            <span class="material-symbols-outlined text-[#0062e3] text-[16px]" aria-hidden="true">account_balance_wallet</span> Budget
           </span>
           <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-gray-800 text-xs font-semibold shadow-xs border border-gray-200">
-            <span class="material-symbols-outlined text-[#00776d] text-[16px]">verified</span> Review
+            <span class="material-symbols-outlined text-[#00776d] text-[16px]" aria-hidden="true">verified</span> Review
           </span>
         </div>
       </div>
@@ -853,8 +853,8 @@
             </span>
           </div>
 
-          <!-- SF-3: Stack cards vertically on mobile, 3-column row on desktop -->
-          <div class="grid grid-cols-1 xl:grid-cols-3 gap-3">
+          <!-- SF-3: Stack cards vertically on mobile, 2-col on tablet, 3-column row on desktop (AG-107) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             @for (h of hotels; track h.id; let hIdx = $index) {
               <div class="rounded-xl bg-white p-3.5 border border-gray-200/80 hover:border-sky-300 transition-colors flex flex-col justify-between gap-2.5 shadow-2xs">
                 <div class="space-y-2">
@@ -1035,15 +1035,15 @@
     </div>
   </div>
 
-  <!-- Interactive Route Map & GPS Pins Modal -->
+  <!-- Interactive Route Map & GPS Pins Modal (AG-105, AG-113) -->
   @if (showMapModal()) {
-    <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" (click)="toggleMap()" (keydown.escape)="toggleMap()" tabindex="-1">
-      <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-gray-200 space-y-4 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="map-modal-title" (click)="$event.stopPropagation()">
+    <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" (click)="toggleMap()" (keydown.escape)="toggleMap()" tabindex="-1">
+      <div class="bg-white rounded-3xl max-w-lg sm:max-w-3xl w-full p-4 sm:p-6 shadow-2xl border border-gray-200 space-y-4 max-h-[92vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="map-modal-title" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between border-b border-gray-100 pb-3">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-[#0062e3] text-[24px]">map</span>
+            <span class="material-symbols-outlined text-[#0062e3] text-[24px]" aria-hidden="true">map</span>
             <div>
-              <h3 id="map-modal-title" class="text-lg font-black text-gray-900">{{ itinerary.constraints.destination_region || 'Destination' }} Route & GPS Pins</h3>
+              <h3 id="map-modal-title" class="text-base sm:text-lg font-black text-gray-900">{{ itinerary.constraints.destination_region || 'Destination' }} Route & GPS Pins</h3>
               <p class="text-xs text-gray-500">{{ itinerary.map_pins?.length || 0 }} Geocoded Waypoints with Direct Navigation Links</p>
             </div>
           </div>
@@ -1054,12 +1054,12 @@
               rel="noopener"
               class="px-3 py-1.5 rounded-xl bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors">
               <span>Open in Google Maps</span>
-              <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+              <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span>
             </a>
             <button
               (click)="toggleMap()"
-              aria-label="Close dialog"
-              class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold">
+              aria-label="Close route map"
+              class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center font-bold cursor-pointer">
               ✕
             </button>
           </div>

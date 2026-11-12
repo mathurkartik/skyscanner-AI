@@ -152,12 +152,14 @@ Budget level: {constraints.budget_total} {constraints.currency}"""
         return adjusted
 
     def _structure_city_trip(self, constraints: TravelConstraints) -> TripStructure:
-        """Structure a simple city trip (≤ 7 days, 1-2 cities)."""
+        """Structure a simple city trip (≤ 7 days, 1-2 cities) with zero division guards (AG-088)."""
+        cities = constraints.cities if constraints.cities else [constraints.destination_region or "Destination"]
+        duration = max(1, constraints.duration_days)
         regions = []
-        days_per_city = max(1, constraints.duration_days // len(constraints.cities))
-        remainder = constraints.duration_days % len(constraints.cities)
+        days_per_city = max(1, duration // len(cities))
+        remainder = duration % len(cities)
 
-        for i, city in enumerate(constraints.cities):
+        for i, city in enumerate(cities):
             extra = 1 if i < remainder else 0
             regions.append(Region(
                 name=city,
@@ -169,14 +171,14 @@ Budget level: {constraints.budget_total} {constraints.currency}"""
         return TripStructure(
             trip_type="city_trip",
             regions=regions,
-            route=constraints.cities,
-            pace="relaxed" if constraints.duration_days >= 5 else "balanced"
+            route=cities,
+            pace="relaxed" if duration >= 5 else "balanced"
         )
 
     def _structure_from_cities(self, constraints: TravelConstraints) -> TripStructure:
         """Fallback: structure from the cities list when LLM is unavailable."""
-        cities = constraints.cities
-        duration = constraints.duration_days
+        cities = constraints.cities if constraints.cities else [constraints.destination_region or "Destination"]
+        duration = max(1, constraints.duration_days)
 
         if len(cities) == 1:
             city = cities[0]
@@ -209,7 +211,7 @@ Budget level: {constraints.budget_total} {constraints.currency}"""
         )
 
     def _determine_pace(self, duration: int, num_regions: int) -> str:
-        if num_regions == 0:
+        if num_regions <= 0 or duration <= 0:
             return "balanced"
         ratio = duration / num_regions
         if ratio >= 3:

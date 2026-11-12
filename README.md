@@ -1,11 +1,11 @@
 # ✈️ Skyscanner AI — Autonomous Multi-Agent Travel Orchestrator
 
-[![Angular](https://img.shields.io/badge/Angular-19+-DD0031?style=flat&logo=angular&logoColor=white)](https://angular.dev/)
+[![Angular](https://img.shields.io/badge/Angular-21+-DD0031?style=flat&logo=angular&logoColor=white)](https://angular.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Pydantic v2](https://img.shields.io/badge/Pydantic-v2-E92063?style=flat&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Duffel API](https://img.shields.io/badge/Flights-Duffel%20Live%20API-0062E3?style=flat)](https://duffel.com/)
-[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing%20(103%2F103)-success?style=flat)](https://github.com/)
+[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing%20(185%2B%20Automated)-success?style=flat)](https://github.com/)
 
 > **Product Vision**: Moving travel from *fragmented manual search* across 38+ browser tabs to *autonomous end-to-end orchestration*. Skyscanner AI converts natural language travel intent into fully bookable, budget-calibrated, multi-modal itineraries backed by live transactional inventory.
 
@@ -176,16 +176,19 @@ Open **`http://localhost:4200/`** in your browser. The application will launch d
 
 ### 3. Running the Comprehensive Test Suites
 ```powershell
-# Run Backend Pytest Suite (50 edge case & integration tests)
+# Run Backend Pytest Suite (120+ unit, contract & integration tests)
 cd backend
 python -m pytest tests -v
 
-# Run Frontend Vitest Suite (43 unit & component tests)
+# Run Frontend Vitest Suite (73 unit & component tests)
 cd ..
 npx vitest run
 
 # Run Angular Production Build Verification
 npm run build
+
+# Run Playwright E2E Smoke Tests
+npx playwright test
 ```
 
 ---

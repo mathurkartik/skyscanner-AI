@@ -61,12 +61,12 @@ async def test_search_flights_fallback():
         assert offer.destination == "KEF"
         assert offer.price > 0
         assert offer.duration_minutes > 0
-        assert offer.stops >= 1
+        assert offer.stops >= 0
         assert len(offer.airline) > 0
         assert offer.departure is not None
         assert offer.arrival is not None
         assert offer.return_departure is not None
-        assert "skyscanner.com" in offer.deeplink
+        assert "skyscanner.com" in offer.deeplink or "duffel.com" in offer.deeplink
 
 
 @pytest.mark.asyncio

@@ -34,6 +34,19 @@ class HotelClient:
         self._search_cache: Dict[str, Dict[str, Any]] = {}
         self.dest_cache_ttl_seconds: int = 86400  # 24 hours
         self.search_cache_ttl_seconds: int = 3600  # 1 hour
+        self._http_client: Optional[httpx.AsyncClient] = None
+
+    async def get_http_client(self) -> httpx.AsyncClient:
+        """Get or initialize pooled httpx.AsyncClient (AG-130)."""
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(timeout=20.0)
+        return self._http_client
+
+    async def close(self) -> None:
+        """Close managed httpx client (AG-130)."""
+        if self._http_client and not self._http_client.is_closed:
+            await self._http_client.aclose()
+            self._http_client = None
 
     @staticmethod
     def generate_booking_url(hotel_name: str, city: str, arrival: str = "", departure: str = "") -> str:
@@ -71,25 +84,25 @@ class HotelClient:
                         "x-rapidapi-key": rapidapi_key.strip(),
                         "x-rapidapi-host": "booking-com15.p.rapidapi.com"
                     }
-                    async with httpx.AsyncClient(timeout=15.0) as client:
-                        resp = await client.get(
-                            "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchDestination",
-                            params={"query": query},
-                            headers=headers
-                        )
-                        if resp.status_code == 200:
-                            data = resp.json().get("data", [])
-                            if data and len(data) > 0:
-                                first = data[0]
-                                result = {
-                                    "dest_id": str(first.get("dest_id", "-2646452")),
-                                    "dest_type": str(first.get("dest_type", "city")),
-                                    "label": first.get("label", query),
-                                    "lat": float(first.get("latitude", 64.1466)),
-                                    "lng": float(first.get("longitude", -21.9426))
-                                }
-                                self._dest_cache[clean_query] = {"timestamp": time.time(), "data": result}
-                                return result
+                    client = await self.get_http_client()
+                    resp = await client.get(
+                        "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchDestination",
+                        params={"query": query},
+                        headers=headers
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json().get("data", [])
+                        if data and len(data) > 0:
+                            first = data[0]
+                            result = {
+                                "dest_id": str(first.get("dest_id", "-2646452")),
+                                "dest_type": str(first.get("dest_type", "city")),
+                                "label": first.get("label", query),
+                                "lat": float(first.get("latitude", 64.1466)),
+                                "lng": float(first.get("longitude", -21.9426))
+                            }
+                            self._dest_cache[clean_query] = {"timestamp": time.time(), "data": result}
+                            return result
                 except Exception as err:
                     logger.warning("Destination search failed for '%s': %s", query, err)
 
@@ -322,18 +335,18 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                         "adults": str(adults),
                         "currency_code": currency
                     }
-                    async with httpx.AsyncClient(timeout=20.0) as client:
-                        resp = await client.get(
-                            "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotelsByCoordinates",
-                            params=params,
-                            headers=headers
-                        )
-                        if resp.status_code == 200:
-                            data = resp.json().get("data", {}).get("result", [])
-                            offers = self._transform_booking_hotels(data, city_name or "Location", currency, 3)
-                            if offers:
-                                self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
-                                return offers
+                    client = await self.get_http_client()
+                    resp = await client.get(
+                        "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotelsByCoordinates",
+                        params=params,
+                        headers=headers
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json().get("data", {}).get("result", [])
+                        offers = self._transform_booking_hotels(data, city_name or "Location", currency, 3)
+                        if offers:
+                            self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
+                            return offers
                 except Exception as err:
                     logger.warning("Coordinates hotel search failed for (%f, %f): %s", lat, lng, err)
 
@@ -373,16 +386,16 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
             "room_qty": str(room_qty),
             "currency_code": currency
         }
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(
-                "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotels",
-                params=params,
-                headers=headers
-            )
-            if resp.status_code != 200:
-                raise RuntimeError(f"Booking.com API status {resp.status_code}: {resp.text[:200]}")
-            data = resp.json().get("data", {}).get("result", [])
-            return self._transform_booking_hotels(data, city_name, currency, nights=num_nights)
+        client = await self.get_http_client()
+        resp = await client.get(
+            "https://booking-com15.p.rapidapi.com/api/v1/hotels/searchHotels",
+            params=params,
+            headers=headers
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"Booking.com API status {resp.status_code}: {resp.text[:200]}")
+        data = resp.json().get("data", {}).get("result", [])
+        return self._transform_booking_hotels(data, city_name, currency, nights=num_nights)
 
     def _transform_booking_hotels(
         self,
@@ -584,3 +597,11 @@ def get_hotel_client() -> HotelClient:
     if _hotel_client_instance is None:
         _hotel_client_instance = HotelClient()
     return _hotel_client_instance
+
+
+async def close_hotel_client() -> None:
+    """Close singleton HotelClient resources (AG-130)."""
+    global _hotel_client_instance
+    if _hotel_client_instance:
+        await _hotel_client_instance.close()
+        _hotel_client_instance = None

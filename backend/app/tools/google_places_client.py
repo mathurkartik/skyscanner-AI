@@ -19,9 +19,6 @@ from .city_coords import get_city_coords
 
 logger = logging.getLogger(__name__)
 
-# In-memory runtime cache for dynamically resolved places
-_RESOLVED_PLACES_CACHE: Dict[str, Dict[str, Any]] = {}
-
 
 def _haversine_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Calculate the great-circle distance between two points in kilometers."""

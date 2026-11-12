@@ -366,10 +366,6 @@ export class ItineraryDisplayComponent {
     return `https://www.agoda.com/search?city=${encodeURIComponent(city)}&keyword=${encodeURIComponent(hotelName)}`;
   }
 
-  public getAgodaHotelUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
-    return this.getAgodaUrl(hotel, day);
-  }
-
   public getMakeMyTripHotelUrl(hotel?: RealHotelOffer | null, day?: DayItinerary): string {
     const city = day?.city || this.activeDay.city || 'Reykjavik';
     const hotelName = hotel?.name || city;
@@ -452,51 +448,67 @@ export class ItineraryDisplayComponent {
     if (segment.booking_url && segment.booking_url.startsWith('http')) {
       return segment.booking_url;
     }
-    const from = encodeURIComponent(segment.from_city);
-    const to = encodeURIComponent(segment.to_city);
+    const from = encodeURIComponent(segment.from_city || '');
+    const to = encodeURIComponent(segment.to_city || '');
     switch (segment.recommended_mode?.toLowerCase()) {
       case 'train':
-        return `https://www.thetrainline.com/book/results?origin=${from}&destination=${to}`;
+        return `https://www.rome2rio.com/s/${from}/${to}`;
       case 'bus':
         return `https://global.flixbus.com/`;
       case 'drive':
-        return `https://www.google.com/maps/dir/${from}/${to}`;
+        return `https://www.google.com/maps/dir/?api=1&origin=${from}&destination=${to}&travelmode=driving`;
       case 'ferry':
         return `https://www.directferries.com/`;
       case 'flight':
       default:
-        return `https://www.skyscanner.com/transport/flights/${from.slice(0, 3)}/${to.slice(0, 3)}`;
+        return `https://www.skyscanner.com/transport/flights/${from.slice(0, 3).toLowerCase()}/${to.slice(0, 3).toLowerCase()}`;
+    }
+  }
+
+  /**
+   * Safe popup / external navigation helper preventing silent failure on popup blockers (AG-111).
+   */
+  public safeOpenUrl(url: string): void {
+    if (typeof window === 'undefined' || !url) return;
+    try {
+      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+        // Pop-up blocker intercepted the window.open call: fallback to anchor dispatch
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      }
+    } catch {
+      window.location.href = url;
     }
   }
 
   public onBookTransportClick(segment: TransportSegment): void {
     const url = this.getTransportBookingUrl(segment);
-    if (typeof window !== 'undefined') {
-      window.open(url, '_blank');
-    }
+    this.safeOpenUrl(url);
   }
 
   // Action handlers
   public onSearchFlightsClick(flight: RealFlightOffer): void {
-    if (typeof window !== 'undefined' && flight.deeplink && flight.deeplink.startsWith('http')) {
-      window.open(flight.deeplink, '_blank');
+    if (flight.deeplink && flight.deeplink.startsWith('http')) {
+      this.safeOpenUrl(flight.deeplink);
     }
     this.searchFlights.emit(flight);
   }
 
   public onBookStayClick(hotel: RealHotelOffer, day: DayItinerary, event?: MouseEvent): void {
     const url = this.getHotelBookingUrl(hotel, day);
-    if (typeof window !== 'undefined') {
-      window.open(url, '_blank');
-    }
+    this.safeOpenUrl(url);
     this.bookStay.emit(hotel);
   }
 
   public onBookCarClick(car: CarEstimate, event?: MouseEvent): void {
     const url = this.getCarBookingUrl(car);
-    if (typeof window !== 'undefined') {
-      window.open(url, '_blank');
-    }
+    this.safeOpenUrl(url);
     this.bookCar.emit(car);
   }
 

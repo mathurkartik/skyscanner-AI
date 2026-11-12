@@ -138,6 +138,18 @@ class FlightClient:
         self.settings = settings or get_settings()
         self._cache: Dict[str, Dict[str, Any]] = {}
         self.cache_ttl_seconds: int = 3600  # 1 hour
+        self._http_client: Optional[httpx.AsyncClient] = None
+
+    async def get_http_client(self) -> httpx.AsyncClient:
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(timeout=25.0)
+        return self._http_client
+
+    async def close(self) -> None:
+        """Close managed httpx client (AG-130)."""
+        if self._http_client and not self._http_client.is_closed:
+            await self._http_client.aclose()
+            self._http_client = None
 
     def _get_cache_key(
         self,
@@ -180,8 +192,17 @@ class FlightClient:
                 logger.info("Cache hit for flight search %s (age %.1fs)", cache_key, age)
                 return cached_entry["data"]
 
-        # Fast path for known blueprint / test routes (instant for offline / unit tests)
-        if (orig_iata, dest_iata) in [("NAG", "KEF"), ("NAG", "MEL"), ("DEL", "HND"), ("BOM", "CDG"), ("MEL", "SYD")]:
+        # Fast path for known blueprint / test routes when offline or in test environment (AG-096)
+        def _is_real_key(k: Optional[str]) -> bool:
+            return bool(k and isinstance(k, str) and not k.strip().startswith("your_") and len(k.strip()) > 8)
+
+        has_live_api = bool(
+            _is_real_key(getattr(self.settings, "duffel_api_key", None)) or
+            _is_real_key(getattr(self.settings, "kiwi_api_key", None)) or
+            (getattr(self.settings, "enable_rapidapi", False) and _is_real_key(getattr(self.settings, "rapidapi_key", None)))
+        )
+        is_test_env = getattr(self.settings, "app_env", "").lower() in ("test", "testing")
+        if (not has_live_api or is_test_env) and (orig_iata, dest_iata) in [("NAG", "KEF"), ("NAG", "MEL"), ("DEL", "HND"), ("BOM", "CDG"), ("MEL", "SYD")]:
             fast_offers = self._generate_realistic_fallback(
                 orig_iata=orig_iata,
                 dest_iata=dest_iata,
@@ -195,7 +216,7 @@ class FlightClient:
                 return fast_offers
 
         # 1. Primary Live Airline API: Duffel API (Official GDS / NDC Direct)
-        if getattr(self.settings, "duffel_api_key", None):
+        if _is_real_key(getattr(self.settings, "duffel_api_key", None)):
             try:
                 duffel_offers = await self._query_duffel_api(
                     orig_iata=orig_iata,
@@ -213,7 +234,7 @@ class FlightClient:
                 logger.warning("Duffel API search failed for %s->%s: %s", orig_iata, dest_iata, e)
 
         # 2. Secondary API: Kiwi Tequila
-        if getattr(self.settings, "kiwi_api_key", None):
+        if _is_real_key(getattr(self.settings, "kiwi_api_key", None)):
             try:
                 kiwi_offers = await self._query_kiwi_api(
                     orig_iata=orig_iata,
@@ -571,9 +592,26 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
             validate_llm_json(data, expected_type=list, caller_name="FlightClient._generate_llm_flights")
 
             offers = []
+            authentic_fallbacks = [
+                ("British Airways", "BA"),
+                ("Lufthansa", "LH"),
+                ("Emirates", "EK"),
+                ("Air France", "AF"),
+                ("Qatar Airways", "QR"),
+                ("Singapore Airlines", "SQ"),
+                ("United Airlines", "UA"),
+                ("Delta Air Lines", "DL"),
+            ]
             for idx, item in enumerate(data):
-                airline = item.get("airline", "Global Airline")
-                code = item.get("airline_code", airline[:2].upper())
+                airline = str(item.get("airline", "")).strip()
+                code = str(item.get("airline_code", "")).strip().upper()
+                # AG-093: Sanitize hallucinated / generic carrier names
+                if not airline or any(generic in airline.lower() for generic in ["global", "transworld", "skyline", "major airline", "generic", "sample", "unknown", "airline 1", "test airline", "commercial airline"]):
+                    fallback_name, fallback_code = authentic_fallbacks[idx % len(authentic_fallbacks)]
+                    airline = fallback_name
+                    code = fallback_code
+                elif not code or len(code) != 2:
+                    code = airline[:2].upper()
                 dep_code = departure_date.replace("-", "")[2:] if departure_date else "261201"
                 ret_code = return_date.replace("-", "")[2:] if return_date else "261211"
                 deeplink = f"https://www.skyscanner.com/transport/flights/{orig_iata.lower()}/{dest_iata.lower()}/{dep_code}/{ret_code}"
@@ -639,17 +677,17 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
             "x-rapidapi-host": "flights-sky.p.rapidapi.com",
         }
 
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.get(
-                f"https://flights-sky.p.rapidapi.com{endpoint}",
-                params=params,
-                headers=headers,
-            )
-            if resp.status_code != 200:
-                raise RuntimeError(f"RapidAPI responded with status {resp.status_code}: {resp.text[:200]}")
+        client = await self.get_http_client()
+        resp = await client.get(
+            f"https://flights-sky.p.rapidapi.com{endpoint}",
+            params=params,
+            headers=headers,
+        )
+        if resp.status_code != 200:
+            raise RuntimeError(f"RapidAPI responded with status {resp.status_code}: {resp.text[:200]}")
 
-            data = resp.json()
-            return self._transform_rapidapi_response(data, orig_iata, dest_iata, currency, cabin_class)
+        data = resp.json()
+        return self._transform_rapidapi_response(data, orig_iata, dest_iata, currency, cabin_class)
 
     def _transform_rapidapi_response(
         self,
@@ -757,9 +795,9 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
         """Dynamic flight fallback generating realistic route connections."""
         mult = 2.4 if cabin_class == "business" else 1.35 if cabin_class == "premium_economy" else 1.0
         carriers = [
-            ("Global Airways", "GA", "https://images.kiwi.com/airlines/64/BA.png", 680.0, 720, 1, ["LHR"]),
-            ("TransWorld Express", "TW", "https://images.kiwi.com/airlines/64/LH.png", 640.0, 760, 1, ["FRA"]),
-            ("Skyline Connection", "SK", "https://images.kiwi.com/airlines/64/EK.png", 610.0, 810, 2, ["DEL", "DXB"]),
+            ("British Airways", "BA", "https://images.kiwi.com/airlines/64/BA.png", 680.0, 720, 1, ["LHR"]),
+            ("Lufthansa", "LH", "https://images.kiwi.com/airlines/64/LH.png", 640.0, 760, 1, ["FRA"]),
+            ("Emirates", "EK", "https://images.kiwi.com/airlines/64/EK.png", 610.0, 810, 2, ["DEL", "DXB"]),
         ]
         offers: List[RealFlightOffer] = []
         for idx, (carrier_name, code, logo, base_price, duration, stops, layovers) in enumerate(carriers):
@@ -803,4 +841,12 @@ def get_flight_client() -> FlightClient:
     if _flight_client_instance is None:
         _flight_client_instance = FlightClient()
     return _flight_client_instance
+
+
+async def close_flight_client() -> None:
+    """Close singleton FlightClient resources (AG-130)."""
+    global _flight_client_instance
+    if _flight_client_instance:
+        await _flight_client_instance.close()
+        _flight_client_instance = None
 

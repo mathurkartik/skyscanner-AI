@@ -1299,7 +1299,8 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
 
         try:
             import json as _json
-            token_budget = min(800 + (len(draft.days) * 120), 4000)
+            # AG-100: Cap token budget aggressively to avoid Groq TPM/rate limits
+            token_budget = min(350 + (len(draft.days) * 75), 1500)
             content = await self.llm_client.chat_with_retry(
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -1323,7 +1324,7 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
                 if not d.local_transport_tip:
                     d.local_transport_tip = f"Check local transit options in {d.city}."
         except Exception as e:
-            print(f"Day narrative generation failed: {e}")
+            logger.warning("Day narrative generation failed: %s", e)
             # Fallback: generate minimal narratives so the field isn't blank
             for d in draft.days:
                 if not d.day_narrative:
@@ -1474,13 +1475,34 @@ Preferences: {', '.join(constraints.preferences) if constraints.preferences else
         return draft
     
     def _remove_extra_days(self, draft: DraftItinerary, constraints: TravelConstraints) -> DraftItinerary:
-        """Remove excess days beyond required duration."""
-        target_days = constraints.duration_days
+        """Remove excess days beyond required duration using even spread selection (AG-097)."""
+        target_days = max(1, constraints.duration_days)
+        n = len(draft.days)
         
-        if len(draft.days) > target_days:
-            # Keep first and last days, remove from middle
-            keep_indices = [0] + list(range(len(draft.days) - target_days + 1, len(draft.days)))
-            draft.days = [draft.days[i] for i in keep_indices[:target_days]]
+        if n > target_days:
+            if target_days == 1:
+                keep_indices = [0]
+            else:
+                # Evenly sample indices from 0 to n - 1 preserving endpoints
+                raw_indices = [round(i * (n - 1) / (target_days - 1)) for i in range(target_days)]
+                seen = set()
+                unique_indices = []
+                for idx in raw_indices:
+                    idx = min(n - 1, max(0, idx))
+                    if idx not in seen:
+                        seen.add(idx)
+                        unique_indices.append(idx)
+                if len(unique_indices) < target_days:
+                    for i in range(n):
+                        if i not in seen:
+                            seen.add(i)
+                            unique_indices.append(i)
+                        if len(unique_indices) == target_days:
+                            break
+                    unique_indices.sort()
+                keep_indices = unique_indices[:target_days]
+
+            draft.days = [draft.days[i] for i in keep_indices]
             
             # Renumber days
             for i, day in enumerate(draft.days, 1):

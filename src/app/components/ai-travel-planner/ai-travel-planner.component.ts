@@ -74,6 +74,20 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
     return d.toISOString().split('T')[0];
   }
 
+  public onFastDemoModeChange(event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    if (target) {
+      this.fastDemoMode.set(target.checked);
+    }
+  }
+
+  public onTravelDateChange(event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    if (target) {
+      this.travelDate.set(target.value);
+    }
+  }
+
   // Fast demo mode toggle (200ms pre-cached response vs live multi-agent API)
   public fastDemoMode = signal<boolean>(false);
 
@@ -81,8 +95,8 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   public progressMessage = signal<string>('Initializing multi-agent orchestrator...');
   public currentStageIndex = signal<number>(0);
   public elapsedSeconds = signal<number>(0);
+  public backendUnavailable = signal<boolean>(false);
 
-  private progressInterval: any = null;
   private timerInterval: any = null;
 
   public readonly stages: AgentStage[] = [
@@ -122,10 +136,22 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    this.checkBackendHealth();
+  }
+
+  public checkBackendHealth(): void {
     this.plannerService.checkHealth().subscribe({
-      next: () => {},
-      error: () => {}
+      next: () => {
+        this.backendUnavailable.set(false);
+      },
+      error: () => {
+        this.backendUnavailable.set(true);
+      }
     });
+  }
+
+  public retryHealthCheck(): void {
+    this.checkBackendHealth();
   }
 
   public applySuggestion(chip: SuggestionChip): void {
@@ -242,11 +268,6 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
         this.progressMessage.set('Almost there — finalizing day-by-day itinerary with verified geocoded map pins...');
       }
     }, 1000);
-
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
-      this.progressInterval = null;
-    }
   }
 
   public ngOnDestroy(): void {
@@ -254,10 +275,6 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   }
 
   private stopProgressSimulation(): void {
-    if (this.progressInterval) {
-      clearInterval(this.progressInterval);
-      this.progressInterval = null;
-    }
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;

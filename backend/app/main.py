@@ -4,6 +4,7 @@ Phase 0: Project skeleton with health check and stub plan endpoint.
 """
 
 import time
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -14,8 +15,26 @@ from fastapi.responses import JSONResponse
 from .config import get_settings
 from .api.routes import router as api_router
 from .models import HealthResponse
+from .tools.flight_client import close_flight_client
+from .tools.hotel_client import close_hotel_client
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle (AG-130)."""
+    yield
+    # Shutdown hooks
+    try:
+        await close_flight_client()
+    except Exception:
+        pass
+    try:
+        await close_hotel_client()
+    except Exception:
+        pass
+
 
 app = FastAPI(
     title="AI Travel Planner API",
@@ -23,6 +42,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS
@@ -35,24 +55,36 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Simple in-memory sliding window rate limiter (P3-8)
+# Simple in-memory sliding window rate limiter (P3-8, AG-094, AG-129)
 _RATE_LIMIT_STORE: dict[str, list[float]] = {}
 RATE_LIMIT_WINDOW_SECONDS = 60
 MAX_REQUESTS_PER_WINDOW = 30
+_LAST_RATE_LIMIT_CLEANUP = 0.0
+
+
+def _prune_rate_limit_store(now: float) -> None:
+    """Prune expired rate limit IP entries periodically (AG-129)."""
+    global _LAST_RATE_LIMIT_CLEANUP
+    if (now - _LAST_RATE_LIMIT_CLEANUP < 30) and len(_RATE_LIMIT_STORE) < 500:
+        return
+    _LAST_RATE_LIMIT_CLEANUP = now
+    cutoff = now - RATE_LIMIT_WINDOW_SECONDS
+    expired_ips = [
+        ip for ip, times in _RATE_LIMIT_STORE.items()
+        if not times or times[-1] < cutoff
+    ]
+    for ip in expired_ips:
+        _RATE_LIMIT_STORE.pop(ip, None)
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    """Rate limit intensive planning and booking write requests by client IP (AG-039, AG-076)."""
-    if (request.url.path.startswith("/api/plan") or request.url.path.startswith("/api/book")) and request.method == "POST":
+    """Rate limit all write endpoints by client IP (AG-039, AG-076, AG-094, AG-129)."""
+    is_write = request.method in ("POST", "PUT", "DELETE", "PATCH") and request.url.path.startswith("/api/")
+    if is_write:
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
-
-        # Prune store to prevent unbounded growth
-        if len(_RATE_LIMIT_STORE) > 2000:
-            expired_ips = [ip for ip, times in _RATE_LIMIT_STORE.items() if not times or (now - times[-1]) > RATE_LIMIT_WINDOW_SECONDS]
-            for ip in expired_ips:
-                _RATE_LIMIT_STORE.pop(ip, None)
+        _prune_rate_limit_store(now)
 
         timestamps = _RATE_LIMIT_STORE.get(client_ip, [])
         valid_timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW_SECONDS]

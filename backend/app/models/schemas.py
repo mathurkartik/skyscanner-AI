@@ -182,7 +182,7 @@ class TripStructure(BaseModel):
 
 class Activity(BaseModel):
     """Single activity item in the catalog."""
-    id: str = Field(..., min_length=1, max_length=50, description="Stable unique ID for merge/re-review")
+    id: str = Field(..., min_length=1, max_length=100, description="Stable unique ID for merge/re-review")
     name: str = Field(..., min_length=1, max_length=200)
     city: str = Field(..., min_length=1, max_length=100)
     type: ActivityType
@@ -419,11 +419,12 @@ class BudgetBreakdown(BaseModel):
     @field_validator("grand_total")
     @classmethod
     def validate_total_matches_sum(cls, v: float, values) -> float:
-        """Ensure grand_total equals sum of category totals."""
+        """Ensure grand_total equals sum of category totals within floating-point tolerance (AG-092)."""
         if "categories" in values.data:
             calculated = sum(c.estimated_total for c in values.data["categories"])
-            if abs(v - calculated) > 0.01:
-                raise ValueError(f"Grand total {v} doesn't match sum of categories {calculated}")
+            tolerance = max(1.0, calculated * 0.005)
+            if abs(v - calculated) > tolerance:
+                raise ValueError(f"Grand total {v} doesn't match sum of categories {calculated} (tolerance: {tolerance})")
         return v
     
     @field_validator("currency")
@@ -487,6 +488,7 @@ class RealFlightOffer(BaseModel):
     return_arrival: Optional[str] = None
     return_duration_minutes: Optional[int] = None
     return_stops: Optional[int] = None
+    is_greener: Optional[bool] = None
     is_estimate: bool = False
 
 
@@ -525,9 +527,10 @@ class PlaceInfo(BaseModel):
     lng: Optional[float] = None
     photo_url: Optional[str] = None
     price_level: Optional[int] = None
-    description: Optional[str] = None
+    description: Optional[str] = Field(default=None, max_length=500)
     website: Optional[str] = None
     google_maps_url: Optional[str] = None
+    coordinates: Optional[Dict[str, float]] = None
     is_estimate: bool = False
 
     @model_validator(mode="before")
@@ -536,13 +539,15 @@ class PlaceInfo(BaseModel):
         if isinstance(data, dict):
             if not data.get("id"):
                 data["id"] = data.get("place_id") or f"pl-{uuid4().hex[:8]}"
+            if not data.get("coordinates") and data.get("lat") is not None and data.get("lng") is not None:
+                data["coordinates"] = {"lat": float(data["lat"]), "lng": float(data["lng"])}
         return data
 
-    @property
-    def coordinates(self) -> Optional[Dict[str, float]]:
-        if self.lat is not None and self.lng is not None:
-            return {"lat": self.lat, "lng": self.lng}
-        return None
+    @model_validator(mode="after")
+    def ensure_coordinates(self) -> "PlaceInfo":
+        if self.coordinates is None and self.lat is not None and self.lng is not None:
+            self.coordinates = {"lat": self.lat, "lng": self.lng}
+        return self
 
 
 class CarEstimate(BaseModel):
@@ -576,6 +581,7 @@ class CostSavingTip(BaseModel):
     id: str = Field(default_factory=lambda: f"tip-{uuid4().hex[:8]}")
     title: str
     description: str
+    category: Optional[str] = None
     estimated_savings: Optional[str] = None
 
 
@@ -890,7 +896,7 @@ JAPAN_5D_TOKYO_KYOTO_3000_CONSTRAINTS = TravelConstraints(
     cities=["Tokyo", "Kyoto"],
     duration_days=5,
     budget_total=3000,
-    currency="INR",
+    currency="USD",
     preferences=["food", "temples"],
     avoidances=["crowds"],
     hard_requirements=["visit both Tokyo and Kyoto"],

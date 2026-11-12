@@ -1,14 +1,16 @@
 services:
+  # Production Environment
   - type: web
     name: skyscanner-ai-backend
     env: python
     region: oregon
     plan: free
+    branch: main
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeploy: false # AG-128: Gated production deployment after CI pipeline passes
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
@@ -21,11 +23,11 @@ services:
       - key: LLM_PROVIDER
         value: gemini
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-2.0-flash
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
       - key: CORS_ORIGINS
-        value: "http://localhost:4200,https://skyscanner-ai-beige.vercel.app"
+        value: "http://localhost:4200,https://skyscanner-ai-beige.vercel.app,https://skyscanner-ai-staging.vercel.app"
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_API_KEY_2
@@ -38,4 +40,32 @@ services:
         sync: false
       - key: KIWI_API_KEY
         sync: false
+
+  # Staging Environment (AG-125)
+  - type: web
+    name: skyscanner-ai-backend-staging
+    env: python
+    region: oregon
+    plan: free
+    branch: staging
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: APP_ENV
+        value: staging
+      - key: DEBUG
+        value: true
+      - key: LOG_LEVEL
+        value: DEBUG
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: CORS_ORIGINS
+        value: "http://localhost:4200,https://skyscanner-ai-staging.vercel.app"
 

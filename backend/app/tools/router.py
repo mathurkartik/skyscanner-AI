@@ -77,10 +77,6 @@ class ToolRouter:
         
         # Phase 3: Static mock data for common travel queries
         result = self._get_static_search_results(query)
-        
-        # Simulate network delay (remove in production)
-        await asyncio.sleep(0.1)
-        
         self._set_cache(cache_key, result)
         self._log_call("search", query, trace_id, result)
         return result
@@ -115,9 +111,6 @@ class ToolRouter:
         
         # Phase 3: Static estimates for common routes
         result = self._get_static_geo_estimate(from_location, to_location)
-        
-        await asyncio.sleep(0.05)  # Simulate network delay
-        
         self._set_cache(cache_key, result)
         self._log_call("geo_estimate", f"{from_location}->{to_location}", trace_id, result)
         return result
@@ -154,8 +147,6 @@ class ToolRouter:
         
         # Phase 3: Extended static price bands
         estimate, notes = self._get_static_price_band(category, city, band)
-        
-        await asyncio.sleep(0.02)  # Simulate network delay
         
         result = {
             "category": category,
@@ -199,8 +190,6 @@ class ToolRouter:
         cache_key = f"fx:{from_currency.upper()}:{to_currency.upper()}"
         
         # AG-003: Use canonical currency utility module
-        await asyncio.sleep(0.01)  # Simulate network delay
-        
         result_amount = convert_currency(amount, from_currency, to_currency)
         rate = round(result_amount / amount, 6) if amount > 0 else 1.0
         

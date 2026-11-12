@@ -53,3 +53,4 @@ def test_token_tracker_summary_by_model():
     assert "llama-3.1-8b-instant" in summary["by_model"]
     assert summary["by_model"]["llama-3.3-70b-versatile"]["tokens"] == 1500
     assert summary["by_model"]["llama-3.1-8b-instant"]["tokens"] == 3000
+
