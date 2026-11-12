@@ -1,12 +1,22 @@
 import { Injectable, signal } from '@angular/core';
 
+// SSR-safe storage helper (AG-023)
+function getStoredFavorites(): string[] {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      return JSON.parse(localStorage.getItem('skyscanner_saved_flights') || '[]');
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class FavoritesService {
-  private savedFlightIds = signal<string[]>(
-    JSON.parse(localStorage.getItem('skyscanner_saved_flights') || '[]')
-  );
+  private savedFlightIds = signal<string[]>(getStoredFavorites());
 
   public readonly savedList = this.savedFlightIds.asReadonly();
 
@@ -22,7 +32,11 @@ export class FavoritesService {
       } else {
         updated = [...current, id];
       }
-      localStorage.setItem('skyscanner_saved_flights', JSON.stringify(updated));
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('skyscanner_saved_flights', JSON.stringify(updated));
+        } catch {}
+      }
       return updated;
     });
   }

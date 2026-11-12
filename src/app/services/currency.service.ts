@@ -17,13 +17,23 @@ export const SUPPORTED_CURRENCIES: Currency[] = [
   { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rateAgainstUSD: 1.54 },
 ];
 
+// SSR-safe storage helper (AG-023)
+function getStoredCurrency(): string {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      return localStorage.getItem('skyscanner_currency') || 'USD';
+    } catch {
+      return 'USD';
+    }
+  }
+  return 'USD';
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class CurrencyService {
-  private currentCurrencyCode = signal<string>(
-    localStorage.getItem('skyscanner_currency') || 'USD'
-  );
+  private currentCurrencyCode = signal<string>(getStoredCurrency());
 
   public readonly currencies = SUPPORTED_CURRENCIES;
 
@@ -36,7 +46,11 @@ export class CurrencyService {
     const found = this.currencies.find(c => c.code === code);
     if (found) {
       this.currentCurrencyCode.set(code);
-      localStorage.setItem('skyscanner_currency', code);
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('skyscanner_currency', code);
+        } catch {}
+      }
     }
   }
 

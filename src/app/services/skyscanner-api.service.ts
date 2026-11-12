@@ -6,11 +6,23 @@ export interface SkyscannerApiConfig {
   isLiveMode: boolean;
 }
 
+// SSR-safe storage helper (AG-023)
+function getStoredApiKey(): string {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      return localStorage.getItem('skyscanner_rapidapi_key') || '';
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class SkyscannerApiService {
-  private readonly defaultKey = localStorage.getItem('skyscanner_rapidapi_key') || '';
+  private readonly defaultKey = getStoredApiKey();
   public readonly apiKey = signal<string>(this.defaultKey);
   public readonly isLiveMode = signal<boolean>(!!this.defaultKey);
   public readonly lastApiError = signal<string | null>(null);
@@ -18,10 +30,18 @@ export class SkyscannerApiService {
   public setApiKey(key: string) {
     this.apiKey.set(key.trim());
     if (key.trim()) {
-      localStorage.setItem('skyscanner_rapidapi_key', key.trim());
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('skyscanner_rapidapi_key', key.trim());
+        } catch {}
+      }
       this.isLiveMode.set(true);
     } else {
-      localStorage.removeItem('skyscanner_rapidapi_key');
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.removeItem('skyscanner_rapidapi_key');
+        } catch {}
+      }
       this.isLiveMode.set(false);
     }
   }

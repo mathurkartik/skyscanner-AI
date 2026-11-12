@@ -1,4 +1,4 @@
-import { Component, inject, signal, output, OnInit } from '@angular/core';
+import { Component, inject, signal, output, input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../../services/currency.service';
 import { FavoritesService } from '../../services/favorites.service';
@@ -18,7 +18,8 @@ export class NavbarComponent implements OnInit {
   public readonly favoritesService = inject(FavoritesService);
   public readonly flightService = inject(FlightService);
 
-  public readonly activeTab = signal<MainTab>('ai');
+  // AG-032: Receive activeTab from App component input to eliminate tab state drift
+  public readonly activeTab = input<MainTab>('ai');
   public readonly tabChanged = output<MainTab>();
 
   public readonly isLocaleModalOpen = signal<boolean>(false);
@@ -62,7 +63,6 @@ export class NavbarComponent implements OnInit {
   }
 
   public setTab(tab: MainTab) {
-    this.activeTab.set(tab);
     if (tab === 'flights') {
       this.flightService.goToHomepage();
     }

@@ -31,6 +31,8 @@ export class TravelPlannerService {
   ): Observable<PlanResponse> {
     this.isLoading.set(true);
     this.errorMessage.set(null);
+    // AG-022: Clear previous itinerary to prevent simultaneous Loading + Results display
+    this.currentItinerary.set(null);
 
     const payload: PlanRequest = {
       request: prompt.trim(),
@@ -77,7 +79,8 @@ export class TravelPlannerService {
 
   private handleError(error: any): void {
     if (error.name === 'TimeoutError') {
-      this.errorMessage.set('Our servers are warming up. This can take up to 60 seconds for the first request. Please try again or load an instant blueprint.');
+      // AG-035: Aligned error message to the actual 150-second pipeline timeout
+      this.errorMessage.set('The multi-agent search timed out after 150 seconds. Please try again or load an instant blueprint.');
     } else if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
         this.errorMessage.set('Cannot connect to the AI planner backend at ' + this.baseUrl + '. Make sure the backend server is running on port 8000.');

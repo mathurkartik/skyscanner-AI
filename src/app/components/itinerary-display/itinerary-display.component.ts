@@ -1,7 +1,8 @@
-import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FinalItinerary, DayItinerary, RealFlightOffer, RealHotelOffer, CarEstimate, PlaceInfo, CostSavingTip, TransportSegment } from '../../models/travel-planner.model';
 import { environment } from '../../../environments/environment';
+import { CurrencyService } from '../../services/currency.service';
 
 @Component({
   selector: 'app-itinerary-display',
@@ -12,6 +13,16 @@ import { environment } from '../../../environments/environment';
 })
 export class ItineraryDisplayComponent {
   @Input({ required: true }) public itinerary!: FinalItinerary;
+
+  public currencyService?: CurrencyService | null = null;
+
+  constructor() {
+    try {
+      this.currencyService = inject(CurrencyService, { optional: true });
+    } catch {
+      this.currencyService = null;
+    }
+  }
 
   @Output() public searchFlights = new EventEmitter<RealFlightOffer>();
   @Output() public selectPrompt = new EventEmitter<string>();
@@ -97,6 +108,11 @@ export class ItineraryDisplayComponent {
   }
 
   public getCurrencySymbol(): string {
+    const c = (this.itinerary?.constraints?.currency || this.itinerary?.budget_rollup?.currency || 'USD').toUpperCase();
+    if (this.currencyService) {
+      const found = this.currencyService.currencies.find(cur => cur.code === c);
+      if (found) return found.symbol;
+    }
     const map: Record<string, string> = {
       'USD': '$',
       'EUR': '€',
@@ -111,7 +127,6 @@ export class ItineraryDisplayComponent {
       'CAD': 'C$',
       'SGD': 'S$'
     };
-    const c = (this.itinerary?.constraints?.currency || this.itinerary?.budget_rollup?.currency || 'USD').toUpperCase();
     return map[c] || (c ? `${c} ` : '$');
   }
 

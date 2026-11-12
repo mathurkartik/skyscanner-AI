@@ -142,13 +142,19 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
     if (!text || this.plannerService.isLoading()) return;
 
     const useStub = forceStub || this.fastDemoMode();
-    this.startProgressSimulation();
+    // AG-026: Only start progress simulation for live requests, skip for instant stub blueprints
+    if (!useStub) {
+      this.startProgressSimulation();
+    }
 
     const origin = this.originCity().trim();
     const date = this.travelDate().trim();
 
     this.plannerService.generatePlan(text, useStub, origin, date).subscribe({
       next: () => {
+        // AG-026: Set final completion stage when results arrive and clean up timer
+        this.currentStageIndex.set(this.stages.length - 1);
+        this.progressMessage.set('Complete! Your verified itinerary is ready.');
         this.stopProgressSimulation();
       },
       error: () => {
