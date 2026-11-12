@@ -70,16 +70,16 @@ class BudgetAgent:
         """Enrich and calibrate budget categories with actual flight and hotel quotes using canonical FX rates (AG-003, AG-004)."""
         target_curr = (constraints.currency or "USD").upper().strip()
         
-        # 1. Calibrate Flights / Transport
+        # 1. Calibrate Flights / Transport (AG-019: Keep genuine flight cost)
         flight_cost_curr = 0.0
+        flight_notes = "Real flight quotes from Skyscanner/Duffel inventory"
         if logistics_output.flight_offers:
             cheapest_flight = min(logistics_output.flight_offers, key=lambda f: f.price)
             # AG-004: Convert safely from flight quote currency to target currency (avoids 83x double conversion)
             flight_curr = getattr(cheapest_flight, "currency", "USD") or "USD"
             flight_cost_curr = round(convert_currency(cheapest_flight.price, flight_curr, target_curr), 2)
-            # Bound flight cost to 50% of total budget if constrained
-            if constraints.budget_total > 0 and flight_cost_curr > constraints.budget_total * 0.50:
-                flight_cost_curr = round(constraints.budget_total * 0.35, 2)
+            if constraints.budget_total > 0 and flight_cost_curr > (constraints.budget_total * 0.50):
+                flight_notes = f"Real flight quotes ({constraints.currency} {flight_cost_curr:.2f}) exceed 50% of total budget"
 
         # 2. Calibrate Hotel Stay
         hotel_total_curr = 0.0
@@ -116,9 +116,19 @@ class BudgetAgent:
                             rationale=f"Alternative high-value option in {city} with {alt_hotel.guest_rating}★ guest rating"
                         ))
 
-        # Clamp hotel total to not blow out budget (max 45% of total budget for lodging)
-        if constraints.budget_total > 0 and hotel_total_curr > (constraints.budget_total * 0.45):
-            hotel_total_curr = round(constraints.budget_total * 0.40, 2)
+        # 3. AG-008: Holistic combined cap on Flights + Lodging (70% combined cap)
+        hotel_notes = "Real rates from Booking.com inventory"
+        if constraints.budget_total > 0:
+            max_combined_fixed = constraints.budget_total * 0.70
+            combined_fixed = flight_cost_curr + hotel_total_curr
+            if combined_fixed > max_combined_fixed:
+                if hotel_swaps:
+                    hotel_notes = "Calibrated with cost-effective lodging alternatives"
+                # Cap hotel so combined fixed costs stay within 70% of budget
+                # (ensuring at least 30% remains for food, activities, and transit)
+                max_hotel_allowed = max(constraints.budget_total * 0.20, max_combined_fixed - flight_cost_curr)
+                if hotel_total_curr > max_hotel_allowed:
+                    hotel_total_curr = round(max_hotel_allowed, 2)
 
         # Update or populate categories so rollup is always complete
         cat_map = {c.category: c for c in breakdown.categories}
@@ -128,7 +138,7 @@ class BudgetAgent:
                 category="stay",
                 estimated_total=hotel_total_curr,
                 currency=constraints.currency,
-                notes="Real rates from Booking.com inventory"
+                notes=hotel_notes
             )
         elif "stay" not in cat_map:
             cat_map["stay"] = BudgetCategory(
@@ -143,7 +153,7 @@ class BudgetAgent:
                 category="transport",
                 estimated_total=flight_cost_curr,
                 currency=constraints.currency,
-                notes="Real flight quotes from Skyscanner inventory"
+                notes=flight_notes
             )
         elif "transport" not in cat_map:
             cat_map["transport"] = BudgetCategory(
@@ -153,55 +163,54 @@ class BudgetAgent:
                 notes="Estimated intercity and local transit"
             )
 
-        if "food" not in cat_map:
+        # Baseline discretionary allocations (guaranteeing min 30% for food, activities, buffer when under 70% cap)
+        fixed_sum = cat_map["stay"].estimated_total + cat_map["transport"].estimated_total
+        remaining_discretionary = max(0.0, constraints.budget_total - fixed_sum) if constraints.budget_total > 0 else 0.0
+
+        if remaining_discretionary > 0:
             cat_map["food"] = BudgetCategory(
                 category="food",
-                estimated_total=round(constraints.budget_total * 0.25, 2),
+                estimated_total=round(remaining_discretionary * 0.50, 2),
                 currency=constraints.currency,
                 notes="Estimated daily meals and dining"
             )
-
-        if "activities" not in cat_map:
             cat_map["activities"] = BudgetCategory(
                 category="activities",
-                estimated_total=round(constraints.budget_total * 0.15, 2),
+                estimated_total=round(remaining_discretionary * 0.35, 2),
                 currency=constraints.currency,
                 notes="Estimated attraction tickets and tours"
             )
+            cat_map["buffer"] = BudgetCategory(
+                category="buffer",
+                estimated_total=round(remaining_discretionary * 0.15, 2),
+                currency=constraints.currency,
+                notes="Contingency buffer"
+            )
+        else:
+            if "food" not in cat_map:
+                cat_map["food"] = BudgetCategory(
+                    category="food",
+                    estimated_total=round(constraints.budget_total * 0.15, 2) if constraints.budget_total > 0 else 100.0,
+                    currency=constraints.currency,
+                    notes="Estimated daily meals and dining"
+                )
+            if "activities" not in cat_map:
+                cat_map["activities"] = BudgetCategory(
+                    category="activities",
+                    estimated_total=round(constraints.budget_total * 0.10, 2) if constraints.budget_total > 0 else 50.0,
+                    currency=constraints.currency,
+                    notes="Estimated attraction tickets and tours"
+                )
+            if "buffer" not in cat_map:
+                cat_map["buffer"] = BudgetCategory(
+                    category="buffer",
+                    estimated_total=round(constraints.budget_total * 0.05, 2) if constraints.budget_total > 0 else 25.0,
+                    currency=constraints.currency,
+                    notes="Contingency buffer"
+                )
 
         # Standard category order
         order = ["stay", "transport", "food", "activities", "buffer"]
-
-        # Post-calibration budget cap check & swap engine trigger (P1-1)
-        grand_total = round(sum(cat_map[k].estimated_total for k in order if k in cat_map), 2)
-        if constraints.budget_total > 0 and grand_total > constraints.budget_total:
-            # First try to absorb overage by applying hotel savings
-            total_hotel_savings = sum(s.savings_estimate for s in hotel_swaps)
-            if total_hotel_savings > 0 and "stay" in cat_map:
-                reduced_stay = max(constraints.budget_total * 0.25, cat_map["stay"].estimated_total - total_hotel_savings)
-                cat_map["stay"] = BudgetCategory(
-                    category="stay",
-                    estimated_total=round(reduced_stay, 2),
-                    currency=constraints.currency,
-                    notes="Calibrated with cost-effective lodging alternatives"
-                )
-            # Recalculate
-            grand_total = round(sum(cat_map[k].estimated_total for k in order if k in cat_map), 2)
-            # If still over budget, proportionally scale discretionary categories (food, activities, buffer)
-            if grand_total > constraints.budget_total:
-                fixed_total = (cat_map["stay"].estimated_total if "stay" in cat_map else 0.0) + (cat_map["transport"].estimated_total if "transport" in cat_map else 0.0)
-                discretionary_allowed = max(constraints.budget_total * 0.20, constraints.budget_total - fixed_total)
-                discretionary_current = sum(cat_map[k].estimated_total for k in ("food", "activities", "buffer") if k in cat_map)
-                if discretionary_current > 0:
-                    scale = discretionary_allowed / discretionary_current
-                    for k in ("food", "activities", "buffer"):
-                        if k in cat_map:
-                            cat_map[k] = BudgetCategory(
-                                category=k,
-                                estimated_total=round(cat_map[k].estimated_total * scale, 2),
-                                currency=constraints.currency,
-                                notes=cat_map[k].notes
-                            )
 
         updated_categories = [cat_map[k] for k in order if k in cat_map]
         for k, v in cat_map.items():
@@ -209,8 +218,8 @@ class BudgetAgent:
                 updated_categories.append(v)
 
         grand_total = round(sum(c.estimated_total for c in updated_categories), 2)
-        within_budget = grand_total <= constraints.budget_total
-        violations = []
+        within_budget = (grand_total <= constraints.budget_total) if constraints.budget_total > 0 else True
+        violations = list(breakdown.violations or [])
         if not within_budget:
             violations.append(BudgetViolation(
                 category="total",
@@ -218,6 +227,13 @@ class BudgetAgent:
                 limit=constraints.budget_total,
                 over_by=round(grand_total - constraints.budget_total, 2)
             ))
+            if constraints.budget_total > 0 and fixed_sum > (constraints.budget_total * 0.70):
+                violations.append(BudgetViolation(
+                    category="fixed_costs",
+                    estimated=round(fixed_sum, 2),
+                    limit=round(constraints.budget_total * 0.70, 2),
+                    over_by=round(fixed_sum - (constraints.budget_total * 0.70), 2)
+                ))
 
         all_swaps = hotel_swaps + breakdown.suggested_swaps
 

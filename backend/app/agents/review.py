@@ -70,9 +70,9 @@ class ReviewAgent:
         elif advisory:
             status = ReviewStatus.WARNINGS
         
-        # Layer 2: LLM qualitative (skip if Layer 1 blocking fails)
+        # Layer 2: Qualitative assessment (skip if Layer 1 blocking fails)
         qualitative = None
-        if status != ReviewStatus.FAIL and self.llm_client:
+        if status != ReviewStatus.FAIL:
             qualitative = await self._llm_qualitative_check(draft, constraints)
         
         # Generate repair hints if issues found
@@ -131,18 +131,21 @@ class ReviewAgent:
         draft: DraftItinerary,
         constraints: TravelConstraints
     ) -> List[ChecklistItem]:
-        """Check total cost within budget."""
+        """Check total cost within budget (AG-007: blocking threshold tightened to 102%)."""
         total = draft.total_estimated_cost
         budget = constraints.budget_total
         currency_sym = {"USD": "$", "EUR": "€", "INR": "₹", "GBP": "£", "JPY": "¥"}.get(constraints.currency, f"{constraints.currency} ")
         
+        is_passed = total <= budget
+        severity = ReviewSeverity.BLOCKING if total > budget * 1.02 else ReviewSeverity.ADVISORY
+        
         return [ChecklistItem(
             check="within_budget",
-            passed=total <= budget,
+            passed=is_passed,
             expected=f"<= {budget}",
             actual=total,
-            severity=ReviewSeverity.BLOCKING if total > budget * 1.1 else ReviewSeverity.ADVISORY,
-            message=f"Budget: {currency_sym}{total} vs limit {currency_sym}{budget}"
+            severity=severity,
+            message=f"Budget: {currency_sym}{total:.2f} vs limit {currency_sym}{budget:.2f}"
         )]
     
     def _check_structure(self, draft: DraftItinerary) -> List[ChecklistItem]:
@@ -219,18 +222,53 @@ class ReviewAgent:
         draft: DraftItinerary,
         constraints: TravelConstraints
     ) -> str:
-        """Layer 2: LLM assessment of preference alignment and coherence."""
-        # If no LLM client available, return None (qualitative check is optional)
-        if not self.llm_client:
-            return None
-            
-        # Build a summary of the draft for LLM review
+        """
+        Layer 2: LLM assessment of preference alignment, feasibility, and quality (AG-006).
+        Calls the LLM when available, falling back to a structured assessment if unconfigured or on error.
+        """
+        # Build day-by-day summary for audit
         day_summaries = []
         for day in draft.days:
             activities = [item.activity_name for item in day.items if item.activity_id]
             day_summaries.append(f"Day {day.day_number} ({day.city}): {', '.join(activities) if activities else 'Travel/Rest day'}")
         
-        # Check preferences alignment
+        # AG-006: Execute actual LLM review audit when LLM client is available
+        if self.llm_client:
+            system_prompt = (
+                "You are an expert travel quality auditor reviewing a generated travel plan. "
+                "Assess whether the itinerary is logically paced, culturally authentic, logistically feasible, "
+                "and aligned with traveler preferences and avoidances. "
+                "Output a concise 2-3 paragraph qualitative assessment highlighting strengths and any potential concerns."
+            )
+            user_prompt = f"""Review this draft travel itinerary:
+Destination: {constraints.destination_region or ', '.join(constraints.cities)}
+Cities: {', '.join(constraints.cities)}
+Duration: {len(draft.days)} days
+Budget: {constraints.budget_total} {constraints.currency} (Estimated Cost: {draft.total_estimated_cost})
+Preferences: {', '.join(constraints.preferences or [])}
+Soft Preferences: {', '.join(constraints.soft_preferences or [])}
+Avoidances: {', '.join(constraints.avoidances or [])}
+
+Itinerary Days:
+{chr(10).join(day_summaries)}
+
+Provide your qualitative assessment:"""
+            try:
+                llm_response = await self.llm_client.chat_with_retry(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_tokens=600,
+                    temperature=0.3
+                )
+                if llm_response and llm_response.strip():
+                    return llm_response.strip()
+            except Exception as e:
+                # Graceful fallback to rule-based summary if LLM call fails
+                pass
+
+        # Check preferences alignment (deterministic fallback)
         pref_notes = []
         
         # Food preference check

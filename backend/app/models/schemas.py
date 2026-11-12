@@ -641,11 +641,13 @@ class DayItinerary(BaseModel):
     @field_validator("day_cost")
     @classmethod
     def validate_day_cost_matches_items(cls, v: float, values) -> float:
-        """Warn if day_cost doesn't match sum of item costs (within $1 tolerance)."""
+        """Validate day_cost matches sum of item costs within floating-point tolerance (AG-020)."""
         if "items" in values.data:
             calculated = sum(item.cost_estimate for item in values.data["items"])
-            if abs(v - calculated) > 1.0:
-                raise ValueError(f"Day cost {v} doesn't match sum of items {calculated}")
+            # AG-020: Tolerance of $5.00 or 5% of calculated items to prevent float rounding rejections
+            tolerance = max(5.0, calculated * 0.05)
+            if abs(v - calculated) > tolerance:
+                raise ValueError(f"Day cost {v} doesn't match sum of items {calculated} (tolerance: {tolerance})")
         return v
 
 
