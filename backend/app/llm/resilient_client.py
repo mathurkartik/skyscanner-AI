@@ -38,10 +38,11 @@ class ResilientLLMClient:
         all_clients = []
 
         # Gemini Account 1
-        if self.settings.gemini_api_key:
+        k1 = (self.settings.gemini_api_key or "").strip().strip("'").strip('"')
+        if k1:
             try:
                 c1 = GeminiClient(
-                    api_key=self.settings.gemini_api_key,
+                    api_key=k1,
                     model=self.settings.gemini_model,
                 )
                 all_clients.append(("gemini_1", c1))
@@ -49,10 +50,11 @@ class ResilientLLMClient:
                 logger.warning("Failed to initialize Gemini Client 1: %s", e)
 
         # Gemini Account 2 (double quota)
-        if getattr(self.settings, "gemini_api_key_2", None):
+        k2 = (getattr(self.settings, "gemini_api_key_2", None) or "").strip().strip("'").strip('"')
+        if k2:
             try:
                 c2 = GeminiClient(
-                    api_key=self.settings.gemini_api_key_2,
+                    api_key=k2,
                     model=self.settings.gemini_model,
                 )
                 all_clients.append(("gemini_2", c2))

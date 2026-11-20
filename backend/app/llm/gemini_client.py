@@ -43,8 +43,10 @@ class GeminiClient:
         settings = get_settings()
         self.settings = settings
 
-        self.api_key = api_key or settings.gemini_api_key
-        self.model = model or settings.gemini_model
+        raw_key = api_key or settings.gemini_api_key or ""
+        self.api_key = raw_key.strip().strip("'").strip('"')
+        raw_model = model or settings.gemini_model or "gemini-3.8-flash"
+        self.model = "gemini-3.8-flash" if "2.0-flash" in raw_model else raw_model
         self.max_tokens = max_tokens if max_tokens is not None else getattr(settings, "gemini_max_tokens", 4096)
         self.temperature = temperature or settings.groq_temperature
         self.enable_tracking = enable_tracking and settings.enable_token_tracking
