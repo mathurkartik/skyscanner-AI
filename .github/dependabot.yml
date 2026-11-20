@@ -6,6 +6,26 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      angular:
+        patterns:
+          - "@angular/*"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "postcss"
+          - "autoprefixer"
+    ignore:
+      # vitest 5.x has peer conflicts with @angular/build@21 (which strictly requires vitest ^4.0.8)
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      # Angular compiler is strictly tied to TypeScript 5.9.x; TS 7.0 is incompatible
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # Angular major upgrades must be performed intentionally via ng update
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
       - "frontend"
@@ -16,7 +36,20 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      fastapi-stack:
+        patterns:
+          - "fastapi"
+          - "pydantic*"
+          - "uvicorn*"
+          - "starlette*"
+      testing:
+        patterns:
+          - "pytest*"
+      ai-sdks:
+        patterns:
+          - "google-genai"
+          - "groq"
     labels:
       - "dependencies"
       - "backend"
-

@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
   "outputDirectory": "dist/skyscanner-web/browser",
   "rewrites": [
@@ -18,4 +19,3 @@
     }
   ]
 }
-
