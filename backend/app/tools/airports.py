@@ -198,6 +198,18 @@ AIRPORT_LOOKUP: Dict[str, str] = {
     "tijuana": "TIJ",
 
     # ── East & Southeast Asia ───────────────────────────────────────────
+    "philippines": "MNL", "philipines": "MNL",
+    "manila": "MNL",
+    "cebu": "CEB", "cebu city": "CEB", "mactan": "CEB",
+    "boracay": "MPH", "caticlan": "MPH", "kalibo": "KLO",
+    "palawan": "PPS", "puerto princesa": "PPS",
+    "el nido": "ENI", "coron": "USU", "busuanga": "USU",
+    "siargao": "IAO", "general luna": "IAO", "sayak": "IAO",
+    "bohol": "TAG", "tagbilaran": "TAG", "panglao": "TAG",
+    "vigan": "LAO", "vigan city": "LAO", "laoag": "LAO", "ilocos": "LAO",
+    "davao": "DVO", "davao city": "DVO",
+    "clark": "CRK", "angeles": "CRK",
+    "baguio": "BAG",
     "tokyo": "HND", "haneda": "HND", "narita": "NRT",
     "osaka": "KIX", "kansai": "KIX", "itami": "ITM",
     "kyoto": "KIX",  # Nearest international gateway is KIX/ITM
