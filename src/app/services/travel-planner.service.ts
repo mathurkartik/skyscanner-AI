@@ -43,7 +43,7 @@ export class TravelPlannerService {
     };
 
     return this.http.post<PlanResponse>(`${this.baseUrl}/api/plan`, payload).pipe(
-      timeout(150000),
+      timeout(210000),
       tap({
         next: (response) => {
           this.isLoading.set(false);
@@ -79,8 +79,7 @@ export class TravelPlannerService {
 
   private handleError(error: any): void {
     if (error.name === 'TimeoutError') {
-      // AG-035: Aligned error message to the actual 150-second pipeline timeout
-      this.errorMessage.set('The multi-agent search timed out after 150 seconds. Please try again or load an instant blueprint.');
+      this.errorMessage.set('The multi-agent search timed out after 210 seconds. Please try again or load an instant blueprint.');
     } else if (error instanceof HttpErrorResponse) {
       if (error.status === 0) {
         this.errorMessage.set('Cannot connect to the AI planner backend at ' + this.baseUrl + '. Make sure the backend server is running on port 8000.');

@@ -391,9 +391,9 @@ TRIP TYPE DETECTION:
                     if "429" in msg or "rate_limit" in msg:
                         match = re.search(r"try again in (?:(\d+)h)?(?:(\d+)m)?([\d.]+)s", msg)
                         wait = (int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3)) + 1) if match else 3 * (attempt + 1)
-                        if "tokens per day" in msg and model == self.model and fallback and fallback != model:
-                            self._primary_blocked_until = time.time() + wait
-                            logger.warning(f"Daily quota hit on {model}; using {fallback} for {wait:.0f}s")
+                        if fallback and fallback != model and model == self.model:
+                            self._primary_blocked_until = time.time() + max(wait, 20)
+                            logger.warning(f"Rate limit hit on {model}; switching to fallback model {fallback} for {wait:.0f}s")
                             continue
                         wait = min(wait, 10)
                         logger.warning(f"Rate limited on {model}, waiting {wait:.1f}s (attempt {attempt + 1}/{max_retries})")

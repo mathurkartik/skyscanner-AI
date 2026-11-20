@@ -262,7 +262,9 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                 ),
                 timeout=25.0
             )
-            text = response.strip()
+            text = (response or "").strip()
+            if not text:
+                return []
             bracket = text.find("[")
             if bracket >= 0:
                 text = text[bracket:]
@@ -272,7 +274,10 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
             try:
                 data = json.loads(text)
             except Exception:
-                data = json.loads(repair_json_string(text))
+                try:
+                    data = json.loads(repair_json_string(text))
+                except Exception:
+                    return []
             validate_llm_json(data, expected_type=list, caller_name="HotelClient._generate_llm_hotels")
             offers = []
             for idx, h in enumerate(data):
