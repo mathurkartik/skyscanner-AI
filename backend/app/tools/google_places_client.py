@@ -16,6 +16,7 @@ import httpx
 from ..config import get_settings
 from ..models.schemas import PlaceInfo
 from .city_coords import get_city_coords
+from .api_quota import get_circuit_breaker
 
 logger = logging.getLogger(__name__)
 
@@ -67,13 +68,16 @@ class GooglePlacesClient:
             return cached["data"]
 
         api_key = self._get_api_key()
-        if api_key:
+        places_cb = get_circuit_breaker("google_places")
+        if api_key and places_cb.can_execute():
             try:
                 places = await self._query_google_nearby(lat, lng, radius_m, place_type, api_key, limit)
                 if places:
+                    places_cb.record_success()
                     self._cache[cache_key] = {"data": places, "timestamp": time.time()}
                     return places
             except Exception as e:
+                places_cb.record_failure()
                 logger.warning(f"Google Places search_nearby error: {e}. Falling back to curated inventory.")
 
         # Secondary: OpenTripMap if available
@@ -116,13 +120,16 @@ class GooglePlacesClient:
             return cached["data"]
 
         api_key = self._get_api_key()
-        if api_key:
+        places_cb = get_circuit_breaker("google_places")
+        if api_key and places_cb.can_execute():
             try:
                 place = await self._query_google_details(place_id, api_key)
                 if place:
+                    places_cb.record_success()
                     self._cache[cache_key] = {"data": place, "timestamp": time.time()}
                     return place
             except Exception as e:
+                places_cb.record_failure()
                 logger.warning(f"Google Places get_place_details error: {e}. Checking curated fallback.")
 
         # Check in-memory cache of previously resolved places

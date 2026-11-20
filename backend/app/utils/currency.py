@@ -104,7 +104,8 @@ def convert_currency(
     if from_code == to_code:
         return round(amount, 2)
     
-    # Normalise through USD base
-    usd_val = to_usd(amount, from_code)
-    return from_usd(usd_val, to_code)
+    # Single-step conversion to avoid double rounding through USD intermediary
+    from_rate = USD_TO_CURRENCY.get(from_code, 1.0)
+    to_rate = USD_TO_CURRENCY.get(to_code, 1.0)
+    return round(amount * to_rate / from_rate, 2) if from_rate > 0 else round(amount, 2)
 

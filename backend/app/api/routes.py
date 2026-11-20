@@ -5,6 +5,9 @@ Phase 7: Will implement full orchestration pipeline.
 
 import logging
 from typing import Optional, List, Dict, Any, Tuple
+
+import httpx
+
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Request, HTTPException
@@ -48,6 +51,22 @@ class BookingRequest(BaseModel):
 
 router = APIRouter()
 
+_photo_proxy_client: Optional[httpx.AsyncClient] = None
+
+
+def _get_photo_client() -> httpx.AsyncClient:
+    global _photo_proxy_client
+    if _photo_proxy_client is None or _photo_proxy_client.is_closed:
+        _photo_proxy_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
+    return _photo_proxy_client
+
+
+async def close_photo_client() -> None:
+    global _photo_proxy_client
+    if _photo_proxy_client and not _photo_proxy_client.is_closed:
+        await _photo_proxy_client.aclose()
+        _photo_proxy_client = None
+
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
 async def api_health_check():
@@ -62,23 +81,22 @@ async def get_places_photo(photo_ref: str, maxwidth: int = 800):
     AG-001: Secure photo proxy endpoint that keeps Google Places API key confidential.
     Proxies photo binary from Google Places API or returns cached/fallback response.
     """
-    import httpx
     settings = get_settings()
     api_key = (settings.google_places_api_key or "").strip()
     if not api_key:
         raise HTTPException(status_code=404, detail="Photo service unavailable (no key)")
     url = "https://maps.googleapis.com/maps/api/place/photo"
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(url, params={"maxwidth": maxwidth, "photo_reference": photo_ref, "key": api_key})
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail="Photo not found")
-            media_type = resp.headers.get("content-type", "image/jpeg")
-            return Response(
-                content=resp.content,
-                media_type=media_type,
-                headers={"Cache-Control": "public, max-age=86400"}
-            )
+        client = _get_photo_client()
+        resp = await client.get(url, params={"maxwidth": maxwidth, "photo_reference": photo_ref, "key": api_key})
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Photo not found")
+        media_type = resp.headers.get("content-type", "image/jpeg")
+        return Response(
+            content=resp.content,
+            media_type=media_type,
+            headers={"Cache-Control": "public, max-age=86400"}
+        )
     except HTTPException:
         raise
     except Exception as err:

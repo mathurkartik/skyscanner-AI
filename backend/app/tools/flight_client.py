@@ -18,8 +18,15 @@ from ..models.schemas import RealFlightOffer
 from ..utils.currency import convert_currency
 from ..llm.llm_utils import validate_llm_json
 from .airports import lookup_iata_code
+from .api_quota import get_circuit_breaker, get_quota_tracker, CircuitBreakerOpenException
 
 logger = logging.getLogger(__name__)
+
+
+def _is_real_key(k: Optional[str]) -> bool:
+    """Check if an API key looks like a real configured value (not a placeholder)."""
+    return bool(k and isinstance(k, str) and not k.strip().startswith("your_") and len(k.strip()) > 8)
+
 
 # In-memory runtime cache for dynamically resolved IATA codes
 _RESOLVED_IATA_CACHE: Dict[str, str] = {}
@@ -193,9 +200,6 @@ class FlightClient:
                 return cached_entry["data"]
 
         # Fast path for known blueprint / test routes when offline or in test environment (AG-096)
-        def _is_real_key(k: Optional[str]) -> bool:
-            return bool(k and isinstance(k, str) and not k.strip().startswith("your_") and len(k.strip()) > 8)
-
         has_live_api = bool(
             _is_real_key(getattr(self.settings, "duffel_api_key", None)) or
             _is_real_key(getattr(self.settings, "kiwi_api_key", None)) or
@@ -216,7 +220,8 @@ class FlightClient:
                 return fast_offers
 
         # 1. Primary Live Airline API: Duffel API (Official GDS / NDC Direct)
-        if _is_real_key(getattr(self.settings, "duffel_api_key", None)):
+        duffel_cb = get_circuit_breaker("duffel")
+        if _is_real_key(getattr(self.settings, "duffel_api_key", None)) and duffel_cb.can_execute():
             try:
                 duffel_offers = await self._query_duffel_api(
                     orig_iata=orig_iata,
@@ -228,13 +233,18 @@ class FlightClient:
                     currency=currency,
                 )
                 if duffel_offers:
+                    duffel_cb.record_success()
                     self._cache[cache_key] = {"timestamp": time.time(), "data": duffel_offers}
                     return duffel_offers
+            except CircuitBreakerOpenException:
+                logger.info("Duffel circuit breaker open, skipping for %s->%s", orig_iata, dest_iata)
             except Exception as e:
+                duffel_cb.record_failure()
                 logger.warning("Duffel API search failed for %s->%s: %s", orig_iata, dest_iata, e)
 
         # 2. Secondary API: Kiwi Tequila
-        if _is_real_key(getattr(self.settings, "kiwi_api_key", None)):
+        kiwi_cb = get_circuit_breaker("kiwi")
+        if _is_real_key(getattr(self.settings, "kiwi_api_key", None)) and kiwi_cb.can_execute():
             try:
                 kiwi_offers = await self._query_kiwi_api(
                     orig_iata=orig_iata,
@@ -246,9 +256,13 @@ class FlightClient:
                     currency=currency,
                 )
                 if kiwi_offers:
+                    kiwi_cb.record_success()
                     self._cache[cache_key] = {"timestamp": time.time(), "data": kiwi_offers}
                     return kiwi_offers
+            except CircuitBreakerOpenException:
+                logger.info("Kiwi circuit breaker open, skipping for %s->%s", orig_iata, dest_iata)
             except Exception as e:
+                kiwi_cb.record_failure()
                 logger.warning("Kiwi API search failed for %s->%s: %s", orig_iata, dest_iata, e)
 
         # 2. Secondary API: RapidAPI Skyscanner (if explicitly enabled)

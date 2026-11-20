@@ -19,6 +19,7 @@ from ..models.schemas import RealHotelOffer
 from ..llm.llm_utils import validate_llm_json, repair_json_string
 from ..utils.currency import from_usd
 from .city_coords import get_city_coords
+from .api_quota import get_circuit_breaker, CircuitBreakerOpenException
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,8 @@ class HotelClient:
             if age < self.search_cache_ttl_seconds:
                 return cached["data"]
 
-        if getattr(self.settings, "enable_rapidapi", False):
+        booking_cb = get_circuit_breaker("booking")
+        if getattr(self.settings, "enable_rapidapi", False) and booking_cb.can_execute():
             rapidapi_key = self.settings.rapidapi_key or ""
             if rapidapi_key and rapidapi_key.strip():
                 try:
@@ -170,9 +172,13 @@ class HotelClient:
                         num_nights=nights_count
                     )
                     if offers:
+                        booking_cb.record_success()
                         self._search_cache[cache_key] = {"timestamp": time.time(), "data": offers}
                         return offers
+                except CircuitBreakerOpenException:
+                    logger.info("Booking.com circuit breaker open, skipping for dest_id %s", dest_id)
                 except Exception as err:
+                    booking_cb.record_failure()
                     logger.warning("Booking.com hotel search failed for dest_id %s: %s", dest_id, err)
 
         # Dynamic LLM-generated hotels matching user's budget tier

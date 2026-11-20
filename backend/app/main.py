@@ -17,6 +17,7 @@ from .api.routes import router as api_router
 from .models import HealthResponse
 from .tools.flight_client import close_flight_client
 from .tools.hotel_client import close_hotel_client
+from .api.routes import close_photo_client
 
 settings = get_settings()
 
@@ -32,6 +33,10 @@ async def lifespan(app: FastAPI):
         pass
     try:
         await close_hotel_client()
+    except Exception:
+        pass
+    try:
+        await close_photo_client()
     except Exception:
         pass
 
@@ -86,15 +91,18 @@ async def rate_limit_middleware(request: Request, call_next):
         now = time.time()
         _prune_rate_limit_store(now)
 
+        cutoff = now - RATE_LIMIT_WINDOW_SECONDS
         timestamps = _RATE_LIMIT_STORE.get(client_ip, [])
-        valid_timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW_SECONDS]
-        if len(valid_timestamps) >= MAX_REQUESTS_PER_WINDOW:
+        if timestamps and timestamps[0] < cutoff:
+            timestamps = [t for t in timestamps if t >= cutoff]
+        if len(timestamps) >= MAX_REQUESTS_PER_WINDOW:
+            _RATE_LIMIT_STORE[client_ip] = timestamps
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please wait a minute before making another request."}
             )
-        valid_timestamps.append(now)
-        _RATE_LIMIT_STORE[client_ip] = valid_timestamps
+        timestamps.append(now)
+        _RATE_LIMIT_STORE[client_ip] = timestamps
 
     return await call_next(request)
 

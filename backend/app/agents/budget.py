@@ -170,24 +170,27 @@ class BudgetAgent:
         remaining_discretionary = max(0.0, constraints.budget_total - fixed_sum) if constraints.budget_total > 0 else 0.0
 
         if remaining_discretionary > 0:
-            cat_map["food"] = BudgetCategory(
-                category="food",
-                estimated_total=round(remaining_discretionary * 0.50, 2),
-                currency=constraints.currency,
-                notes="Estimated daily meals and dining"
-            )
-            cat_map["activities"] = BudgetCategory(
-                category="activities",
-                estimated_total=round(remaining_discretionary * 0.35, 2),
-                currency=constraints.currency,
-                notes="Estimated attraction tickets and tours"
-            )
-            cat_map["buffer"] = BudgetCategory(
-                category="buffer",
-                estimated_total=round(remaining_discretionary * 0.15, 2),
-                currency=constraints.currency,
-                notes="Contingency buffer"
-            )
+            if "food" not in cat_map:
+                cat_map["food"] = BudgetCategory(
+                    category="food",
+                    estimated_total=round(remaining_discretionary * 0.50, 2),
+                    currency=constraints.currency,
+                    notes="Estimated daily meals and dining"
+                )
+            if "activities" not in cat_map:
+                cat_map["activities"] = BudgetCategory(
+                    category="activities",
+                    estimated_total=round(remaining_discretionary * 0.35, 2),
+                    currency=constraints.currency,
+                    notes="Estimated attraction tickets and tours"
+                )
+            if "buffer" not in cat_map:
+                cat_map["buffer"] = BudgetCategory(
+                    category="buffer",
+                    estimated_total=round(remaining_discretionary * 0.15, 2),
+                    currency=constraints.currency,
+                    notes="Contingency buffer"
+                )
         else:
             if "food" not in cat_map:
                 cat_map["food"] = BudgetCategory(

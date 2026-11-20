@@ -145,7 +145,8 @@ class GeminiClient:
             )
         except Exception as e:
             err_str = str(e).lower()
-            if ("404" in err_str or "not_found" in err_str or "no longer available" in err_str) and self.model != "gemini-3.8-flash":
+            model_error_signals = ("404", "not_found", "no longer available", "not supported", "has been retired", "deprecated", "unsupported model", "does not exist")
+            if any(sig in err_str for sig in model_error_signals) and self.model != "gemini-3.8-flash":
                 logger.warning(
                     "Gemini model '%s' unavailable/deprecated (%s). Auto-recovering with gemini-3.8-flash.",
                     self.model,
