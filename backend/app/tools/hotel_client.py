@@ -16,7 +16,7 @@ import httpx
 
 from ..config import get_settings
 from ..models.schemas import RealHotelOffer
-from ..llm.llm_utils import validate_llm_json
+from ..llm.llm_utils import validate_llm_json, repair_json_string
 from ..utils.currency import from_usd
 from .city_coords import get_city_coords
 
@@ -258,7 +258,7 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                         {"role": "system", "content": "You are a hotel booking inventory data engine. Return ONLY a valid JSON array of real hotels."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=600
+                    max_tokens=1200
                 ),
                 timeout=25.0
             )
@@ -269,7 +269,10 @@ Return ONLY a valid JSON array of 3 objects with this exact format:
                 end_b = text.rfind("]")
                 if end_b > 0:
                     text = text[:end_b + 1]
-            data = json.loads(text)
+            try:
+                data = json.loads(text)
+            except Exception:
+                data = json.loads(repair_json_string(text))
             validate_llm_json(data, expected_type=list, caller_name="HotelClient._generate_llm_hotels")
             offers = []
             for idx, h in enumerate(data):

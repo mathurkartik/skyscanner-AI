@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     # Gemini Configuration (Fallback / Primary)
     gemini_api_key: str | None = None
     gemini_api_key_2: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3.8-flash"
     gemini_max_tokens: int = 4096  # AG-010: Configurable max output tokens (raised from 2000 to 4096)
     llm_failover: bool = True
     

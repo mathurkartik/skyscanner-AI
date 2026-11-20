@@ -126,7 +126,7 @@ class GeminiClient:
         )
 
     def _generate_sync(self, prompt: str, max_tokens: int, temperature: float, json_mode: bool = False):
-        """Synchronous call to Gemini API via google-genai SDK."""
+        """Synchronous call to Gemini API via google-genai SDK with automatic deprecated model fallback."""
         config_kwargs = {
             "temperature": temperature,
             "max_output_tokens": max_tokens,
@@ -135,11 +135,27 @@ class GeminiClient:
         if json_mode:
             config_kwargs["response_mime_type"] = "application/json"
 
-        return self._client.models.generate_content(
-            model=self.model,
-            contents=prompt,
-            config=genai_types.GenerateContentConfig(**config_kwargs),
-        )
+        try:
+            return self._client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(**config_kwargs),
+            )
+        except Exception as e:
+            err_str = str(e).lower()
+            if ("404" in err_str or "not_found" in err_str or "no longer available" in err_str) and self.model != "gemini-3.8-flash":
+                logger.warning(
+                    "Gemini model '%s' unavailable/deprecated (%s). Auto-recovering with gemini-3.8-flash.",
+                    self.model,
+                    e
+                )
+                self.model = "gemini-3.8-flash"
+                return self._client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=genai_types.GenerateContentConfig(**config_kwargs),
+                )
+            raise
 
     async def extract_constraints(
         self,

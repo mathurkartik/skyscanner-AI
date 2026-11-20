@@ -562,10 +562,10 @@ class OrchestratorAgent:
                     places_by_city={}
                 )
 
-            # Run logistics
+            # Run logistics (skip redundant regional flights, handled globally by _query_trip_flights)
             try:
                 rlogistics = await asyncio.wait_for(
-                    self.logistics_agent.plan(region_constraints, rcatalog, neighborhoods_map),
+                    self.logistics_agent.plan(region_constraints, rcatalog, neighborhoods_map, skip_flights=True),
                     timeout=timeout_seconds
                 )
             except Exception as e:
@@ -576,7 +576,13 @@ class OrchestratorAgent:
                 )
             return region, rcatalog, rlogistics
 
-        region_results = await asyncio.gather(*(_process_region(r) for r in trip_structure.regions))
+        region_sem = asyncio.Semaphore(2)
+
+        async def _throttled_process_region(r):
+            async with region_sem:
+                return await _process_region(r)
+
+        region_results = await asyncio.gather(*(_throttled_process_region(r) for r in trip_structure.regions))
         all_transport_segments = []
         if getattr(constraints, "transport_segments", None):
             all_transport_segments.extend(constraints.transport_segments)

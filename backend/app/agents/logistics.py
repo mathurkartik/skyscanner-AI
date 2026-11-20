@@ -91,7 +91,8 @@ class LogisticsAgent:
         return text
 
     async def plan(self, constraints: TravelConstraints, activity_catalog: Optional[any] = None,
-                   neighborhoods_map: Optional[Dict[str, List[str]]] = None) -> LogisticsOutput:
+                   neighborhoods_map: Optional[Dict[str, List[str]]] = None,
+                   skip_flights: bool = False) -> LogisticsOutput:
         """Generate logistics plan from constraints with real flight and hotel data."""
         cities = constraints.cities
         duration = constraints.duration_days
@@ -145,7 +146,7 @@ class LogisticsAgent:
         dest_iata = await resolve_iata(dest_target) if dest_target else None
 
         flight_offers: List[RealFlightOffer] = []
-        if origin_iata and dest_iata:
+        if not skip_flights and origin_iata and dest_iata:
             try:
                 flight_offers = await self.flight_client.search_flights(
                     origin=origin_iata,

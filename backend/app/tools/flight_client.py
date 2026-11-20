@@ -319,6 +319,21 @@ class FlightClient:
         if not api_key:
             return []
 
+        # Validate IATA codes before calling Duffel API to avoid 422 Unprocessable Entity
+        orig_clean = (orig_iata or "").strip().upper()
+        dest_clean = (dest_iata or "").strip().upper()
+        if (
+            len(orig_clean) != 3 or not orig_clean.isalpha() or
+            len(dest_clean) != 3 or not dest_clean.isalpha() or
+            orig_clean == dest_clean
+        ):
+            logger.warning(
+                "Skipping Duffel flight search: invalid or identical IATA codes (%s -> %s)",
+                orig_iata,
+                dest_iata,
+            )
+            return []
+
         url = "https://api.duffel.com/air/offer_requests"
         headers = {
             "Authorization": f"Bearer {api_key.strip()}",
