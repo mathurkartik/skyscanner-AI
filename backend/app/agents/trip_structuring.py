@@ -48,6 +48,31 @@ class TripStructuringAgent:
         """Use LLM to generate a region-based trip structure for any destination."""
         trip_type = "road_trip" if constraints.is_road_trip else "multi_region"
 
+        # Build avoidance and preference instructions
+        avoidance_instruction = ""
+        if constraints.avoidances:
+            avoidance_instruction = f"\n- AVOID these: {', '.join(constraints.avoidances)}. Choose regions that do NOT feature these."
+        preference_instruction = ""
+        if constraints.preferences:
+            preference_instruction = f"\n- PRIORITIZE regions that offer: {', '.join(constraints.preferences)}"
+
+        # Distinguish arrival/gateway city from desired destinations
+        cities_instruction = ""
+        if constraints.cities:
+            arrival_city = constraints.origin_city or ""
+            # If only one city is listed and it's the country's main gateway, treat it as arrival point
+            is_single_gateway = (
+                len(constraints.cities) == 1
+                and constraints.destination_region
+                and constraints.cities[0].lower().strip() != constraints.destination_region.lower().strip()
+            )
+            desired_cities = [c for c in constraints.cities if c.lower().strip() != arrival_city.lower().strip()]
+            if desired_cities and not is_single_gateway:
+                cities_instruction = f"\n- Include these cities/areas in the route: {', '.join(desired_cities)}"
+            else:
+                gateway = constraints.cities[0]
+                cities_instruction = f"\n- The traveler arrives at {gateway} but wants to explore DIVERSE regions across {constraints.destination_region} — do NOT stay in {gateway} the entire trip. Allocate at most 1 day for {gateway} and spread remaining days across different scenic/cultural regions"
+
         system_prompt = f"""You are a travel route planner. Generate a trip structure for a {constraints.duration_days}-day {"road trip" if constraints.is_road_trip else "trip"} to {constraints.destination_region}.
 
 Respond with valid JSON:
@@ -71,12 +96,12 @@ Rules:
 - Use REAL place names, not generic labels
 - Order regions geographically to minimize backtracking
 - {"Plan as a driving route with logical road connections" if constraints.is_road_trip else "Plan as a multi-city itinerary with logical travel connections"}
-- Include the user's specified cities: {', '.join(constraints.cities)}
+- Each region MUST have a DIFFERENT base_location — never repeat the same city across regions{cities_instruction}{avoidance_instruction}{preference_instruction}
 - Highlights should be specific landmarks, not generic descriptions"""
 
         user_prompt = f"""Plan a {constraints.duration_days}-day {"road trip" if constraints.is_road_trip else "trip"} to {constraints.destination_region}.
-Cities to include: {', '.join(constraints.cities)}
 Preferences: {', '.join(constraints.preferences) if constraints.preferences else 'general sightseeing'}
+{f"Avoid: {', '.join(constraints.avoidances)}" if constraints.avoidances else ""}
 Budget level: {constraints.budget_total} {constraints.currency}"""
 
         content = await self.llm_client.chat_with_retry(
@@ -175,6 +200,17 @@ Budget level: {constraints.budget_total} {constraints.currency}"""
             pace="relaxed" if duration >= 5 else "balanced"
         )
 
+    # Well-known scenic regions for popular countries, used when LLM is unavailable
+    _COUNTRY_REGIONS = {
+        "sri lanka": ["Kandy", "Ella", "Sigiriya", "Galle", "Nuwara Eliya", "Trincomalee", "Yala", "Mirissa"],
+        "thailand": ["Bangkok", "Chiang Mai", "Krabi", "Phuket", "Koh Samui", "Pai", "Sukhothai"],
+        "japan": ["Tokyo", "Kyoto", "Osaka", "Hakone", "Hiroshima", "Nara", "Takayama"],
+        "iceland": ["Reykjavik", "Vik", "Akureyri", "Husavik", "Hofn", "Snæfellsnes"],
+        "india": ["Delhi", "Jaipur", "Udaipur", "Varanasi", "Goa", "Munnar", "Rishikesh", "Manali"],
+        "new zealand": ["Auckland", "Queenstown", "Rotorua", "Wellington", "Milford Sound", "Wanaka"],
+        "philippines": ["Cebu", "Palawan", "El Nido", "Siargao", "Bohol", "Coron", "Boracay"],
+    }
+
     def _structure_from_cities(self, constraints: TravelConstraints) -> TripStructure:
         """Fallback: structure from the cities list when LLM is unavailable."""
         cities = constraints.cities if constraints.cities else [constraints.destination_region or "Destination"]
@@ -182,7 +218,22 @@ Budget level: {constraints.budget_total} {constraints.currency}"""
 
         if len(cities) == 1:
             city = cities[0]
-            if duration <= 3:
+            # Try to expand single-city into diverse regions using country knowledge
+            country = (constraints.destination_region or "").lower().strip()
+            known_regions = self._COUNTRY_REGIONS.get(country, [])
+            # Filter out the arrival city and any avoidances
+            avoids = {a.lower() for a in (constraints.avoidances or [])}
+            candidates = [r for r in known_regions if r.lower() != city.lower() and not any(a in r.lower() for a in avoids)]
+            if candidates and duration > 3:
+                num_regions = min(len(candidates), max(2, duration // 3))
+                selected = candidates[:num_regions]
+                regions = []
+                days_per = max(1, duration // num_regions)
+                remainder = duration % num_regions
+                for i, region_city in enumerate(selected):
+                    extra = 1 if i < remainder else 0
+                    regions.append(Region(name=region_city, base_location=region_city, days=days_per + extra, highlights=[]))
+            elif duration <= 3:
                 regions = [Region(name=city, base_location=city, days=duration, highlights=[])]
             else:
                 half = duration // 2
