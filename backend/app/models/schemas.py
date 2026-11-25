@@ -64,12 +64,27 @@ class ReviewStatus(str, Enum):
 class TransportSegment(BaseModel):
     """A multi-modal transport connection between origin and cities or between cities."""
     id: str = Field(default_factory=lambda: f"ts-{uuid4().hex[:8]}")
-    from_city: str
-    to_city: str
+    from_city: str = Field(default="")
+    to_city: str = Field(default="")
     recommended_mode: Literal["flight", "train", "bus", "drive", "ferry"] = "flight"
     reason: str = Field(default="", description="Why this mode is recommended (e.g., 2h TGV high-speed rail vs airport wait)")
     estimated_duration_hours: float = Field(default=2.0, ge=0)
     estimated_cost_usd: float = Field(default=50.0, ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_nulls(cls, data):
+        """LLMs sometimes return null for fields — apply defaults."""
+        if isinstance(data, dict):
+            str_defaults = {"from_city": "", "to_city": "", "reason": ""}
+            float_defaults = {"estimated_duration_hours": 2.0, "estimated_cost_usd": 50.0}
+            for f, d in str_defaults.items():
+                if f in data and data[f] is None:
+                    data[f] = d
+            for f, d in float_defaults.items():
+                if f in data and data[f] is None:
+                    data[f] = d
+        return data
     operator_name: Optional[str] = Field(default=None, description="Transport company or line (e.g. SNCF TGV, Shinkansen, Indian Railways, SBB, FlixBus)")
     line_or_flight_number: Optional[str] = Field(default=None, description="Flight or train service number")
     booking_url: Optional[str] = Field(default=None, description="Direct booking link to Trainline, Skyscanner, IRCTC, SBB, etc.")
@@ -100,6 +115,17 @@ class TravelConstraints(BaseModel):
     # Trace ID for observability
     trace_id: UUID = Field(default_factory=uuid4, description="Unique request trace ID")
     
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_null_lists(cls, data):
+        """LLMs sometimes return null for list fields — coerce to empty list."""
+        if isinstance(data, dict):
+            list_fields = ("cities", "preferences", "avoidances", "hard_requirements", "soft_preferences", "transport_segments")
+            for f in list_fields:
+                if f in data and data[f] is None:
+                    data[f] = []
+        return data
+
     @field_validator("destination_region")
     @classmethod
     def validate_destination_not_empty(cls, v: Optional[str]) -> Optional[str]:
