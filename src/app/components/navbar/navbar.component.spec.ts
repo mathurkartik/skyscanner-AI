@@ -6,6 +6,7 @@ import { CurrencyService } from '../../services/currency.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { FlightService } from '../../services/flight.service';
 import { SkyscannerApiService } from '../../services/skyscanner-api.service';
+import { ThemeService } from '../../services/theme.service';
 
 if (typeof localStorage === 'undefined') {
   let store: Record<string, string> = {};
@@ -27,6 +28,7 @@ describe('NavbarComponent (AG-116)', () => {
       FavoritesService,
       FlightService,
       SkyscannerApiService,
+      ThemeService,
     ], null as any);
 
     component = runInInjectionContext(injector, () => new NavbarComponent());
@@ -72,5 +74,13 @@ describe('NavbarComponent (AG-116)', () => {
 
     component.setTab('ai');
     expect(emitSpy).toHaveBeenCalledWith('ai');
+  });
+
+  it('toggles light/dark theme and persists preference in localStorage (C-2)', () => {
+    const initial = component.themeService.theme();
+    component.themeService.toggleTheme();
+    const toggled = component.themeService.theme();
+    expect(toggled).not.toBe(initial);
+    expect(localStorage.getItem('skyscanner_theme')).toBe(toggled);
   });
 });

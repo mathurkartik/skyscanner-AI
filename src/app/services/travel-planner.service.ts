@@ -77,27 +77,49 @@ export class TravelPlannerService {
     this.isLoading.set(false);
   }
 
+  public cancelPlan(): void {
+    this.isLoading.set(false);
+    this.errorMessage.set(null);
+  }
+
+  private sanitizeUserErrorMessage(raw: string): string {
+    const friendlyFallback = "I'm having trouble connecting right now. Please try again in a moment.";
+    if (!raw || typeof raw !== 'string') {
+      return friendlyFallback;
+    }
+
+    const trimmed = raw.trim();
+    const technicalPattern = /(\{|\}|traceback|runtimeerror|exception|http failure|https?:\/\/|localhost|\b(?:400|401|403|404|422|429|500|502|503|504)\b|groq|llama|gemini|gpt-oss|openai|duffel|rapidapi|rate_limit|unauthenticated|not_found|api key)/i;
+    if (technicalPattern.test(trimmed)) {
+      return friendlyFallback;
+    }
+
+    return trimmed;
+  }
+
   private handleError(error: any): void {
+    const friendlyFallback = "I'm having trouble connecting right now. Please try again in a moment.";
+
     if (error.name === 'TimeoutError') {
-      this.errorMessage.set('The multi-agent search timed out after 210 seconds. Please try again or load an instant blueprint.');
+      this.errorMessage.set('This trip is taking longer than expected. Please try again in a moment or load an instant blueprint.');
     } else if (error instanceof HttpErrorResponse) {
-      if (error.status === 0) {
-        this.errorMessage.set('Cannot connect to the AI planner backend at ' + this.baseUrl + '. Make sure the backend server is running on port 8000.');
+      if (error.status === 0 || error.status >= 500) {
+        this.errorMessage.set(friendlyFallback);
       } else if (error.error && error.error.detail) {
         if (typeof error.error.detail === 'string') {
-          this.errorMessage.set(error.error.detail);
+          this.errorMessage.set(this.sanitizeUserErrorMessage(error.error.detail));
         } else if (error.error.detail.message) {
-          this.errorMessage.set(error.error.detail.message);
+          this.errorMessage.set(this.sanitizeUserErrorMessage(error.error.detail.message));
         } else if (Array.isArray(error.error.detail) && error.error.detail[0]?.msg) {
-          this.errorMessage.set(error.error.detail[0].msg);
+          this.errorMessage.set(this.sanitizeUserErrorMessage(error.error.detail[0].msg));
         } else {
-          this.errorMessage.set('Request validation failed. Please check your travel constraints and try again.');
+          this.errorMessage.set('Please check your trip details (destination, duration, and budget) and try again.');
         }
       } else {
-        this.errorMessage.set(`Backend error (${error.status}): ${error.message || 'Please try again'}`);
+        this.errorMessage.set(friendlyFallback);
       }
     } else {
-      this.errorMessage.set('An unexpected error occurred while generating your itinerary.');
+      this.errorMessage.set(friendlyFallback);
     }
   }
 }

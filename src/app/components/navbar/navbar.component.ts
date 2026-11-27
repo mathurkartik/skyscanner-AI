@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../../services/currency.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { FlightService } from '../../services/flight.service';
+import { ThemeService } from '../../services/theme.service';
 
 export type MainTab = 'flights' | 'hotels' | 'cars' | 'explore' | 'ai';
 
@@ -17,6 +18,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   public readonly currencyService = inject(CurrencyService);
   public readonly favoritesService = inject(FavoritesService);
   public readonly flightService = inject(FlightService);
+  public readonly themeService = inject(ThemeService);
 
   // AG-032: Receive activeTab from App component input to eliminate tab state drift
   public readonly activeTab = input<MainTab>('ai');

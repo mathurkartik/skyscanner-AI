@@ -150,4 +150,14 @@ describe('AiTravelPlannerComponent (Phase 11 & Phase 12)', () => {
     component.toggleAdvancedDetails();
     expect(component.showAdvancedDetails()).toBe(false);
   });
+
+  it('should toggle welcome guide accordion and support cancelPlan (SF-1, SF-3)', () => {
+    expect(component.showWelcomeGuide()).toBe(false);
+    component.toggleWelcomeGuide();
+    expect(component.showWelcomeGuide()).toBe(true);
+
+    const cancelSpy = vi.spyOn(plannerService, 'cancelPlan');
+    component.cancelPlan();
+    expect(cancelSpy).toHaveBeenCalled();
+  });
 });

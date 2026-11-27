@@ -65,8 +65,8 @@
             [class.bg-sky-500]="categoryFilter() === cat"
             [class.text-white]="categoryFilter() === cat"
             [class.bg-slate-800]="categoryFilter() !== cat"
-            [class.text-gray-300]="categoryFilter() !== cat"
-            class="px-3 py-1 rounded-full font-medium hover:bg-slate-700 transition-colors">
+            [class.text-gray-200]="categoryFilter() !== cat"
+            class="min-h-[44px] px-4 py-2 rounded-full font-medium hover:bg-slate-700 transition-colors cursor-pointer">
             {{ cat }}
           </button>
         }
@@ -149,14 +149,14 @@
           <div>
             <div class="text-base font-black text-gray-900">
               {{ currencyService.format(car.pricePerDayUSD) }}
-              <span class="text-xs font-normal text-gray-500">/ day</span>
+              <span class="text-xs font-normal text-gray-600">/ day</span>
             </div>
-            <span class="text-[10px] text-gray-400 block">{{ currencyService.format(car.totalPriceUSD) }} total</span>
+            <span class="text-[11px] text-gray-600 block">{{ currencyService.format(car.totalPriceUSD) }} total</span>
           </div>
 
           <button 
             (click)="book(car)"
-            class="px-3.5 py-1.5 bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold rounded-xl shadow transition-colors">
+            class="min-h-[44px] px-4 py-2 bg-[#0062e3] hover:bg-[#0050b8] text-white text-xs font-bold rounded-xl shadow transition-colors cursor-pointer">
             Select
           </button>
         </div>

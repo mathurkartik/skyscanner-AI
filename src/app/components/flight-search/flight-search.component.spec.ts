@@ -74,4 +74,25 @@ describe('FlightSearchComponent (AG-116)', () => {
     component.onSearch();
     expect(searchSpy).toHaveBeenCalled();
   });
+
+  it('disables search and shows validation errors when destination is missing (SF-2)', () => {
+    const searchSpy = vi.spyOn(component.flightService, 'executeSearch');
+    expect(component.destination()).toBeNull();
+    expect(component.isSearchDisabled()).toBe(true);
+
+    component.onSearch();
+    expect(searchSpy).not.toHaveBeenCalled();
+    expect(component.showValidationErrors()).toBe(true);
+  });
+
+  it('does not require returnDate when one-way trip type is selected (SF-2)', () => {
+    component.destination.set(component.airports[1]);
+    component.returnDate.set('');
+    expect(component.isReturnDateMissing()).toBe(true);
+    expect(component.isSearchDisabled()).toBe(true);
+
+    component.setTripType('one-way');
+    expect(component.isReturnDateMissing()).toBe(false);
+    expect(component.isSearchDisabled()).toBe(false);
+  });
 });

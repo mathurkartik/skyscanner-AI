@@ -20,7 +20,7 @@ export class FlightSearchComponent {
 
   // Form State (Defaulting to Nagpur NAG as in the screenshot)
   public tripType = signal<TripType>('round-trip');
-  public origin = signal<Airport>(POPULAR_AIRPORTS[0]); // Nagpur (NAG)
+  public origin = signal<Airport | null>(POPULAR_AIRPORTS[0]); // Nagpur (NAG)
   public destination = signal<Airport | null>(null); // Country, city or airport
   public departDate = signal<string>('2026-11-15');
   public returnDate = signal<string>('2026-11-22');
@@ -32,6 +32,22 @@ export class FlightSearchComponent {
   public nearbyDestination = signal<boolean>(false);
   public addPlaceToStay = signal<boolean>(true);
   public bagsCount = signal<number>(1);
+
+  // Validation state (SF-2)
+  public originTouched = signal<boolean>(false);
+  public destinationTouched = signal<boolean>(false);
+  public showValidationErrors = signal<boolean>(false);
+
+  public isOriginMissing = computed(() => !this.origin() || !this.origin()?.code);
+  public isDestinationMissing = computed(() => !this.destination() || !this.destination()?.code);
+  public isDepartDateMissing = computed(() => !this.departDate().trim());
+  public isReturnDateMissing = computed(() => this.tripType() !== 'one-way' && !this.returnDate().trim());
+  public isSearchDisabled = computed(() =>
+    this.isOriginMissing() ||
+    this.isDestinationMissing() ||
+    this.isDepartDateMissing() ||
+    this.isReturnDateMissing()
+  );
 
   // Dropdowns
   public isTripTypeDropdownOpen = signal<boolean>(false);
@@ -99,23 +115,50 @@ export class FlightSearchComponent {
 
   public swapAirports(event: MouseEvent) {
     event.stopPropagation();
-    if (this.destination()) {
-      const temp = this.origin();
-      this.origin.set(this.destination()!);
-      this.destination.set(temp);
+    const orig = this.origin();
+    const dest = this.destination();
+    if (orig && dest) {
+      this.origin.set(dest);
+      this.destination.set(orig);
     }
+  }
+
+  public clearOrigin(event: MouseEvent) {
+    event.stopPropagation();
+    this.origin.set(null);
+    this.originTouched.set(true);
+    this.showValidationErrors.set(true);
+  }
+
+  public clearDestination(event: MouseEvent) {
+    event.stopPropagation();
+    this.destination.set(null);
+    this.destinationTouched.set(true);
+    this.showValidationErrors.set(true);
+  }
+
+  public closeOriginDropdown() {
+    this.isOriginOpen.set(false);
+    this.originTouched.set(true);
+  }
+
+  public closeDestinationDropdown() {
+    this.isDestinationOpen.set(false);
+    this.destinationTouched.set(true);
   }
 
   public selectOrigin(airport: Airport) {
     this.origin.set(airport);
     this.isOriginOpen.set(false);
     this.originSearch.set('');
+    this.originTouched.set(false);
   }
 
   public selectDestination(airport: Airport) {
     this.destination.set(airport);
     this.isDestinationOpen.set(false);
     this.destinationSearch.set('');
+    this.destinationTouched.set(false);
   }
 
   public triggerExploreEverywhere() {
@@ -140,15 +183,19 @@ export class FlightSearchComponent {
   }
 
   public onSearch() {
-    // If no destination picked, default to Tokyo or first global hub
-    const dest = this.destination() || this.airports.find(a => a.code === 'HND') || this.airports[6];
+    if (this.isSearchDisabled()) {
+      this.showValidationErrors.set(true);
+      this.originTouched.set(true);
+      this.destinationTouched.set(true);
+      return;
+    }
 
     const query: SearchQuery = {
       tripType: this.tripType(),
-      origin: this.origin(),
-      destination: dest,
+      origin: this.origin()!,
+      destination: this.destination()!,
       departDate: this.departDate(),
-      returnDate: this.returnDate(),
+      returnDate: this.tripType() === 'one-way' ? '' : this.returnDate(),
       adults: this.adults(),
       children: this.children(),
       cabinClass: this.cabinClass(),

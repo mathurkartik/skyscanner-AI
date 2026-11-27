@@ -1,6 +1,7 @@
 import { Component, inject, signal, OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { TravelPlannerService } from '../../services/travel-planner.service';
 import { FlightService } from '../../services/flight.service';
 import { CurrencyService } from '../../services/currency.service';
@@ -42,9 +43,14 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   public travelDate = signal<string>('');
   public showOriginSuggestions = signal<boolean>(false);
   public showAdvancedDetails = signal<boolean>(false);
+  public showWelcomeGuide = signal<boolean>(false);
 
   public toggleAdvancedDetails(): void {
     this.showAdvancedDetails.update(v => !v);
+  }
+
+  public toggleWelcomeGuide(): void {
+    this.showWelcomeGuide.update(v => !v);
   }
 
   public readonly popularOrigins = [
@@ -98,6 +104,7 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
   public backendUnavailable = signal<boolean>(false);
 
   private timerInterval: any = null;
+  private activePlanSub: Subscription | null = null;
 
   public readonly stages: AgentStage[] = [
     { name: 'Orchestrator', role: 'Deconstruction', icon: 'hub', detail: 'Extracting destination, duration, budget, and travel preferences...' },
@@ -176,17 +183,33 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
     const origin = this.originCity().trim();
     const date = this.travelDate().trim();
 
-    this.plannerService.generatePlan(text, useStub, origin, date).subscribe({
+    if (this.activePlanSub) {
+      this.activePlanSub.unsubscribe();
+      this.activePlanSub = null;
+    }
+
+    this.activePlanSub = this.plannerService.generatePlan(text, useStub, origin, date).subscribe({
       next: () => {
         // AG-026: Set final completion stage when results arrive and clean up timer
         this.currentStageIndex.set(this.stages.length - 1);
         this.progressMessage.set('Complete! Your verified itinerary is ready.');
         this.stopProgressSimulation();
+        this.activePlanSub = null;
       },
       error: () => {
         this.stopProgressSimulation();
+        this.activePlanSub = null;
       }
     });
+  }
+
+  public cancelPlan(): void {
+    if (this.activePlanSub) {
+      this.activePlanSub.unsubscribe();
+      this.activePlanSub = null;
+    }
+    this.stopProgressSimulation();
+    this.plannerService.cancelPlan();
   }
 
   public loadInstantDemoBlueprint(): void {
@@ -272,6 +295,10 @@ export class AiTravelPlannerComponent implements OnInit, OnDestroy {
 
   public ngOnDestroy(): void {
     this.stopProgressSimulation();
+    if (this.activePlanSub) {
+      this.activePlanSub.unsubscribe();
+      this.activePlanSub = null;
+    }
   }
 
   private stopProgressSimulation(): void {

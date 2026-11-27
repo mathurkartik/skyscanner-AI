@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-sky-navy: #02122c;
@@ -28,6 +29,14 @@
     --sky-text-muted: #68697f;
   }
 
+  html.dark {
+    --sky-surface: #0f172a;
+    --sky-bg: #070b14;
+    --sky-border: #1e293b;
+    --sky-text: #f1f5f9;
+    --sky-text-muted: #cbd5e1;
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: var(--sky-text);
@@ -35,6 +44,56 @@
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Dark mode surface harmonization for white/light cards (C-2) */
+  html.dark main {
+    background-color: #070b14;
+    color: #f1f5f9;
+  }
+  html.dark main .bg-\[\#f1f3f8\] {
+    background-color: #070b14;
+  }
+  html.dark main .bg-white:not(header *):not(footer *) {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    border-color: #1e293b;
+  }
+  html.dark main .text-gray-900,
+  html.dark main .text-gray-800 {
+    color: #f1f5f9;
+  }
+  html.dark main .text-gray-700 {
+    color: #e2e8f0;
+  }
+  html.dark main .text-gray-600,
+  html.dark main .text-gray-500 {
+    color: #cbd5e1;
+  }
+  html.dark main .text-gray-400 {
+    color: #94a3b8;
+  }
+  html.dark main .bg-gray-50,
+  html.dark main .bg-gray-100,
+  html.dark main .bg-\[\#f2f4f9\] {
+    background-color: #1e293b;
+  }
+  html.dark main .bg-sky-50,
+  html.dark main .bg-\[\#e5eaff\] {
+    background-color: #172554;
+    border-color: #1e3a8a;
+  }
+  html.dark main .bg-emerald-50 {
+    background-color: #064e3b;
+  }
+  html.dark main .bg-red-50 {
+    background-color: #450a0a;
+    border-color: #7f1d1d;
+  }
+  html.dark main .border-gray-200,
+  html.dark main .border-gray-100 {
+    border-color: #1e293b;
   }
 
   .material-symbols-outlined {

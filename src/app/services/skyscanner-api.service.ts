@@ -93,14 +93,13 @@ export class SkyscannerApiService {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Skyscanner API returned ${response.status}: ${errorText || response.statusText}`);
+        throw new Error('Unable to retrieve live flight results right now.');
       }
 
       const data = await response.json();
       return this.transformSkyscannerResponse(data, origin, destination, cabinClass);
     } catch (err: any) {
-      this.lastApiError.set(err.message || 'Unknown network error calling Skyscanner API');
+      this.lastApiError.set("I'm having trouble connecting right now. Please try again in a moment.");
       throw err;
     }
   }
